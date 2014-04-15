@@ -1,0 +1,81 @@
+<node>
+  <interface name="org.mpris.MediaPlayer2">
+    <method name="Raise"/>
+    <method name="Quit"/>
+    <property access="read" type="b" name="CanQuit"/>
+    <property access="read" type="b" name="CanRaise"/>
+    <property access="read" type="b" name="HasTrackList"/>
+    <property access="read" type="s" name="Identity"/>
+    <property access="read" type="s" name="DesktopEntry"/>
+    <property access="read" type="as" name="SupportedUriSchemes"/>
+    <property access="read" type="as" name="SupportedMimeTypes"/>
+  </interface>
+  <interface name="org.mpris.MediaPlayer2.Player">
+    <method name="Next"/>
+    <method name="Previous"/>
+    <method name="Pause"/>
+    <method name="PlayPause"/>
+    <method name="Stop"/>
+    <method name="Play"/>
+    <method name="Seek">
+      <arg direction="in" type="x" name="Offset"/>
+    </method>
+    <method name="SetPosition">
+      <arg direction="in" type="o" name="TrackId"/>
+      <arg direction="in" type="x" name="Position"/>
+    </method>
+    <method name="OpenUri">
+      <arg direction="in" type="s"/>
+    </method>
+    <!-- Signals -->
+    <signal name="Seeked">
+      <arg type="x" name="Position"/>
+    </signal>
+    <!-- Properties -->
+    <property access="read" type="s" name="PlaybackStatus"/>
+    <property access="readwrite" type="s" name="LoopStatus"/>
+    <property access="readwrite" type="d" name="Rate"/>
+    <property access="readwrite" type="b" name="Shuffle"/>
+    <property access="read" type="a{sv}" name="Metadata">
+      <annotation value="QVariantMap" name="com.trolltech.QtDBus.QtTypeName"/>
+    </property>
+    <property access="readwrite" type="d" name="Volume"/>
+    <property access="read" type="x" name="Position"/>
+    <property access="read" type="d" name="MinimumRate"/>
+    <property access="read" type="d" name="MaximumRate"/>
+    <property access="read" type="b" name="CanGoNext"/>
+    <property access="read" type="b" name="CanGoPrevious"/>
+    <property access="read" type="b" name="CanPlay"/>
+    <property access="read" type="b" name="CanPause"/>
+    <property access="read" type="b" name="CanSeek"/>
+    <property access="read" type="b" name="CanControl"/>
+  </interface>
+  <interface name="org.freedesktop.DBus.Properties">
+    <method name="Get">
+      <arg name="interface_name" type="s" direction="in"/>
+      <arg name="property_name" type="s" direction="in"/>
+      <arg name="value" type="v" direction="out"/>
+    </method>
+    <method name="Set">
+      <arg name="interface_name" type="s" direction="in"/>
+      <arg name="property_name" type="s" direction="in"/>
+      <arg name="value" type="v" direction="in"/>
+    </method>
+    <method name="GetAll">
+      <arg name="interface_name" type="s" direction="in"/>
+      <arg name="values" type="a{sv}" direction="out"/>
+      <annotation name="org.qtproject.QtDBus.QtTypeName.Out0" value="QVariantMap"/>
+    </method>
+  </interface>
+  <interface name="org.freedesktop.DBus.Introspectable">
+    <method name="Introspect">
+      <arg name="xml_data" type="s" direction="out"/>
+    </method>
+  </interface>
+  <interface name="org.freedesktop.DBus.Peer">
+    <method name="Ping"/>
+    <method name="GetMachineId">
+      <arg name="machine_uuid" type="s" direction="out"/>
+    </method>
+  </interface>
+</node>
