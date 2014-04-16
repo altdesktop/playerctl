@@ -89,6 +89,8 @@ static void playerctl_player_initable_iface_init(GInitableIface *iface);
 G_DEFINE_TYPE_WITH_CODE (PlayerctlPlayer, playerctl_player, G_TYPE_OBJECT,
     G_ADD_PRIVATE(PlayerctlPlayer) G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE, playerctl_player_initable_iface_init));
 
+G_DEFINE_QUARK(playerctl-player-error-quark, playerctl_player_error);
+
 static void playerctl_player_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
   PlayerctlPlayer *self = PLAYERCTL_PLAYER(object);
 
@@ -260,6 +262,8 @@ static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err)
   gchar *bus_name;
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
+
   if (self->priv->bus_name != NULL) {
     return self->priv->bus_name;
   }
@@ -313,6 +317,12 @@ static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err)
     g_free(names);
   }
 
+  if (bus_name == NULL) {
+    tmp_error = g_error_new(playerctl_player_error_quark(), 1, "No players found");
+    g_propagate_error(err, tmp_error);
+    return NULL;
+  }
+
   return bus_name;
 }
 
@@ -330,7 +340,6 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
 
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
-    g_object_unref(player);
     return FALSE;
   }
 
@@ -344,7 +353,6 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
 
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
-    g_object_unref(player);
     return FALSE;
   }
 
@@ -380,7 +388,6 @@ PlayerctlPlayer *playerctl_player_new(gchar *name, GError **err)
 
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
-    g_object_unref(player);
     return NULL;
   }
 
