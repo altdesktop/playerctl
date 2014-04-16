@@ -409,7 +409,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
   GError *tmp_error = NULL;
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, tmp_error);
+    g_propagate_error(err, self->priv->init_error);
     return self;
   }
 
@@ -437,7 +437,7 @@ PlayerctlPlayer *playerctl_player_play_pause(PlayerctlPlayer *self, GError **err
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, tmp_error);
+    g_propagate_error(err, self->priv->init_error);
     return self;
   }
 
@@ -468,7 +468,7 @@ PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err)
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, tmp_error);
+    g_propagate_error(err, self->priv->init_error);
     return self;
   }
 
@@ -502,7 +502,7 @@ PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err)
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, tmp_error);
+    g_propagate_error(err, self->priv->init_error);
     return self;
   }
 
@@ -533,7 +533,7 @@ PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err)
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, tmp_error);
+    g_propagate_error(err, self->priv->init_error);
     return self;
   }
 
@@ -563,7 +563,7 @@ PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, tmp_error);
+    g_propagate_error(err, self->priv->init_error);
     return self;
   }
 
