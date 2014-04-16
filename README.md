@@ -27,7 +27,7 @@ sudo make install
 The `playerctl` binary should now be in your path.
 
 ```
-playerctl [--player=NAME] COMMAND
+playerctl [--version] [--player=NAME] COMMAND
 ```
 
 Pass the name of your player as the first argument (`playerctl` will attempt to connect to `org.mpris.MediaPlayer2.[NAME]` on your DBus session). Otherwise it will use the first player it can find.
@@ -38,6 +38,8 @@ Here is a list of available commands:
   play            Command the player to play
   pause           Command the player to pause
   play-pause      Command the player to toggle between play/pause
+  next            Command the player to skip to the next track
+  previous        Command the player to skip to the previous track
   volume [LEVEL]  Print or set the volume to LEVEL from 0.0 to 1.0
   status          Get the play status of the player
   metadata        Print metadata information for the current track
