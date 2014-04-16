@@ -11,6 +11,7 @@ lib_LTLIBRARIES =
 bin_PROGRAMS =
 
 AM_CPPFLAGS += \
+	-DPLAYERCTL_VERSION=\""$(PLAYERCTL_VERSION)"\" \
 	$(PLAYERCTL_CFLAGS) \
 	$(NULL)
 
@@ -51,6 +52,7 @@ EXTRA_DIST += playerctl.h
 
 bin_PROGRAMS += playerctl
 playerctl_SOURCES = playerctl-cli.c
+playerctl_CPPFLAGS = $(AM_CPPFLAGS)
 playerctl_LDADD = libplayerctl-1.0.la
 
 -include $(INTROSPECTION_MAKEFILE)

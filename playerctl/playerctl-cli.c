@@ -21,6 +21,7 @@
 #include "playerctl-player.h"
 
 static char *player_name = NULL;
+static gboolean version_opt = FALSE;
 static char **command = NULL;
 
 static char *description = "Available Commands:"
@@ -37,6 +38,7 @@ static char *summary = "  For true players only: spotify, vlc, audacious, bmp, x
 
 static GOptionEntry entries[] = {
   { "player", 'p', 0, G_OPTION_ARG_STRING, &player_name, "The name of the player to control (default: the first available player)", "NAME" },
+  { "version", 'V', 0, G_OPTION_ARG_NONE, &version_opt, "Print version information and exit", NULL},
   { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command, NULL, "COMMAND" },
   { NULL }
 };
@@ -54,6 +56,11 @@ int main (int argc, char *argv[])
   if (!g_option_context_parse(context, &argc, &argv, &error)) {
     g_print("Option parsing failed: %s\n", error->message);
     return 1;
+  }
+
+  if (version_opt) {
+    g_print("v%s\n", PLAYERCTL_VERSION);
+    return 0;
   }
 
   if (command == NULL) {
