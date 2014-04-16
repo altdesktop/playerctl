@@ -74,4 +74,8 @@ PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err);
 
 PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err);
 
+PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err);
+
+PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err);
+
 #endif /* __PLAYERCTL_PLAYER_H__ */

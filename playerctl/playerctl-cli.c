@@ -27,6 +27,8 @@ static char *description = "Available Commands:"
 "\n  play \t\t\tCommand the player to play"
 "\n  pause \t\tCommand the player to pause"
 "\n  play-pause \t\tCommand the player to toggle between play/pause"
+"\n  next \t\t\tCommand the player to skip to the next track"
+"\n  previous \t\tCommand the player to skip to the previous track"
 "\n  volume [LEVEL] \tPrint or set the volume to LEVEL from 0.0 to 1.0"
 "\n  status \t\tGet the play status of the player"
 "\n  metadata \t\tPrint metadata information for the current track";
@@ -88,6 +90,12 @@ int main (int argc, char *argv[])
   } else if (g_strcmp0(command[0], "play-pause") == 0) {
     /* PLAY-PAUSE */
     playerctl_player_play_pause(player, &error);
+  } else if (g_strcmp0(command[0], "next") == 0) {
+    /* NEXT */
+    playerctl_player_next(player, &error);
+  } else if (g_strcmp0(command[0], "previous") == 0) {
+    /* PREVIOUS */
+    playerctl_player_previous(player, &error);
   } else if (g_strcmp0(command[0], "metadata") == 0) {
     /* METADATA */
     GVariant *metadata = NULL;

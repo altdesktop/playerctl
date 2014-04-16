@@ -509,3 +509,63 @@ PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err)
 
   return self;
 }
+
+/**
+ * playerctl_player_next:
+ * @self: a #PlayerctlPlayer
+ * @err: (allow-none): the location of a GError or NULL
+ *
+ * Command the player to go to the next track
+ *
+ * Returns: (transfer none): the #PlayerctlPlayer for chaining
+ */
+PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err)
+{
+  GError *tmp_error = NULL;
+
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+
+  if (self->priv->init_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return self;
+  }
+
+  org_mpris_media_player2_player_call_next_sync(self->priv->proxy, NULL, &tmp_error);
+
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return self;
+  }
+
+  return self;
+}
+
+/**
+ * playerctl_player_previous:
+ * @self: a #PlayerctlPlayer
+ * @err: (allow-none): the location of a GError or NULL
+ *
+ * Command the player to go to the previous track
+ *
+ * Returns: (transfer none): the #PlayerctlPlayer for chaining
+ */
+PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
+{
+  GError *tmp_error = NULL;
+
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+
+  if (self->priv->init_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return self;
+  }
+
+  org_mpris_media_player2_player_call_previous_sync(self->priv->proxy, NULL, &tmp_error);
+
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return self;
+  }
+
+  return self;
+}
