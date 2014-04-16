@@ -117,6 +117,8 @@ int main (int argc, char *argv[])
     } else {
       g_print("Not available\n");
     }
+
+    g_free(status);
   } else {
     /* unrecognized command */
     g_print(g_option_context_get_help(context, TRUE, NULL));
