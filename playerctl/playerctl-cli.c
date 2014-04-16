@@ -124,5 +124,10 @@ int main (int argc, char *argv[])
     g_print(g_option_context_get_help(context, TRUE, NULL));
   }
 
+  if (error != NULL) {
+    g_print("An error occurred: %s\n", error->message);
+    return 1;
+  }
+
   return 0;
 }
