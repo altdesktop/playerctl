@@ -121,18 +121,30 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
       break;
 
     case PROP_STATUS:
-      g_value_set_string(value, org_mpris_media_player2_player_get_playback_status(self->priv->proxy));
+      if (self->priv->proxy)
+        g_value_set_string(value, org_mpris_media_player2_player_get_playback_status(self->priv->proxy));
+      else
+        g_value_set_string(value, "");
+
       break;
 
     case PROP_METADATA:
       {
-        GVariant *metadata = org_mpris_media_player2_player_get_metadata(self->priv->proxy);
+        GVariant *metadata = NULL;
+
+        if (self->priv->proxy)
+          metadata = org_mpris_media_player2_player_get_metadata(self->priv->proxy);
+
         g_value_set_variant(value, metadata);
         break;
       }
 
     case PROP_VOLUME:
-      g_value_set_double(value, org_mpris_media_player2_player_get_volume(self->priv->proxy));
+      if (self->priv->proxy)
+        g_value_set_double(value, org_mpris_media_player2_player_get_volume(self->priv->proxy));
+      else
+        g_value_set_double(value, 0);
+
       break;
 
     default:
