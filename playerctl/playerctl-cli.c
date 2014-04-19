@@ -32,7 +32,7 @@ static char *description = "Available Commands:"
 "\n  previous \t\tCommand the player to skip to the previous track"
 "\n  volume [LEVEL] \tPrint or set the volume to LEVEL from 0.0 to 1.0"
 "\n  status \t\tGet the play status of the player"
-"\n  metadata \t\tPrint metadata information for the current track";
+"\n  metadata [KEY] \tPrint metadata information for the current track. Print only value of KEY if passed";
 
 static char *summary = "  For true players only: spotify, vlc, audacious, bmp, xmms2, mplayer, and others.";
 
@@ -105,15 +105,19 @@ int main (int argc, char *argv[])
     playerctl_player_previous(player, &error);
   } else if (g_strcmp0(command[0], "metadata") == 0) {
     /* METADATA */
-    GVariant *metadata = NULL;
-    g_object_get(player, "metadata", &metadata, NULL);
+    gchar *value = NULL;
+    if (g_strcmp0(command[1], "artist") == 0)
+      value = playerctl_player_get_artist(player, &error);
+    else if (g_strcmp0(command[1], "title") == 0)
+      value = playerctl_player_get_title(player, &error);
+    else if (g_strcmp0(command[1], "album") == 0)
+      value = playerctl_player_get_album(player, &error);
+    else
+       value = playerctl_player_print_metadata_prop(player, command[1], &error);
 
-    if (metadata) {
-      g_print("%s\n", g_variant_print(metadata, FALSE));
-      g_variant_unref(metadata);
-    } else {
-      g_print("None\n");
-    }
+    g_print(value);
+
+    g_free(value);
   } else if (g_strcmp0(command[0], "status") == 0) {
     /* STATUS */
     gchar *status = NULL;

@@ -42,7 +42,7 @@ Here is a list of available commands:
   previous        Command the player to skip to the previous track
   volume [LEVEL]  Print or set the volume to LEVEL from 0.0 to 1.0
   status          Get the play status of the player
-  metadata        Print metadata information for the current track
+  metadata [KEY]  Print metadata information for the current track. Print only value of KEY if passed.
 ```
 
 ## Using the Library
