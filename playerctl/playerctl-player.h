@@ -78,4 +78,12 @@ PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err);
 
 PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err);
 
+gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, gchar *property, GError **err);
+
+gchar *playerctl_player_get_artist(PlayerctlPlayer *self, GError **err);
+
+gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err);
+
+gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err);
+
 #endif /* __PLAYERCTL_PLAYER_H__ */

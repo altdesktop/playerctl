@@ -588,3 +588,137 @@ PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
 
   return self;
 }
+
+/**
+ * playerctl_player_print_metadata:
+ * @self: a #PlayerctlPlayer
+ * @property: (allow-none): the property from the metadata to print
+ * @err: (allow-none): the location of a GError or NULL
+ *
+ * Gets the artist from the metadata of the current track, or empty string if
+ * no track is playing.
+ *
+ * Returns: (transfer full): The artist from the metadata of the current track
+ */
+gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, gchar *property, GError **err)
+{
+  GVariant *prop_variant;
+  const gchar **prop_strv;
+  GString *prop;
+  GVariant *metadata;
+  GError *tmp_error = NULL;
+
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+
+  if (self->priv->init_error != NULL) {
+    g_propagate_error(err, self->priv->init_error);
+    return NULL;
+  }
+
+  metadata = org_mpris_media_player2_player_get_metadata(self->priv->proxy);
+  if (!metadata)
+    return g_strdup("");
+
+  if (!property)
+    return g_variant_print(metadata, FALSE);
+
+  prop_variant = g_variant_lookup_value(metadata, property, NULL);
+
+  if (!prop_variant)
+    return g_strdup("");
+
+  prop = g_string_new("");
+
+  if (g_variant_is_of_type(prop_variant, G_VARIANT_TYPE_STRING_ARRAY)) {
+    gsize prop_count;
+    prop_strv = g_variant_get_strv(prop_variant, &prop_count);
+
+    for (int i = 0; i < prop_count; i += 1) {
+      g_string_append(prop, prop_strv[i]);
+
+      if (i != prop_count - 1) {
+        g_string_append(prop, ", ");
+      }
+    }
+
+    g_free(prop_strv);
+  } else if (g_variant_is_of_type(prop_variant, G_VARIANT_TYPE_STRING)) {
+    g_string_append(prop, g_variant_get_string(prop_variant, NULL));
+  } else {
+    prop = g_variant_print_string(prop_variant, prop, FALSE);
+  }
+
+  return g_string_free(prop, FALSE);
+}
+
+/**
+ * playerctl_player_get_artist:
+ * @self: a #PlayerctlPlayer
+ * @err: (allow-none): the location of a GError or NULL
+ *
+ * Gets the artist from the metadata of the current track, or empty string if
+ * no track is playing.
+ *
+ * Returns: (transfer full): The artist from the metadata of the current track
+ */
+gchar *playerctl_player_get_artist(PlayerctlPlayer *self, GError **err)
+{
+  GError *tmp_error = NULL;
+
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+
+  if (self->priv->init_error != NULL) {
+    g_propagate_error(err, self->priv->init_error);
+    return NULL;
+  }
+
+  return playerctl_player_print_metadata_prop(self, "xesam:artist", NULL);
+}
+
+/**
+ * playerctl_player_get_title:
+ * @self: a #PlayerctlPlayer
+ * @err: (allow-none): the location of a GError or NULL
+ *
+ * Gets the title from the metadata of the current track, or empty string if
+ * no track is playing.
+ *
+ * Returns: (transfer full): The title from the metadata of the current track
+ */
+gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err)
+{
+  GError *tmp_error = NULL;
+
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+
+  if (self->priv->init_error != NULL) {
+    g_propagate_error(err, self->priv->init_error);
+    return NULL;
+  }
+
+  return playerctl_player_print_metadata_prop(self, "xesam:title", NULL);
+}
+
+/**
+ * playerctl_player_get_album:
+ * @self: a #PlayerctlPlayer
+ * @err: (allow-none): the location of a GError or NULL
+ *
+ * Gets the album from the metadata of the current track, or empty string if
+ * no track is playing.
+ *
+ * Returns: (transfer full): The album from the metadata of the current track
+ */
+gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err)
+{
+  GError *tmp_error = NULL;
+
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+
+  if (self->priv->init_error != NULL) {
+    g_propagate_error(err, self->priv->init_error);
+    return NULL;
+  }
+
+  return playerctl_player_print_metadata_prop(self, "xesam:album", NULL);
+}

@@ -13,7 +13,7 @@ def on_play(player):
     print('Playing at volume {}'.format(player.props.volume))
 
 def on_pause(player):
-    print('Paused the song: {}'.format(player.props.metadata['xesam:title']))
+    print('Paused the song: {}'.format(player.get_title()))
 
 player.on('play', on_play)
 player.on('pause', on_pause)
@@ -21,6 +21,9 @@ player.on('metadata', on_metadata)
 
 # start playing some music
 player.play()
+
+if player.get_artist() == 'Lana Del Rey':
+    player.next()
 
 # wait for events
 main = GLib.MainLoop()
