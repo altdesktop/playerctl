@@ -54,7 +54,7 @@ int main (int argc, char *argv[])
   g_option_context_set_summary(context, summary);
 
   if (!g_option_context_parse(context, &argc, &argv, &error)) {
-    g_print("Option parsing failed: %s\n", error->message);
+    g_printerr("Option parsing failed: %s\n", error->message);
     return 1;
   }
 
@@ -71,7 +71,7 @@ int main (int argc, char *argv[])
   PlayerctlPlayer *player = playerctl_player_new(player_name, &error);
 
   if (error != NULL) {
-    g_print("Connection to player failed: %s\n", error->message);
+    g_printerr("Connection to player failed: %s\n", error->message);
     return 1;
   }
 
@@ -136,7 +136,7 @@ int main (int argc, char *argv[])
   }
 
   if (error != NULL) {
-    g_print("An error occurred: %s\n", error->message);
+    g_printerr("An error occurred: %s\n", error->message);
     return 1;
   }
 
