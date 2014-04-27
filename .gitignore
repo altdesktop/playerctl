@@ -1,1 +1,81 @@
+# Autotools
+/configure
+/stamp-h1
+/libtool
+/gtk-doc.make
+/**/Makefile
+/**/Makefile.in
+/aclocal.m4
+/autom4te.cache
+/config.h
+/config.h.in
+/config.log
+/config.status
+/build/ar-lib
+/build/compile
+/build/config.guess
+/build/config.sub
+/build/depcomp
+/build/install-sh
+/build/ltmain.sh
+/build/missing
+/build/autotools/libtool.m4
+/build/autotools/ltoptions.m4
+/build/autotools/ltsugar.m4
+/build/autotools/ltversion.m4
+/build/autotools/lt~obsolete.m4
+
+# Docs
+/build/autotools/gtk-doc.m4
+/doc/reference/html/**/*
+/doc/reference/xml/**/*
+/doc/reference/version.xml
+
+# Project-specific
+/playerctl/.deps/**/*
+/playerctl/.libs/**/*
+/playerctl-*.tar.gz
+/playerctl/*-generated.[ch]
+/playerctl/playerctl
+/playerctl/playerctl.pc
+/playerctl/playerctl-1.0.pc
+/playerctl/Playerctl-1.0.gir
+/playerctl/Playerctl-1.0.typelib
+/playerctl/Playerctl_1_0_gir
+
+# ASD
+.flagged
+
+# Editor
+*.swl
+*.swm
+*.swn
+*.swo
 *.swp
+.clang_complete
+
+# Object files
+*.lo
+*.la
+*.o
+*.ko
+*.obj
+*.elf
+
+# Libraries
+*.lib
+*.a
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
