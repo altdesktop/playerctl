@@ -92,6 +92,7 @@ main.run()
 
 ## License
 
-This work is available under the GNU General Public License (See COPYING).
+This work is available under the GNU Lesser General Public License (See
+COPYING).
 
 Copyright © 2014, Tony Crisci
