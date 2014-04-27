@@ -50,6 +50,16 @@ playerctlinclude_DATA = \
 
 EXTRA_DIST += playerctl.h
 
+pcfiles = playerctl-1.0.pc
+
+playerctl-1.0.pc: playerctl.pc
+	$(AM_V_GEN)cp -f $< $@
+
+pkgconfig_DATA = $(pcfiles)
+pkgconfigdir = $(libdir)/pkgconfig
+CLEANFILES += $(pcfiles)
+EXTRA_DIST += playerctl.pc.in
+
 bin_PROGRAMS += playerctl
 playerctl_SOURCES = playerctl-cli.c
 playerctl_CPPFLAGS = $(AM_CPPFLAGS)

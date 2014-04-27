@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: Playerctl
+Description: A C library for MPRIS players
+Version: @VERSION@
+Libs: -L${libdir} -lplayerctl-1.0
+Cflags: -I${includedir}/playerctl
+Requires: gobject-2.0
+Requires.private: gio-2.0

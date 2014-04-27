@@ -23,4 +23,4 @@
 
 #include "playerctl-player.h"
 
-#endif /* __PLAYERCTL_H__
+#endif /* __PLAYERCTL_H__ */
