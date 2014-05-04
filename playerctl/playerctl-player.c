@@ -433,6 +433,25 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
   return self;
 }
 
+#define PLAYER_COMMAND_FUNC(COMMAND) \
+  GError *tmp_error = NULL; \
+ \
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL); \
+ \
+  if (self->priv->init_error != NULL) { \
+    g_propagate_error(err, self->priv->init_error); \
+    return self; \
+  } \
+ \
+  org_mpris_media_player2_player_call_##COMMAND##_sync(self->priv->proxy, NULL, &tmp_error); \
+ \
+  if (tmp_error != NULL) { \
+    g_propagate_error(err, tmp_error); \
+    return self; \
+  } \
+ \
+  return self;
+
 /**
  * playerctl_player_play_pause:
  * @self: a #PlayerctlPlayer
@@ -444,23 +463,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
  */
 PlayerctlPlayer *playerctl_player_play_pause(PlayerctlPlayer *self, GError **err)
 {
-  GError *tmp_error = NULL;
-
-  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
-
-  if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
-    return self;
-  }
-
-  org_mpris_media_player2_player_call_play_pause_sync(self->priv->proxy, NULL, &tmp_error);
-
-  if (tmp_error != NULL) {
-    g_propagate_error(err, tmp_error);
-    return self;
-  }
-
-  return self;
+  PLAYER_COMMAND_FUNC(play_pause);
 }
 
 /**
@@ -474,6 +477,8 @@ PlayerctlPlayer *playerctl_player_play_pause(PlayerctlPlayer *self, GError **err
  */
 PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err)
 {
+  /* Unfortunately, there is a bug in Spotify that we have to make a special
+   * exception for */
   GError *tmp_error = NULL;
   const gchar* status = org_mpris_media_player2_player_get_playback_status (self->priv->proxy);
 
@@ -508,25 +513,7 @@ PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err)
  */
 PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err)
 {
-  GError *tmp_error = NULL;
-  const gchar* status = org_mpris_media_player2_player_get_playback_status (self->priv->proxy);
-
-  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
-
-  if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
-    return self;
-  }
-
-  if (g_strcmp0(status, "Playing") == 0)
-    org_mpris_media_player2_player_call_play_pause_sync(self->priv->proxy, NULL, &tmp_error);
-
-  if (tmp_error != NULL) {
-    g_propagate_error(err, tmp_error);
-    return self;
-  }
-
-  return self;
+  PLAYER_COMMAND_FUNC(pause);
 }
 
 /**
@@ -540,23 +527,7 @@ PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err)
  */
 PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err)
 {
-  GError *tmp_error = NULL;
-
-  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
-
-  if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
-    return self;
-  }
-
-  org_mpris_media_player2_player_call_next_sync(self->priv->proxy, NULL, &tmp_error);
-
-  if (tmp_error != NULL) {
-    g_propagate_error(err, tmp_error);
-    return self;
-  }
-
-  return self;
+  PLAYER_COMMAND_FUNC(next);
 }
 
 /**
@@ -570,23 +541,7 @@ PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err)
  */
 PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
 {
-  GError *tmp_error = NULL;
-
-  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
-
-  if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
-    return self;
-  }
-
-  org_mpris_media_player2_player_call_previous_sync(self->priv->proxy, NULL, &tmp_error);
-
-  if (tmp_error != NULL) {
-    g_propagate_error(err, tmp_error);
-    return self;
-  }
-
-  return self;
+  PLAYER_COMMAND_FUNC(previous);
 }
 
 /**
