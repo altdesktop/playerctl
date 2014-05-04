@@ -517,6 +517,20 @@ PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err)
 }
 
 /**
+ * playerctl_player_stop:
+ * @self: a #PlayerctlPlayer
+ * @err (allow-none): the location of a GError or NULL
+ *
+ * Command the player to stop
+ *
+ * Returns: (transfer none): the #PlayerctlPlayer for chaining
+ */
+PlayerctlPlayer *playerctl_player_stop(PlayerctlPlayer *self, GError **err)
+{
+  PLAYER_COMMAND_FUNC(stop);
+}
+
+/**
  * playerctl_player_next:
  * @self: a #PlayerctlPlayer
  * @err: (allow-none): the location of a GError or NULL

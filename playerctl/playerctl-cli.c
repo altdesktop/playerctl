@@ -28,6 +28,7 @@ static char *description = "Available Commands:"
 "\n  play \t\t\tCommand the player to play"
 "\n  pause \t\tCommand the player to pause"
 "\n  play-pause \t\tCommand the player to toggle between play/pause"
+"\n  stop \t\t\tCommand the player to stop"
 "\n  next \t\t\tCommand the player to skip to the next track"
 "\n  previous \t\tCommand the player to skip to the previous track"
 "\n  volume [LEVEL] \tPrint or set the volume to LEVEL from 0.0 to 1.0"
@@ -97,6 +98,9 @@ int main (int argc, char *argv[])
   } else if (g_strcmp0(command[0], "play-pause") == 0) {
     /* PLAY-PAUSE */
     playerctl_player_play_pause(player, &error);
+  } else if (g_strcmp0(command[0], "stop") == 0) {
+    /* STOP */
+    playerctl_player_stop(player, &error);
   } else if (g_strcmp0(command[0], "next") == 0) {
     /* NEXT */
     playerctl_player_next(player, &error);
