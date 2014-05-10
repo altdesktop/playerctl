@@ -125,7 +125,7 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
   switch (property_id)
   {
     case PROP_PLAYER_NAME:
-      g_value_set_string(value, self->priv->bus_name);
+      g_value_set_string(value, self->priv->player_name);
       break;
 
     case PROP_STATUS:
@@ -357,8 +357,8 @@ static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err)
 
     for (int i = 0; i < reply_count; i += 1) {
       if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
-          bus_name = g_strdup(names[i]);
-          break;
+        bus_name = g_strdup(names[i]);
+        break;
       }
     }
 
@@ -392,6 +392,13 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
     return FALSE;
+  }
+
+  if (player->priv->player_name == NULL) {
+    /* org.mpris.MediaPlayer2.[NAME] */
+    gchar **split_bus_name = g_strsplit(player->priv->bus_name, ".", 4);
+    player->priv->player_name = g_strdup(split_bus_name[3]);
+    g_strfreev(split_bus_name);
   }
 
   player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
