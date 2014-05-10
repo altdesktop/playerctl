@@ -62,6 +62,7 @@ GTK_DOC_CHECK([1.14],[--flavour no-tmpl])
 AC_CONFIG_FILES([Makefile
                  playerctl/Makefile
                  playerctl/playerctl.pc
+                 playerctl/playerctl-version.h
                  doc/Makefile
                  doc/reference/Makefile
                  doc/reference/version.xml

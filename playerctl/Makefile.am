@@ -11,7 +11,6 @@ lib_LTLIBRARIES =
 bin_PROGRAMS =
 
 AM_CPPFLAGS += \
-	-DPLAYERCTL_VERSION=\""$(PLAYERCTL_VERSION)"\" \
 	$(PLAYERCTL_CFLAGS) \
 	$(NULL)
 
@@ -44,11 +43,12 @@ libplayerctl_1_0_la_SOURCES = $(source_c) $(source_h) $(BUILT_SOURCES)
 playerctlincludedir = $(includedir)/playerctl
 playerctlinclude_DATA = \
 	$(source_h) \
+	$(top_srcdir)/playerctl/playerctl-version.h \
 	$(top_srcdir)/playerctl/playerctl.h \
 	$(top_srcdir)/playerctl/playerctl-generated.h \
 	$(NULL)
 
-EXTRA_DIST += playerctl.h
+EXTRA_DIST += playerctl.h playerctl-version.h.in playerctl-version.h
 
 pcfiles = playerctl-1.0.pc
 

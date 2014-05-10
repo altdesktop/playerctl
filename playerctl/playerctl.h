@@ -21,6 +21,7 @@
 #ifndef __PLAYERCTL_H__
 #define __PLAYERCTL_H__
 
+#include "playerctl-version.h"
 #include "playerctl-player.h"
 
 #endif /* __PLAYERCTL_H__ */

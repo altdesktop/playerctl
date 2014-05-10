@@ -18,7 +18,7 @@
  * Copyright © 2014, Tony Crisci
  */
 
-#include "playerctl-player.h"
+#include "playerctl.h"
 
 static char *player_name = NULL;
 static gboolean version_opt = FALSE;
@@ -60,7 +60,7 @@ int main (int argc, char *argv[])
   }
 
   if (version_opt) {
-    g_print("v%s\n", PLAYERCTL_VERSION);
+    g_print("v%s\n", PLAYERCTL_VERSION_S);
     return 0;
   }
 
