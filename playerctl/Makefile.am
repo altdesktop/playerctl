@@ -45,7 +45,6 @@ playerctlinclude_DATA = \
 	$(source_h) \
 	$(top_srcdir)/playerctl/playerctl-version.h \
 	$(top_srcdir)/playerctl/playerctl.h \
-	$(top_srcdir)/playerctl/playerctl-generated.h \
 	$(NULL)
 
 EXTRA_DIST += playerctl.h playerctl-version.h.in playerctl-version.h
