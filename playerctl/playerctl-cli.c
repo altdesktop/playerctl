@@ -119,7 +119,7 @@ int main (int argc, char *argv[])
     else
        value = playerctl_player_print_metadata_prop(player, command[1], &error);
 
-    g_print(value);
+    g_print("%s", value);
 
     g_free(value);
   } else if (g_strcmp0(command[0], "status") == 0) {
