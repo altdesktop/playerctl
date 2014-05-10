@@ -559,7 +559,7 @@ PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
 }
 
 /**
- * playerctl_player_print_metadata:
+ * playerctl_player_print_metadata_prop:
  * @self: a #PlayerctlPlayer
  * @property: (allow-none): the property from the metadata to print
  * @err: (allow-none): the location of a GError or NULL
