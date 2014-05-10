@@ -37,6 +37,7 @@
 /playerctl-*.tar.gz
 /playerctl/*-generated.[ch]
 /playerctl/playerctl
+/playerctl/playerctl-version.h
 /playerctl/playerctl.pc
 /playerctl/playerctl-1.0.pc
 /playerctl/Playerctl-1.0.gir

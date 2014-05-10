@@ -27,6 +27,8 @@ source_c = \
 	playerctl-player.c \
 	$(NULL)
 
+DISTCLEANFILES += playerctl-version.h
+
 playerctl-generated.c:
 	$(GDBUS_CODEGEN) --generate-c-code playerctl-generated mpris-dbus-interface.xml
 
