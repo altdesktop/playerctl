@@ -21,6 +21,10 @@
 #ifndef __PLAYERCTL_PLAYER_H__
 #define __PLAYERCTL_PLAYER_H__
 
+#if !defined(__PLAYERCTL_INSIDE__) && !defined(PLAYERCTL_COMPILATION)
+#error "Only <playerctl/playerctl.h> can be included directly."
+#endif
+
 #include <glib-object.h>
 /**
   * SECTION: playerctl-player
