@@ -84,6 +84,7 @@ player.on('metadata', on_metadata)
 player.play()
 
 if player.get_artist() == 'Lana Del Rey':
+    # I meant some good music!
     player.next()
 
 # wait for events
