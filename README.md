@@ -12,11 +12,11 @@ For examples, use cases, and project goals, see my [blog post](http://dubstepdis
 
 ## Installing
 
-First, check and see if the library is available from your package manager (if it is not, get someone to host a package for you).
+First, check and see if the library is available from your package manager (if it is not, get someone to host a package for you) and also check the [releases](https://github.com/acrisci/playerctl/releases) page on github.
 
 Using the library requires [GLib](https://developer.gnome.org/glib/) (which is a dependency of almost all of these players as well, so you probably already have it).
 
-To generate and build the project:
+To generate and build the project to contribute to development:
 
 ```shell
 ./autogen.sh # --prefix=/usr may be required
