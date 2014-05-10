@@ -41,6 +41,7 @@ enum {
   PAUSE,
   STOP,
   METADATA,
+  EXIT,
   LAST_SIGNAL
 };
 
@@ -81,6 +82,13 @@ static void playerctl_player_properties_changed_callback (GDBusProxy *_proxy, GV
     else if (g_strcmp0(status_str, "Stopped") == 0)
       g_signal_emit(self, connection_signals[STOP], 0);
 
+  }
+
+  for (int i = 0; invalidated_properties[i] != NULL; i += 1) {
+    if (g_strcmp0(invalidated_properties[i], "PlaybackStatus") == 0) {
+      g_signal_emit(self, connection_signals[EXIT], 0);
+      break;
+    }
   }
 }
 
@@ -262,6 +270,17 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
       G_TYPE_NONE,                          /* return_type */
       1,                                    /* n_params */
       G_TYPE_VARIANT);
+
+  connection_signals[EXIT] = g_signal_new(
+      "exit",                               /* signal_name */
+      PLAYERCTL_TYPE_PLAYER,                /* itype */
+      G_SIGNAL_RUN_FIRST,                   /* signal_flags */
+      0,                                    /* class_offset */
+      NULL,                                 /* accumulator */
+      NULL,                                 /* accu_data */
+      g_cclosure_marshal_VOID__VOID,        /* c_marshaller */
+      G_TYPE_NONE,                          /* return_type */
+      0);                                   /* n_params */
 }
 
 static void playerctl_player_init (PlayerctlPlayer *self)
