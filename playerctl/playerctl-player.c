@@ -271,7 +271,7 @@ static void playerctl_player_init (PlayerctlPlayer *self)
 
 static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err)
 {
-  gchar *bus_name;
+  gchar *bus_name = NULL;
   GError *tmp_error = NULL;
 
   g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
