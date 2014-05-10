@@ -36,7 +36,7 @@ enum {
 };
 
 enum {
-  PROPERTIES_CHANGED,
+  //PROPERTIES_CHANGED,
   PLAY,
   PAUSE,
   STOP,
@@ -234,6 +234,8 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
 
   g_object_class_install_properties(gobject_class, N_PROPERTIES, obj_properties);
 
+#if 0
+  /* not implemented yet */
   connection_signals[PROPERTIES_CHANGED] = g_signal_new(
       "properties-changed",                 /* signal_name */
       PLAYERCTL_TYPE_PLAYER,                /* itype */
@@ -245,6 +247,7 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
       G_TYPE_NONE,                          /* return_type */
       1,                                    /* n_params */
       G_TYPE_VARIANT);
+#endif
 
   connection_signals[PLAY] = g_signal_new(
       "play",                               /* signal_name */
