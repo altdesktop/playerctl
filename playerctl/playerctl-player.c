@@ -79,7 +79,7 @@ static void playerctl_player_properties_changed_callback (GDBusProxy *_proxy, GV
     else if (g_strcmp0(status_str, "Paused") == 0)
       g_signal_emit(self, connection_signals[PAUSE], 0);
     else if (g_strcmp0(status_str, "Stopped") == 0)
-      g_signal_emit(self, connection_signals[PAUSE], 0);
+      g_signal_emit(self, connection_signals[STOP], 0);
 
   }
 }
