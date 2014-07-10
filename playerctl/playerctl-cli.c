@@ -19,8 +19,10 @@
  */
 
 #include "playerctl.h"
+#include <gio/gio.h>
 
 static char *player_name = NULL;
+static gboolean list_all_opt = FALSE;
 static gboolean version_opt = FALSE;
 static char **command = NULL;
 
@@ -39,10 +41,14 @@ static char *summary = "  For true players only: spotify, vlc, audacious, bmp, x
 
 static GOptionEntry entries[] = {
   { "player", 'p', 0, G_OPTION_ARG_STRING, &player_name, "The name of the player to control (default: the first available player)", "NAME" },
+  { "list-all", 'l', 0, G_OPTION_ARG_NONE, &list_all_opt, "List the names of running players that can be controlled", NULL},
   { "version", 'V', 0, G_OPTION_ARG_NONE, &version_opt, "Print version information and exit", NULL},
   { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command, NULL, "COMMAND" },
   { NULL }
 };
+
+/* returns a newline delimitted list of player names */
+static gchar *list_player_names(GError **err);
 
 int main (int argc, char *argv[])
 {
@@ -61,6 +67,22 @@ int main (int argc, char *argv[])
 
   if (version_opt) {
     g_print("v%s\n", PLAYERCTL_VERSION_S);
+    return 0;
+  }
+
+  if (list_all_opt) {
+    gchar *player_names = list_player_names(&error);
+
+    if (error != NULL) {
+      g_printerr("Could not list players: %s\n", error->message);
+      return 1;
+    }
+
+    if (player_names[0] == '\0')
+      g_printerr("%s\n", "No players were found");
+    else
+      g_print("%s", player_names);
+
     return 0;
   }
 
@@ -145,4 +167,58 @@ int main (int argc, char *argv[])
   }
 
   return 0;
+}
+
+static gchar *list_player_names(GError **err)
+{
+  GString *names_str = g_string_new("");
+  GError *tmp_error = NULL;
+
+  GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
+      G_BUS_TYPE_SESSION,
+      G_DBUS_PROXY_FLAGS_NONE,
+      NULL,
+      "org.freedesktop.DBus",
+      "/org/freedesktop/DBus",
+      "org.freedesktop.DBus",
+      NULL,
+      &tmp_error);
+
+    if (tmp_error != NULL) {
+      g_propagate_error(err, tmp_error);
+      return NULL;
+    }
+
+    GVariant *reply = g_dbus_proxy_call_sync(proxy,
+        "ListNames",
+        NULL,
+        G_DBUS_CALL_FLAGS_NONE,
+        -1,
+        NULL,
+        &tmp_error);
+
+    if (tmp_error != NULL) {
+      g_propagate_error(err, tmp_error);
+      g_object_unref(proxy);
+      return NULL;
+    }
+
+    GVariant *reply_child = g_variant_get_child_value(reply, 0);
+    gsize reply_count;
+    const gchar** names = g_variant_get_strv(reply_child, &reply_count);
+
+    for (int i = 0; i < reply_count; i += 1) {
+      if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
+        gchar **bus_name_split = g_strsplit(names[i], ".", 4);
+        g_string_append_printf(names_str, "%s\n", bus_name_split[3]);
+        g_strfreev(bus_name_split);
+      }
+    }
+
+    g_object_unref(proxy);
+    g_variant_unref(reply);
+    g_variant_unref(reply_child);
+    g_free(names);
+
+    return g_string_free(names_str, FALSE);
 }
