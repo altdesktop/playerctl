@@ -65,7 +65,7 @@ EXTRA_DIST += playerctl.pc.in
 bin_PROGRAMS += playerctl
 playerctl_SOURCES = playerctl-cli.c
 playerctl_CPPFLAGS = $(AM_CPPFLAGS)
-playerctl_LDADD = libplayerctl-1.0.la
+playerctl_LDADD = libplayerctl-1.0.la $(PLAYERCTL_LIBS)
 
 -include $(INTROSPECTION_MAKEFILE)
 INTROSPECTION_GIRS = Playerctl_1_0_gir
