@@ -1,5 +1,5 @@
 m4_define([playerctl_major_version], [0])
-m4_define([playerctl_minor_version], [3])
+m4_define([playerctl_minor_version], [4])
 m4_define([playerctl_micro_version], [0])
 
 m4_define([playerctl_version], [playerctl_major_version.playerctl_minor_version.playerctl_micro_version])
