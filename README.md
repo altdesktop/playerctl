@@ -1,6 +1,6 @@
 # Playerctl
 
-For true players only: spotify, vlc, audacious, bmp, xmms2, mplayer, and others.
+For true players only: spotify, vlc, audacious, bmp, xmms2, and others.
 
 ## About
 

@@ -37,7 +37,7 @@ static char *description = "Available Commands:"
 "\n  status                Get the play status of the player"
 "\n  metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed";
 
-static char *summary = "  For true players only: spotify, vlc, audacious, bmp, xmms2, mplayer, and others.";
+static char *summary = "  For true players only: spotify, vlc, audacious, bmp, xmms2, and others.";
 
 static GOptionEntry entries[] = {
   { "player", 'p', 0, G_OPTION_ARG_STRING, &player_name, "The name of the player to control (default: the first available player)", "NAME" },
