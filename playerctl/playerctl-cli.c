@@ -87,7 +87,7 @@ int main (int argc, char *argv[])
   }
 
   if (command == NULL) {
-    g_print(g_option_context_get_help(context, TRUE, NULL));
+    g_print("%s", g_option_context_get_help(context, TRUE, NULL));
     return 0;
   }
 
@@ -158,7 +158,7 @@ int main (int argc, char *argv[])
     g_free(status);
   } else {
     /* unrecognized command */
-    g_print(g_option_context_get_help(context, TRUE, NULL));
+    g_print("%s", g_option_context_get_help(context, TRUE, NULL));
   }
 
   if (error != NULL) {
