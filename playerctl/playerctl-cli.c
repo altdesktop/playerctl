@@ -20,6 +20,7 @@
 
 #include "playerctl.h"
 #include <gio/gio.h>
+#include <locale.h>
 
 static char *player_name = NULL;
 static gboolean list_all_opt = FALSE;
@@ -52,6 +53,9 @@ static gchar *list_player_names(GError **err);
 
 int main (int argc, char *argv[])
 {
+  // seems to be required to print unicode (see #8)
+  setlocale(LC_CTYPE, "");
+
   GOptionContext *context = NULL;
   GError *error = NULL;
 
