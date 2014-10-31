@@ -14,7 +14,9 @@ For examples, use cases, and project goals, see my [blog post](http://dubstepdis
 
 First, check and see if the library is available from your package manager (if it is not, get someone to host a package for you) and also check the [releases](https://github.com/acrisci/playerctl/releases) page on github.
 
-Using the library requires [GLib](https://developer.gnome.org/glib/) (which is a dependency of almost all of these players as well, so you probably already have it).
+Using the cli and library requires [GLib](https://developer.gnome.org/glib/) (which is a dependency of almost all of these players as well, so you probably already have it). You can use the library in almost any programming language with the associated [introspection binding library](https://wiki.gnome.org/Projects/GObjectIntrospection/Users).
+
+Building the project for development requires [gtk-doc](http://www.gtk.org/gtk-doc/) and [gobject-introspection](https://wiki.gnome.org/action/show/Projects/GObjectIntrospection).
 
 To generate and build the project to contribute to development:
 
@@ -23,6 +25,10 @@ To generate and build the project to contribute to development:
 make
 sudo make install
 ```
+
+You can skip the install step by adding the location where the library files build to your library path. Put this in your shell rc file while you work on the project:
+
+    export LD_LIBRARY_PATH=/path/to/playerctl/playerctl/.libs:$LD_LIBRARY_PATH
 
 ## Using the CLI
 
