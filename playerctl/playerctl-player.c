@@ -529,7 +529,6 @@ PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err)
   /* Unfortunately, there is a bug in Spotify that we have to make a special
    * exception for */
   GError *tmp_error = NULL;
-  const gchar* status = org_mpris_media_player2_player_get_playback_status (self->priv->proxy);
 
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
@@ -537,6 +536,8 @@ PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err)
     g_propagate_error(err, self->priv->init_error);
     return self;
   }
+
+  const gchar* status = org_mpris_media_player2_player_get_playback_status (self->priv->proxy);
 
   if (g_strcmp0(status, "Paused") == 0)
     org_mpris_media_player2_player_call_play_pause_sync(self->priv->proxy, NULL, &tmp_error);
