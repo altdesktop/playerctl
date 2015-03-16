@@ -470,7 +470,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
   GError *tmp_error = NULL;
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
+    g_propagate_error(err, g_error_copy(self->priv->init_error));
     return self;
   }
 
@@ -488,7 +488,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
   g_return_val_if_fail(err == NULL || *err == NULL, NULL); \
  \
   if (self->priv->init_error != NULL) { \
-    g_propagate_error(err, self->priv->init_error); \
+    g_propagate_error(err, g_error_copy(self->priv->init_error)); \
     return self; \
   } \
  \
@@ -533,7 +533,7 @@ PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err)
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
+    g_propagate_error(err, g_error_copy(self->priv->init_error));
     return self;
   }
 
@@ -630,7 +630,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, gchar *proper
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
+    g_propagate_error(err, g_error_copy(self->priv->init_error));
     return NULL;
   }
 
@@ -687,7 +687,7 @@ gchar *playerctl_player_get_artist(PlayerctlPlayer *self, GError **err)
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
+    g_propagate_error(err, g_error_copy(self->priv->init_error));
     return NULL;
   }
 
@@ -711,7 +711,7 @@ gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err)
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
+    g_propagate_error(err, g_error_copy(self->priv->init_error));
     return NULL;
   }
 
@@ -735,7 +735,7 @@ gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err)
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
-    g_propagate_error(err, self->priv->init_error);
+    g_propagate_error(err, g_error_copy(self->priv->init_error));
     return NULL;
   }
 
