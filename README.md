@@ -69,7 +69,7 @@ This example uses the [Python bindings](https://wiki.gnome.org/action/show/Proje
 
 from gi.repository import Playerctl, GLib
 
-player = Playerctl.Player()
+player = Playerctl.Player(player_name='vlc')
 
 def on_metadata(player, e):
     if 'xesam:artist' in e.keys() and 'xesam:title' in e.keys():
