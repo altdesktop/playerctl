@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 rm -rf /tmp/playerctl-fpm
 ./configure --prefix=/usr
 make
