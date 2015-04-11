@@ -2,6 +2,14 @@
 
 set -e
 
+# sanity check
+if [ ! -f playerctl/playerctl.h ]; then
+    echo 'You must run this from the playerctl project directory'
+    exit 1
+fi
+
+which fpm
+
 rm -rf /tmp/playerctl-fpm
 ./configure --prefix=/usr
 make
