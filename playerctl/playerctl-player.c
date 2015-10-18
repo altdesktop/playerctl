@@ -119,6 +119,42 @@ static void playerctl_player_set_property(GObject *object, guint property_id, co
   }
 }
 
+static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **err)
+{
+  GVariant *metadata;
+  GError *tmp_error = NULL;
+
+  metadata = org_mpris_media_player2_player_get_metadata(self->priv->proxy);
+
+  if (!metadata) {
+    // XXX: Ugly spotify workaround. Spotify does not seem to use the property
+    // cache. We have to get the properties directly.
+    GVariant *call_reply = g_dbus_proxy_call_sync (G_DBUS_PROXY(self->priv->proxy),
+        "org.freedesktop.DBus.Properties.Get",
+        g_variant_new ("(ss)",
+          "org.mpris.MediaPlayer2.Player",
+          "Metadata"),
+        G_DBUS_CALL_FLAGS_NONE,
+        -1,
+        NULL,
+        &tmp_error);
+
+    if (tmp_error != NULL) {
+      g_propagate_error(err, tmp_error);
+      return NULL;
+    }
+
+    GVariant *call_reply_properties = g_variant_get_child_value(call_reply, 0);
+
+    metadata = g_variant_get_child_value(call_reply_properties, 0);
+
+    g_variant_unref(call_reply);
+    g_variant_unref(call_reply_properties);
+  }
+
+  return metadata;
+}
+
 static void playerctl_player_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
   PlayerctlPlayer *self = PLAYERCTL_PLAYER(object);
 
@@ -141,7 +177,7 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
         GVariant *metadata = NULL;
 
         if (self->priv->proxy)
-          metadata = org_mpris_media_player2_player_get_metadata(self->priv->proxy);
+          metadata = playerctl_player_get_metadata(self, NULL);
 
         g_value_set_variant(value, metadata);
         break;
@@ -611,9 +647,16 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, gchar *proper
     return NULL;
   }
 
-  metadata = org_mpris_media_player2_player_get_metadata(self->priv->proxy);
-  if (!metadata)
+  metadata = playerctl_player_get_metadata(self, &tmp_error);
+
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return NULL;
+  }
+
+  if (!metadata) {
     return g_strdup("");
+  }
 
   if (!property)
     return g_variant_print(metadata, FALSE);
