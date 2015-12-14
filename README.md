@@ -50,8 +50,6 @@ Here is a list of available commands:
   next                  Command the player to skip to the next track
   previous              Command the player to skip to the previous track
   volume [+/-] [LEVEL]  Print or set the volume to LEVEL from 0.0 to 1.0
-                          volume + 0.1 (increase volume by 10%)
-                          volume - 0.2 (decrease volume by 20%)
   status                Get the play status of the player
   metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed.
 ```
