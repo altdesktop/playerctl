@@ -111,13 +111,13 @@ int main (int argc, char *argv[])
     if (command[1]) {
       /* set */
 
-      if(g_str_has_prefix(command[1], "+") || g_str_has_prefix(command[1], "-")) {
+      if(g_strcmp0(command[1], "+") == 0 || g_strcmp0(command[1], "-") == 0) {
         /* increase or decrease current volume */
         gdouble adjustment = g_ascii_strtod(command[2], NULL);
 
         g_object_get(player, "volume", &level, NULL);
 
-        if(g_str_has_prefix(command[1], "-")) {
+        if(g_strcmp0(command[1], "-") == 0) {
             /* decrease if command is "-" */
             adjustment *= -1;
         }
