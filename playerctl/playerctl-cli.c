@@ -112,18 +112,24 @@ int main (int argc, char *argv[])
       /* set */
 
       if(g_strcmp0(command[1], "+") == 0 || g_strcmp0(command[1], "-") == 0) {
-        /* increase or decrease current volume */
-        gdouble adjustment = g_ascii_strtod(command[2], NULL);
+        if (command[2]) {
+            /* increase or decrease current volume */
+            gdouble adjustment = g_ascii_strtod(command[2], NULL);
 
-        g_object_get(player, "volume", &level, NULL);
+            g_object_get(player, "volume", &level, NULL);
 
-        if(g_strcmp0(command[1], "-") == 0) {
-            /* decrease if command is "-" */
-            adjustment *= -1;
+            if(g_strcmp0(command[1], "-") == 0) {
+                /* decrease if command is "-" */
+                adjustment *= -1;
+            }
+            /* otherwise increase */
+
+            level += adjustment;
         }
-        /* otherwise increase */
-
-        level += adjustment;
+        else {
+            g_printerr("Volume adjustment amount not given.\n");
+            return 1;
+        }
       } else {
         /* set exact */
         level = g_ascii_strtod(command[1], NULL);
