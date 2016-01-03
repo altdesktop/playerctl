@@ -613,6 +613,20 @@ PlayerctlPlayer *playerctl_player_stop(PlayerctlPlayer *self, GError **err)
 }
 
 /**
+ * playerctl_player_seek:
+ * @self: a #PlayerctlPlayer
+ * @err (allow-none): the location of a GError or NULL
+ *
+ * Command the player to seek
+ *
+ * Returns: (transfer none): the #PlayerctlPlayer for chaining
+ */
+PlayerctlPlayer *playerctl_player_seek(PlayerctlPlayer *self, gint64 offset, GError **err)
+{
+  PLAYER_COMMAND_PARAM_FUNC(seek, offset)
+}
+
+/**
  * playerctl_player_next:
  * @self: a #PlayerctlPlayer
  * @err: (allow-none): the location of a GError or NULL

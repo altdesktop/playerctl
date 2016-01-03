@@ -78,6 +78,8 @@ PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err);
 
 PlayerctlPlayer *playerctl_player_stop(PlayerctlPlayer *self, GError **err);
 
+PlayerctlPlayer *playerctl_player_seek(PlayerctlPlayer *self, gint64 offset, GError **err);
+
 PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err);
 
 PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err);
