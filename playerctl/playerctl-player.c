@@ -537,6 +537,25 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
  \
   return self;
 
+#define PLAYER_COMMAND_PARAM_FUNC(COMMAND, PARAM) \
+  GError *tmp_error = NULL; \
+ \
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL); \
+ \
+  if (self->priv->init_error != NULL) { \
+    g_propagate_error(err, g_error_copy(self->priv->init_error)); \
+    return self; \
+  } \
+ \
+  org_mpris_media_player2_player_call_##COMMAND##_sync(self->priv->proxy, PARAM, NULL, &tmp_error); \
+ \
+  if (tmp_error != NULL) { \
+    g_propagate_error(err, tmp_error); \
+    return self; \
+  } \
+ \
+  return self;
+
 /**
  * playerctl_player_play_pause:
  * @self: a #PlayerctlPlayer
