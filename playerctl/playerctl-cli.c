@@ -34,6 +34,8 @@ static char *description = "Available Commands:"
 "\n  stop                  Command the player to stop"
 "\n  next                  Command the player to skip to the next track"
 "\n  previous              Command the player to skip to the previous track"
+"\n  forward OFFSET        Command the player to seek forward OFFSET seconds"
+"\n  backward OFFSET       Command the player to seek backward OFFSET seconds"
 "\n  volume [LEVEL]        Print or set the volume to LEVEL from 0.0 to 1.0"
 "\n  status                Get the play status of the player"
 "\n  metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed";
