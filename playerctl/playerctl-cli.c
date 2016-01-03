@@ -115,6 +115,22 @@ int main (int argc, char *argv[])
       g_object_get(player, "volume", &level, NULL);
       g_print("%g\n", level);
     }
+  } else if (g_strcmp0(command[0], "forward") == 0 || g_strcmp0(command[0], "backward") == 0) {
+      gint64 offset;
+
+      if(command[1]) {
+        offset = g_ascii_strtod(command[1], NULL);
+
+        if (g_strcmp0(command[0], "backward") == 0) {
+          offset *= -1;
+        }
+
+        playerctl_player_seek(player, 1000000 * offset, &error);
+      }
+      else {
+        g_printerr("Seek offset is missing\n");
+        return 1;
+      }
   } else if (g_strcmp0(command[0], "play") == 0) {
     /* PLAY */
     playerctl_player_play(player, &error);
