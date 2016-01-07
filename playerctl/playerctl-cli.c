@@ -34,9 +34,9 @@ static char *description = "Available Commands:"
 "\n  stop                  Command the player to stop"
 "\n  next                  Command the player to skip to the next track"
 "\n  previous              Command the player to skip to the previous track"
-"\n  volume [+/-] [LEVEL]  Print or set the volume to LEVEL from 0.0 to 1.0"
-"\n                          volume + 0.1 (increase volume by 10%)"
-"\n                          volume - 0.2 (decrease volume by 20%)"
+"\n  volume [LEVEL][+/-]   Print or set the volume to LEVEL from 0.0 to 1.0"
+"\n                          volume +0.1 (increase volume by 10%)"
+"\n                          volume -0.2 (decrease volume by 20%)"
 "\n  status                Get the play status of the player"
 "\n  metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed";
 
@@ -111,25 +111,17 @@ int main (int argc, char *argv[])
     if (command[1]) {
       /* set */
 
-      if(g_strcmp0(command[1], "+") == 0 || g_strcmp0(command[1], "-") == 0) {
-        if (command[2]) {
-            /* increase or decrease current volume */
-            gdouble adjustment = g_ascii_strtod(command[2], NULL);
+      if(g_str_has_suffix(command[1], "+") || g_str_has_suffix(command[1], "-")) {
+        /* increase or decrease current volume */
+        gdouble adjustment = g_ascii_strtod(command[1], NULL);
 
-            g_object_get(player, "volume", &level, NULL);
-
-            if(g_strcmp0(command[1], "-") == 0) {
-                /* decrease if command is "-" */
-                adjustment *= -1;
-            }
-            /* otherwise increase */
-
-            level += adjustment;
+        if(g_str_has_suffix(command[1], "-")) {
+            adjustment *= -1;
         }
-        else {
-            g_printerr("Volume adjustment amount not given.\n");
-            return 1;
-        }
+
+        g_object_get(player, "volume", &level, NULL);
+
+        level += adjustment;
       } else {
         /* set exact */
         level = g_ascii_strtod(command[1], NULL);
