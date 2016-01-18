@@ -36,7 +36,9 @@ static char *description = "Available Commands:"
 "\n  previous              Command the player to skip to the previous track"
 "\n  forward OFFSET        Command the player to seek forward OFFSET seconds"
 "\n  backward OFFSET       Command the player to seek backward OFFSET seconds"
-"\n  volume [LEVEL]        Print or set the volume to LEVEL from 0.0 to 1.0"
+"\n  volume [LEVEL][+/-]   Print or set the volume to LEVEL from 0.0 to 1.0"
+"\n                          volume +0.1 (increase volume by 10%)"
+"\n                          volume -0.2 (decrease volume by 20%)"
 "\n  status                Get the play status of the player"
 "\n  metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed";
 
@@ -110,7 +112,23 @@ int main (int argc, char *argv[])
 
     if (command[1]) {
       /* set */
-      level = g_ascii_strtod(command[1], NULL);
+
+      if(g_str_has_suffix(command[1], "+") || g_str_has_suffix(command[1], "-")) {
+        /* increase or decrease current volume */
+        gdouble adjustment = g_ascii_strtod(command[1], NULL);
+
+        if(g_str_has_suffix(command[1], "-")) {
+            adjustment *= -1;
+        }
+
+        g_object_get(player, "volume", &level, NULL);
+
+        level += adjustment;
+      } else {
+        /* set exact */
+        level = g_ascii_strtod(command[1], NULL);
+      }
+
       g_object_set(player, "volume", level, NULL);
     } else {
       /* get */

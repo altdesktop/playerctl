@@ -43,17 +43,17 @@ Pass the name of your player with the `--player` flag. You can find out what pla
 Here is a list of available commands:
 
 ```
-  play             Command the player to play
-  pause            Command the player to pause
-  play-pause       Command the player to toggle between play/pause
-  stop             Command the player to stop
-  next             Command the player to skip to the next track
-  previous         Command the player to skip to the previous track
-  forward OFFSET   Command the player to seek forward OFFSET seconds
-  backward OFFSET  Command the player to seek backward OFFSET seconds
-  volume [LEVEL]   Print or set the volume to LEVEL from 0.0 to 1.0
-  status           Get the play status of the player
-  metadata [KEY]   Print metadata information for the current track. Print only value of KEY if passed.
+  play                  Command the player to play
+  pause                 Command the player to pause
+  play-pause            Command the player to toggle between play/pause
+  stop                  Command the player to stop
+  next                  Command the player to skip to the next track
+  previous              Command the player to skip to the previous track
+  forward OFFSET        Command the player to seek forward OFFSET seconds
+  backward OFFSET       Command the player to seek backward OFFSET seconds
+  volume [LEVEL][+/-]   Print or set the volume to LEVEL from 0.0 to 1.0
+  status                Get the play status of the player
+  metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed.
 ```
 
 ## Using the Library
