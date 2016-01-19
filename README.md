@@ -49,8 +49,7 @@ Here is a list of available commands:
   stop                  Command the player to stop
   next                  Command the player to skip to the next track
   previous              Command the player to skip to the previous track
-  forward OFFSET        Command the player to seek forward OFFSET seconds
-  backward OFFSET       Command the player to seek backward OFFSET seconds
+  position OFFSET+/-    Command the player to seek forward/backward OFFSET
   volume [LEVEL][+/-]   Print or set the volume to LEVEL from 0.0 to 1.0
   status                Get the play status of the player
   metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed.
