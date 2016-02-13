@@ -281,9 +281,7 @@ static gchar *list_player_names(GError **err)
 
   for (int i = 0; i < reply_count; i += 1) {
     if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
-      gchar **bus_name_split = g_strsplit(names[i], ".", 4);
-      g_string_append_printf(names_str, "%s\n", bus_name_split[3]);
-      g_strfreev(bus_name_split);
+      g_string_append_printf(names_str, "%s\n", names[i] + 23);
     }
   }
 
