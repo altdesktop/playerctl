@@ -1,6 +1,6 @@
 # Playerctl
 
-For true players only: spotify, vlc, audacious, bmp, xmms2, and others.
+Only for players supporting the MPRIS D-Bus specification.
 
 ## About
 
