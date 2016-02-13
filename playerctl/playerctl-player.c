@@ -504,7 +504,6 @@ PlayerctlPlayer *playerctl_player_new(gchar *name, GError **err)
 
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
-    return NULL;
   }
 
   return player;
@@ -681,7 +680,7 @@ PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
  *
  * Returns: (transfer full): The artist from the metadata of the current track
  */
-gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, gchar *property, GError **err)
+gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *property, GError **err)
 {
   GVariant *prop_variant;
   const gchar **prop_strv;

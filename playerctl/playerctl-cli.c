@@ -16,230 +16,23 @@
  * along with playerctl If not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright © 2014, Tony Crisci
+ * Copyright © 2016, Jente Hidskes <hjdskes@gmail.com>
  */
 
 #include "playerctl.h"
+#include <stdlib.h>
 #include <gio/gio.h>
 #include <locale.h>
-#include <stdlib.h>
+#include <string.h>
 
-static char *player_name = NULL;
-static gboolean list_all_opt = FALSE;
-static gboolean version_opt = FALSE;
-static char **command = NULL;
+#define LENGTH(array) (sizeof array / sizeof array[0])
 
-static const char *description = "Available Commands:"
-"\n  play                    Command the player to play"
-"\n  pause                   Command the player to pause"
-"\n  play-pause              Command the player to toggle between play/pause"
-"\n  stop                    Command the player to stop"
-"\n  next                    Command the player to skip to the next track"
-"\n  previous                Command the player to skip to the previous track"
-"\n  position [OFFSET][+/-]  Command the player to go to the position or seek forward/backward OFFSET in seconds"
-"\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 to 1.0"
-"\n  status                  Get the play status of the player"
-"\n  metadata [KEY]          Print metadata information for the current track. Print only value of KEY if passed";
+G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
-static const char *summary = "  For true players only: spotify, vlc, audacious, bmp, xmms2, and others.";
-
-static GOptionEntry entries[] = {
-  { "player", 'p', 0, G_OPTION_ARG_STRING, &player_name, "The name of the player to control (default: the first available player)", "NAME" },
-  { "list-all", 'l', 0, G_OPTION_ARG_NONE, &list_all_opt, "List the names of running players that can be controlled", NULL},
-  { "version", 'V', 0, G_OPTION_ARG_NONE, &version_opt, "Print version information and exit", NULL},
-  { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command, NULL, "COMMAND" },
-  { NULL }
-};
-
-/* returns a newline delimitted list of player names */
-static gchar *list_player_names(GError **err);
-
-int main (int argc, char *argv[])
-{
-  // seems to be required to print unicode (see #8)
-  setlocale(LC_CTYPE, "");
-
-  GOptionContext *context = NULL;
-  GError *error = NULL;
-  gboolean succes;
-
-  context = g_option_context_new("- Controller for MPRIS players");
-  g_option_context_add_main_entries(context, entries, NULL);
-  g_option_context_set_description(context, description);
-  g_option_context_set_summary(context, summary);
-
-  succes = g_option_context_parse(context, &argc, &argv, &error);
-  g_option_context_free (context);
-
-  if (!succes) {
-    g_printerr("Option parsing failed: %s\n", error->message);
-    return 1;
-  }
-
-  if (version_opt) {
-    g_print("v%s\n", PLAYERCTL_VERSION_S);
-    return 0;
-  }
-
-  if (list_all_opt) {
-    gchar *player_names = list_player_names(&error);
-
-    if (error != NULL) {
-      g_printerr("Could not list players: %s\n", error->message);
-      g_clear_error(&error);
-      return 1;
-    }
-
-    if (player_names[0] == '\0')
-      g_printerr("%s\n", "No players were found");
-    else
-      g_print("%s", player_names);
-    g_free(player_names);
-
-    return 0;
-  }
-
-  if (command == NULL) {
-    g_print("%s", g_option_context_get_help(context, TRUE, NULL));
-    return 0;
-  }
-
-  PlayerctlPlayer *player = playerctl_player_new(player_name, &error);
-
-  if (error != NULL) {
-    g_printerr("Connection to player failed: %s\n", error->message);
-    g_clear_error(&error);
-    return 1;
-  }
-
-  if (g_strcmp0(command[0], "volume") == 0) {
-    /* VOLUME */
-    gdouble level;
-
-    if (command[1]) {
-      /* set */
-
-      if(g_str_has_suffix(command[1], "+") || g_str_has_suffix(command[1], "-")) {
-        /* increase or decrease current volume */
-        gdouble adjustment = g_ascii_strtod(command[1], NULL);
-
-        if(g_str_has_suffix(command[1], "-")) {
-            adjustment *= -1;
-        }
-
-        g_object_get(player, "volume", &level, NULL);
-
-        level += adjustment;
-      } else {
-        /* set exact */
-        level = g_ascii_strtod(command[1], NULL);
-      }
-
-      g_object_set(player, "volume", level, NULL);
-    } else {
-      /* get */
-      g_object_get(player, "volume", &level, NULL);
-      g_print("%g\n", level);
-    }
-  } else if (g_strcmp0(command[0], "position") == 0) {
-     /* POSITION */
-    gint64 offset;
-
-    if (command[1]) {
-      /* set */
-
-      char *endptr;
-      offset = strtod(command[1], &endptr);
-
-      if (command[1] == endptr) {
-        g_printerr("Could not parse position as a number\n");
-        return 1;
-      }
-
-      if (g_str_has_suffix(command[1], "+") || g_str_has_suffix(command[1], "-")) {
-        /* seek forward or backward by offset seconds */
-
-        if (g_str_has_suffix(command[1], "-")) {
-          offset *= -1;
-        }
-
-        playerctl_player_seek(player, offset * 1000000, &error);
-
-        if (error != NULL) {
-          g_printerr("An error occurred: %s\n", error->message);
-          return 1;
-        }
-      } else {
-        playerctl_player_set_position(player, offset * 1000000, &error);
-        if (error != NULL) {
-          g_printerr("An error occurred: %s\n", error->message);
-          return 1;
-        }
-      }
-    } else {
-      /* get */
-      g_object_get(player, "position", &offset, NULL);
-      g_print("%g\n", (double)offset / 1000000);
-    }
-  } else if (g_strcmp0(command[0], "play") == 0) {
-    /* PLAY */
-    playerctl_player_play(player, &error);
-  } else if (g_strcmp0(command[0], "pause") == 0) {
-    /* PAUSE */
-    playerctl_player_pause(player, &error);
-  } else if (g_strcmp0(command[0], "play-pause") == 0) {
-    /* PLAY-PAUSE */
-    playerctl_player_play_pause(player, &error);
-  } else if (g_strcmp0(command[0], "stop") == 0) {
-    /* STOP */
-    playerctl_player_stop(player, &error);
-  } else if (g_strcmp0(command[0], "next") == 0) {
-    /* NEXT */
-    playerctl_player_next(player, &error);
-  } else if (g_strcmp0(command[0], "previous") == 0) {
-    /* PREVIOUS */
-    playerctl_player_previous(player, &error);
-  } else if (g_strcmp0(command[0], "metadata") == 0) {
-    /* METADATA */
-    gchar *value = NULL;
-    if (g_strcmp0(command[1], "artist") == 0)
-      value = playerctl_player_get_artist(player, &error);
-    else if (g_strcmp0(command[1], "title") == 0)
-      value = playerctl_player_get_title(player, &error);
-    else if (g_strcmp0(command[1], "album") == 0)
-      value = playerctl_player_get_album(player, &error);
-    else
-       value = playerctl_player_print_metadata_prop(player, command[1], &error);
-
-    g_print("%s", value);
-
-    g_free(value);
-  } else if (g_strcmp0(command[0], "status") == 0) {
-    /* STATUS */
-    gchar *status = NULL;
-    g_object_get(player, "status", &status, NULL);
-
-    if (status) {
-      g_print("%s\n", status);
-    } else {
-      g_print("Not available\n");
-    }
-
-    g_free(status);
-  } else {
-    /* unrecognized command */
-    g_print("%s", g_option_context_get_help(context, TRUE, NULL));
-  }
-
-  if (error != NULL) {
-    g_printerr("An error occurred: %s\n", error->message);
-    g_clear_error(&error);
-    g_object_unref(player);
-    return 1;
-  }
-
-  g_object_unref(player);
-  return 0;
-}
+/* The player being controlled. */
+static gchar *player_name = NULL;
+/* The commands passed on the command line, filled in via G_OPTION_REMAINING. */
+static gchar **command = NULL;
 
 static gchar *list_player_names(GError **err)
 {
@@ -277,7 +70,7 @@ static gchar *list_player_names(GError **err)
   GString *names_str = g_string_new("");
   GVariant *reply_child = g_variant_get_child_value(reply, 0);
   gsize reply_count;
-  const gchar** names = g_variant_get_strv(reply_child, &reply_count);
+  const gchar **names = g_variant_get_strv(reply_child, &reply_count);
 
   for (int i = 0; i < reply_count; i += 1) {
     if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
@@ -292,3 +85,290 @@ static gchar *list_player_names(GError **err)
 
   return g_string_free(names_str, FALSE);
 }
+
+static gboolean list_all_players_and_exit (const gchar *name, const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  GError *tmp_error = NULL;
+  gchar *player_names = list_player_names(&tmp_error);
+
+  if (tmp_error) {
+    g_propagate_error(error, tmp_error);
+    return FALSE;
+  }
+
+  if (player_names[0] == '\0')
+    g_printerr("No players were found");
+  else
+    g_print("%s", player_names);
+  g_free(player_names);
+
+  exit(0);
+  return TRUE;
+}
+
+static gboolean print_version_and_exit (const gchar *name, const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  g_print("v%s\n", PLAYERCTL_VERSION_S);
+  exit(0);
+  return TRUE;
+}
+
+#define PLAYER_COMMAND_FUNC(COMMAND) \
+  GError *tmp_error = NULL; \
+ \
+  playerctl_player_##COMMAND(player, &tmp_error); \
+  if (tmp_error) { \
+    g_propagate_error(error, tmp_error); \
+    return FALSE; \
+  } \
+  return TRUE;
+
+static gboolean play (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  PLAYER_COMMAND_FUNC(play);
+}
+
+/* Pause is defined in unistd.h */
+static gboolean paus (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  PLAYER_COMMAND_FUNC(pause);
+}
+
+static gboolean play_pause (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  PLAYER_COMMAND_FUNC(play_pause);
+}
+
+static gboolean stop (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  PLAYER_COMMAND_FUNC(stop);
+}
+
+static gboolean next (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  PLAYER_COMMAND_FUNC(next);
+}
+
+static gboolean previous (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  PLAYER_COMMAND_FUNC(previous);
+}
+
+#undef PLAYER_COMMAND_FUNC
+
+static gboolean position (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  GError *tmp_error = NULL;
+  gint64 offset;
+
+  if (value) {
+    char *endptr = NULL;
+    offset = strtod(value, &endptr);
+
+    if (endptr) {
+      g_set_error(error, playerctl_cli_error_quark (), 1, "Could not parse position as a number: %s\n", value);
+      return FALSE;
+    }
+
+    size_t last = strlen(value) - 1;
+    if (value[last] == '+' || value[last] == '-') {
+      if (value[last] == '-') {
+        offset *= -1;
+      }
+
+      playerctl_player_seek(player, offset * 1000000, &tmp_error);
+      if (tmp_error != NULL) {
+	g_propagate_error(error, tmp_error);
+        return FALSE;
+      }
+    } else {
+      playerctl_player_set_position(player, offset * 1000000, &tmp_error);
+      if (tmp_error != NULL) {
+	g_propagate_error(error, tmp_error);
+        return FALSE;
+      }
+    }
+  } else {
+    g_object_get(player, "position", &offset, NULL);
+    g_print("%g\n", (double)offset / 1000000);
+  }
+
+  return TRUE;
+}
+
+static gboolean set_or_get_volume (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  const gchar *volume = value;
+  gdouble level;
+
+  if (volume) {
+    size_t last = strlen(volume) - 1;
+
+    if(volume[last] == '+' || volume[last] == '-') {
+      gdouble adjustment = g_ascii_strtod(volume, NULL);
+
+      if(volume[last] == '-') {
+          adjustment *= -1;
+      }
+
+      g_object_get(player, "volume", &level, NULL);
+      level += adjustment;
+    } else {
+      level = g_ascii_strtod(volume, NULL);
+    }
+    g_object_set(player, "volume", level, NULL);
+  } else {
+    g_object_get(player, "volume", &level, NULL);
+    g_print("%g\n", level);
+  }
+
+  return TRUE;
+}
+
+static gboolean status (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  gchar *state = NULL;
+
+  g_object_get(player, "status", &state, NULL);
+  g_print("%s\n", state ? state : "Not available");
+  g_free(state);
+
+  return TRUE;
+}
+
+static gboolean get_metadata (const gchar *value, PlayerctlPlayer *player, GError **error)
+{
+  GError *tmp_error = NULL;
+  gchar *data;
+
+  if (g_strcmp0(value, "artist") == 0)
+    data = playerctl_player_get_artist(player, &tmp_error);
+  else if (g_strcmp0(value, "title") == 0)
+    data = playerctl_player_get_title(player, &tmp_error);
+  else if (g_strcmp0(value, "album") == 0)
+    data = playerctl_player_get_album(player, &tmp_error);
+  else
+    data = playerctl_player_print_metadata_prop(player, value, &tmp_error);
+
+  if (tmp_error) {
+    g_propagate_error(error, tmp_error);
+    return FALSE;
+  }
+
+  g_print("%s", data);
+  g_free(data);
+
+  return TRUE;
+}
+
+struct PlayerCommand {
+  const gchar *name;
+  gboolean (*func) (const gchar *value, PlayerctlPlayer *player, GError **error);
+} commands[] = {
+  { "play", &play },
+  { "pause", &paus },
+  { "play-pause", &play_pause },
+  { "stop", &stop },
+  { "next", &next },
+  { "previous", &previous },
+  { "position", &position },
+  { "volume", &set_or_get_volume },
+  { "status", &status },
+  { "metadata", &get_metadata },
+};
+
+static gboolean parse_player_command (gchar **command, PlayerctlPlayer *player, GError **error)
+{
+  for (int i = 0; i < LENGTH(commands); i++) {
+    if (g_strcmp0(commands[i].name, command[0]) == 0) {
+      return commands[i].func(command[1], player, error);
+    }
+  }
+  g_set_error(error, playerctl_cli_error_quark (), 1, "Command not recognized: %s", command[0], NULL);
+  return FALSE;
+}
+
+static const GOptionEntry entries[] = {
+  { "player", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &player_name,
+    "The name of the player to control (default: the first available player)", "NAME" },
+  { "list-all", 'l', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, list_all_players_and_exit,
+    "List the names of running players that can be controlled and exit", NULL },
+  { "version", 'v', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, print_version_and_exit,
+    "Print version information and exit", NULL },
+  { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command, NULL, "COMMAND" },
+  { NULL }
+};
+
+static gboolean parse_setup_options (int argc, char *argv[], GError **error)
+{
+  static const gchar *description = "Available Commands:"
+    "\n  play                    Command the player to play"
+    "\n  pause                   Command the player to pause"
+    "\n  play-pause              Command the player to toggle between play/pause"
+    "\n  stop                    Command the player to stop"
+    "\n  next                    Command the player to skip to the next track"
+    "\n  previous                Command the player to skip to the previous track"
+    "\n  position [OFFSET][+/-]  Command the player to go to the position or seek forward/backward OFFSET in seconds"
+    "\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 to 1.0"
+    "\n  status                  Get the play status of the player"
+    "\n  metadata [KEY]          Print metadata information for the current track. If KEY is passed,"
+    "\n                          print only that value. KEY may be one of artist, title or album";
+  static const gchar *summary = "  Only for players supporting the MPRIS D-Bus specification";
+  GOptionContext *context = NULL;
+  gboolean success;
+
+  context = g_option_context_new("- Controller for MPRIS players");
+  g_option_context_add_main_entries(context, entries, NULL);
+  g_option_context_set_description(context, description);
+  g_option_context_set_summary(context, summary);
+
+  success = g_option_context_parse(context, &argc, &argv, error);
+  g_option_context_free(context);
+
+  if (!success) {
+    return FALSE;
+  }
+
+  if (command == NULL) {
+    g_set_error (error, playerctl_cli_error_quark(), 1, "No command entered");
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+int main (int argc, char *argv[])
+{
+  PlayerctlPlayer *player;
+  GError *error = NULL;
+  int exit_status = 0;
+
+  // seems to be required to print unicode (see #8)
+  setlocale(LC_CTYPE, "");
+
+  if (!parse_setup_options(argc, argv, &error)) {
+    g_printerr("%s\nRun '%s --help' to see a full list of available command line options\n",
+        error->message, argv[0]);
+    exit_status = 1;
+    goto end;
+  }
+
+  player = playerctl_player_new(player_name, &error);
+  if (error != NULL) {
+    g_printerr("Connection to player failed: %s\n", error->message);
+    exit_status = 1;
+    goto end;
+  }
+
+  if (!parse_player_command(command, player, &error)) {
+    g_printerr("Could not execute command: %s\n", error->message);
+    exit_status = 1;
+  }
+
+  g_object_unref(player);
+end:
+  g_clear_error(&error);
+
+  return exit_status;
+}
+
