@@ -34,9 +34,9 @@ static char *description = "Available Commands:"
 "\n  stop                  Command the player to stop"
 "\n  next                  Command the player to skip to the next track"
 "\n  previous              Command the player to skip to the previous track"
+"\n  position OFFSET+/-    Command the player to seek forward/backward OFFSET"
+"\n                        by seconds"
 "\n  volume [LEVEL][+/-]   Print or set the volume to LEVEL from 0.0 to 1.0"
-"\n                          volume +0.1 (increase volume by 10%)"
-"\n                          volume -0.2 (decrease volume by 20%)"
 "\n  status                Get the play status of the player"
 "\n  metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed";
 
@@ -132,6 +132,31 @@ int main (int argc, char *argv[])
       /* get */
       g_object_get(player, "volume", &level, NULL);
       g_print("%g\n", level);
+    }
+  } else if (g_strcmp0(command[0], "position") == 0) {
+    gint64 offset;
+
+    if(command[1]) {
+      /* set */
+
+      offset = g_ascii_strtod(command[1], NULL);
+
+      if(g_str_has_suffix(command[1], "+") || g_str_has_suffix(command[1], "-")) {
+        /* see forward or backward by offset seconds */
+
+        if(g_str_has_suffix(command[1], "-")) {
+          offset *= -1;
+        }
+
+        playerctl_player_seek(player, 1000000 * offset, &error);
+      }
+      else {
+        g_printerr("Position direction (+/-) is missing\n");
+      }
+    }
+    else {
+      g_printerr("Position offset is missing\n");
+      return 1;
     }
   } else if (g_strcmp0(command[0], "play") == 0) {
     /* PLAY */
