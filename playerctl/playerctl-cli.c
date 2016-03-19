@@ -21,6 +21,7 @@
 #include "playerctl.h"
 #include <gio/gio.h>
 #include <locale.h>
+#include <stdlib.h>
 
 static char *player_name = NULL;
 static gboolean list_all_opt = FALSE;
@@ -134,24 +135,37 @@ int main (int argc, char *argv[])
       g_print("%g\n", level);
     }
   } else if (g_strcmp0(command[0], "position") == 0) {
+     /* POSITION */
     gint64 offset;
 
     if(command[1]) {
       /* set */
 
-      offset = g_ascii_strtod(command[1], NULL);
+      char *endptr;
+      offset = strtod(command[1], &endptr);
 
-      if(g_str_has_suffix(command[1], "+") || g_str_has_suffix(command[1], "-")) {
-        /* see forward or backward by offset seconds */
+      if (command[1] == endptr) {
+        g_printerr("Could not parse position as a number\n");
+        return 1;
+      }
 
-        if(g_str_has_suffix(command[1], "-")) {
+      if (g_str_has_suffix(command[1], "+") || g_str_has_suffix(command[1], "-")) {
+        /* seek forward or backward by offset seconds */
+
+        if (g_str_has_suffix(command[1], "-")) {
           offset *= -1;
         }
 
         playerctl_player_seek(player, 1000000 * offset, &error);
-      }
-      else {
-        g_printerr("Position direction (+/-) is missing\n");
+
+        if (error != NULL) {
+          g_printerr("An error occurred: %s\n", error->message);
+          return 1;
+        }
+      } else {
+        /* TODO */
+        g_printerr("Seeking directly to a position is not yet supported\n");
+        return 1;
       }
     }
     else {
