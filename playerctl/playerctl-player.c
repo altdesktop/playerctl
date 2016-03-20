@@ -24,6 +24,8 @@
 #include "playerctl-player.h"
 #include "playerctl-generated.h"
 
+#include <stdint.h>
+
 enum {
   PROP_0,
 
@@ -31,6 +33,7 @@ enum {
   PROP_STATUS,
   PROP_VOLUME,
   PROP_METADATA,
+  PROP_POSITION,
 
   N_PROPERTIES
 };
@@ -99,26 +102,6 @@ G_DEFINE_TYPE_WITH_CODE (PlayerctlPlayer, playerctl_player, G_TYPE_OBJECT,
 
 G_DEFINE_QUARK(playerctl-player-error-quark, playerctl_player_error);
 
-static void playerctl_player_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
-  PlayerctlPlayer *self = PLAYERCTL_PLAYER(object);
-
-  switch (property_id)
-  {
-    case PROP_PLAYER_NAME:
-      g_free(self->priv->player_name);
-      self->priv->player_name = g_strdup(g_value_get_string(value));
-      break;
-
-    case PROP_VOLUME:
-      org_mpris_media_player2_player_set_volume(self->priv->proxy, g_value_get_double(value));
-      break;
-
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
-      break;
-  }
-}
-
 static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **err)
 {
   GVariant *metadata;
@@ -155,6 +138,46 @@ static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **e
   return metadata;
 }
 
+static void playerctl_player_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
+  PlayerctlPlayer *self = PLAYERCTL_PLAYER(object);
+
+  switch (property_id)
+  {
+    case PROP_PLAYER_NAME:
+      g_free(self->priv->player_name);
+      self->priv->player_name = g_strdup(g_value_get_string(value));
+      break;
+
+    case PROP_VOLUME:
+      org_mpris_media_player2_player_set_volume(self->priv->proxy, g_value_get_double(value));
+      break;
+
+    case PROP_POSITION:
+      {
+        GError **err = NULL;
+        // calling the function requires the track id
+        GVariant *metadata = playerctl_player_get_metadata(self, err);
+        if (err != NULL)
+          return;
+
+        GVariant *track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", NULL);
+        if (track_id_variant == NULL)
+          return;
+
+        const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
+        if (track_id == NULL)
+          return;
+
+        org_mpris_media_player2_player_call_set_position_sync(self->priv->proxy, track_id, g_value_get_int64(value), NULL, NULL);
+        break;
+      }
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
+      break;
+  }
+}
+
 static void playerctl_player_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
   PlayerctlPlayer *self = PLAYERCTL_PLAYER(object);
 
@@ -189,6 +212,13 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
       else
         g_value_set_double(value, 0);
 
+      break;
+
+    case PROP_POSITION:
+      if (self->priv->proxy)
+        g_value_set_int64(value, org_mpris_media_player2_player_get_position(self->priv->proxy));
+      else
+        g_value_set_int64(value, 0);
       break;
 
     default:
@@ -257,6 +287,15 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         "The volume level of the player",
         0,
         100,
+        0,
+        G_PARAM_READWRITE);
+
+  obj_properties[PROP_POSITION] =
+    g_param_spec_int64("position",
+        "Player position",
+        "The position in the current track of the player",
+        0,
+        INT64_MAX,
         0,
         G_PARAM_READWRITE);
 

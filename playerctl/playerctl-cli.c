@@ -138,7 +138,7 @@ int main (int argc, char *argv[])
      /* POSITION */
     gint64 offset;
 
-    if(command[1]) {
+    if (command[1]) {
       /* set */
 
       char *endptr;
@@ -156,21 +156,23 @@ int main (int argc, char *argv[])
           offset *= -1;
         }
 
-        playerctl_player_seek(player, 1000000 * offset, &error);
+        playerctl_player_seek(player, offset * 1000000, &error);
 
         if (error != NULL) {
           g_printerr("An error occurred: %s\n", error->message);
           return 1;
         }
       } else {
-        /* TODO */
-        g_printerr("Seeking directly to a position is not yet supported\n");
-        return 1;
+        g_object_set(player, "position", offset * 1000000, NULL);
+        if (error != NULL) {
+          g_printerr("An error occurred: %s\n", error->message);
+          return 1;
+        }
       }
-    }
-    else {
-      g_printerr("Position offset is missing\n");
-      return 1;
+    } else {
+      /* get */
+      g_object_get(player, "position", &offset, NULL);
+      g_print("%g\n", (double)offset / 1000000);
     }
   } else if (g_strcmp0(command[0], "play") == 0) {
     /* PLAY */
