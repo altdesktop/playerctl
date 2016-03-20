@@ -29,17 +29,16 @@ static gboolean version_opt = FALSE;
 static char **command = NULL;
 
 static char *description = "Available Commands:"
-"\n  play                  Command the player to play"
-"\n  pause                 Command the player to pause"
-"\n  play-pause            Command the player to toggle between play/pause"
-"\n  stop                  Command the player to stop"
-"\n  next                  Command the player to skip to the next track"
-"\n  previous              Command the player to skip to the previous track"
-"\n  position OFFSET+/-    Command the player to seek forward/backward OFFSET"
-"\n                        by seconds"
-"\n  volume [LEVEL][+/-]   Print or set the volume to LEVEL from 0.0 to 1.0"
-"\n  status                Get the play status of the player"
-"\n  metadata [KEY]        Print metadata information for the current track. Print only value of KEY if passed";
+"\n  play                    Command the player to play"
+"\n  pause                   Command the player to pause"
+"\n  play-pause              Command the player to toggle between play/pause"
+"\n  stop                    Command the player to stop"
+"\n  next                    Command the player to skip to the next track"
+"\n  previous                Command the player to skip to the previous track"
+"\n  position [OFFSET][+/-]  Command the player to go to the position or seek forward/backward OFFSET in seconds"
+"\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 to 1.0"
+"\n  status                  Get the play status of the player"
+"\n  metadata [KEY]          Print metadata information for the current track. Print only value of KEY if passed";
 
 static char *summary = "  For true players only: spotify, vlc, audacious, bmp, xmms2, and others.";
 
