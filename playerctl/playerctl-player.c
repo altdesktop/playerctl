@@ -160,7 +160,7 @@ static void playerctl_player_set_property(GObject *object, guint property_id, co
         if (err != NULL)
           return;
 
-        GVariant *track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", NULL);
+        GVariant *track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_OBJECT_PATH);
         if (track_id_variant == NULL)
           return;
 
