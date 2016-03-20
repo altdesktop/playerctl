@@ -162,7 +162,7 @@ int main (int argc, char *argv[])
           return 1;
         }
       } else {
-        g_object_set(player, "position", offset * 1000000, NULL);
+        playerctl_player_set_position(player, offset * 1000000, &error);
         if (error != NULL) {
           g_printerr("An error occurred: %s\n", error->message);
           return 1;

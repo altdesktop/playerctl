@@ -152,26 +152,6 @@ static void playerctl_player_set_property(GObject *object, guint property_id, co
       org_mpris_media_player2_player_set_volume(self->priv->proxy, g_value_get_double(value));
       break;
 
-    case PROP_POSITION:
-      {
-        GError **err = NULL;
-        // calling the function requires the track id
-        GVariant *metadata = playerctl_player_get_metadata(self, err);
-        if (err != NULL)
-          return;
-
-        GVariant *track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_OBJECT_PATH);
-        if (track_id_variant == NULL)
-          return;
-
-        const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
-        if (track_id == NULL)
-          return;
-
-        org_mpris_media_player2_player_call_set_position_sync(self->priv->proxy, track_id, g_value_get_int64(value), NULL, NULL);
-        break;
-      }
-
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
       break;
@@ -297,7 +277,7 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         0,
         INT64_MAX,
         0,
-        G_PARAM_READWRITE);
+        G_PARAM_READABLE);
 
   obj_properties[PROP_METADATA] =
     g_param_spec_variant("metadata",
@@ -829,4 +809,44 @@ gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err)
   }
 
   return playerctl_player_print_metadata_prop(self, "xesam:album", NULL);
+}
+
+/**
+ * playerctl_player_set_position
+ * @self: a #PlayerctlPlayer
+ * @err: (allow-none): the location of a GError or NULL
+ *
+ * Sets the position of the current track to the given position in microseconds.
+ */
+void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GError **err)
+{
+  GError *tmp_error = NULL;
+
+  g_return_if_fail(err == NULL || *err == NULL);
+
+  if (self->priv->init_error != NULL) {
+    g_propagate_error(err, g_error_copy(self->priv->init_error));
+  }
+
+  // calling the function requires the track id
+  GVariant *metadata = playerctl_player_get_metadata(self, &tmp_error);
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return;
+  }
+
+  GVariant *track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_OBJECT_PATH);
+  if (track_id_variant == NULL) {
+    tmp_error = g_error_new(playerctl_player_error_quark(), 1, "Could not get track id to set position");
+    g_propagate_error(err, tmp_error);
+    return;
+  }
+
+  const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
+
+  org_mpris_media_player2_player_call_set_position_sync(self->priv->proxy, track_id, position, NULL, &tmp_error);
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return;
+  }
 }
