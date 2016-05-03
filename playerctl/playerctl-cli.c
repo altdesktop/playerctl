@@ -38,6 +38,7 @@ static char *description = "Available Commands:"
 "\n  position [OFFSET][+/-]  Command the player to go to the position or seek forward/backward OFFSET in seconds"
 "\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 to 1.0"
 "\n  status                  Get the play status of the player"
+"\n  current                 Get the currently playing song"
 "\n  metadata [KEY]          Print metadata information for the current track. Print only value of KEY if passed";
 
 static char *summary = "  For true players only: spotify, vlc, audacious, bmp, xmms2, and others.";
@@ -206,6 +207,15 @@ int main (int argc, char *argv[])
     g_print("%s", value);
 
     g_free(value);
+  } else if (g_strcmp0(command[0], "current") == 0) {
+    /* CURRENT */
+    gchar *artist = playerctl_player_get_artist(player, &error);
+    gchar *title = playerctl_player_get_album(player, &error);
+
+    g_print("%s - %s\n", artist, title);
+
+    g_free(artist);
+    g_free(title);
   } else if (g_strcmp0(command[0], "status") == 0) {
     /* STATUS */
     gchar *status = NULL;
