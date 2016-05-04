@@ -38,8 +38,12 @@ static char *description = "Available Commands:"
 "\n  position [OFFSET][+/-]  Command the player to go to the position or seek forward/backward OFFSET in seconds"
 "\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 to 1.0"
 "\n  status                  Get the play status of the player"
-"\n  current                 Get the currently playing song"
-"\n  metadata [KEY]          Print metadata information for the current track. Print only value of KEY if passed";
+"\n  metadata [KEY]          Print metadata information for the current track. Print only value of KEY if passed"
+"\n  current [FORMAT]        Print formatted information about the current song"
+"\n                              Interpreted format sequences are:"
+"\n                              %T    the current song's title"
+"\n                              %A    the current song's artist"
+"\n                              %a    the current song's album";
 
 static char *summary = "  For true players only: spotify, vlc, audacious, bmp, xmms2, and others.";
 
@@ -209,13 +213,36 @@ int main (int argc, char *argv[])
     g_free(value);
   } else if (g_strcmp0(command[0], "current") == 0) {
     /* CURRENT */
-    gchar *artist = playerctl_player_get_artist(player, &error);
-    gchar *title = playerctl_player_get_album(player, &error);
-
-    g_print("%s - %s\n", artist, title);
-
-    g_free(artist);
-    g_free(title);
+    if (command[1]) {
+      char* c;
+      for (int i = 0; *c != '\0'; i++) {
+        c = &command[1][i];
+        if (*c == '%') {
+          switch (c[1]) {
+            case 'T':
+              g_print("%s", playerctl_player_get_title(player, &error));
+              break;
+            case 'A':
+              g_print("%s", playerctl_player_get_artist(player, &error));
+              break;
+            case 'a':
+              g_print("%s", playerctl_player_get_album(player, &error));
+              break;
+            default:
+              g_print("%%");
+              continue;
+          }
+          i++;
+        } else {
+          g_print("%c", *c);
+        }
+      }
+      g_print("\n");
+    } else {
+      g_print("%s - %s\n",
+          playerctl_player_get_artist(player, &error),
+          playerctl_player_get_title(player, &error));
+    }
   } else if (g_strcmp0(command[0], "status") == 0) {
     /* STATUS */
     gchar *status = NULL;
