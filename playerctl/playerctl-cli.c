@@ -165,7 +165,7 @@ static gboolean position (const gchar *value, PlayerctlPlayer *player, GError **
     char *endptr = NULL;
     offset = strtod(value, &endptr);
 
-    if (endptr) {
+    if (value == endptr) {
       g_set_error(error, playerctl_cli_error_quark (), 1, "Could not parse position as a number: %s\n", value);
       return FALSE;
     }
@@ -202,10 +202,16 @@ static gboolean set_or_get_volume (const gchar *value, PlayerctlPlayer *player, 
   gdouble level;
 
   if (volume) {
+    char *endptr = NULL;
     size_t last = strlen(volume) - 1;
 
     if(volume[last] == '+' || volume[last] == '-') {
-      gdouble adjustment = g_ascii_strtod(volume, NULL);
+      gdouble adjustment = strtod(volume, &endptr);
+
+      if (volume == endptr) {
+        g_set_error(error, playerctl_cli_error_quark (), 1, "Could not parse volume as a number: %s\n", volume);
+        return FALSE;
+      }
 
       if(volume[last] == '-') {
           adjustment *= -1;
@@ -214,7 +220,12 @@ static gboolean set_or_get_volume (const gchar *value, PlayerctlPlayer *player, 
       g_object_get(player, "volume", &level, NULL);
       level += adjustment;
     } else {
-      level = g_ascii_strtod(volume, NULL);
+      level = strtod(volume, &endptr);
+      if (volume == endptr) {
+        g_set_error(error, playerctl_cli_error_quark (), 1, "Could not parse volume as a number: %s\n", volume);
+        return FALSE;
+      }
+
     }
     g_object_set(player, "volume", level, NULL);
   } else {
