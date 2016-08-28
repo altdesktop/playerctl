@@ -15,30 +15,21 @@ AC_CONFIG_HEADER([config.h])
 
 # Checks for programs
 AC_PROG_CC
+# Checks for typedefs, structures, and compiler characteristics
+AC_PROG_CC_STDC
 AC_PROG_INSTALL
 
 # Checks for libraries
-PKG_CHECK_MODULES([GOBJECT], [gobject-2.0 >= 2.38])
-PKG_CHECK_MODULES([GIO], [gio-unix-2.0])
+PKG_CHECK_MODULES([PLAYERCTL], [gobject-2.0 >= 2.38,
+                                gio-unix-2.0])
 
 AC_PATH_PROG([GDBUS_CODEGEN], [`$PKG_CONFIG --variable=gdbus_codegen gio-2.0`])
 if test -z "$GDBUS_CODEGEN"; then
     AC_MSG_ERROR([*** gdbus-codegen is required to build playerctl])
 fi
 
-# Checks for typedefs, structures, and compiler characteristics
-AC_PROG_CC_STDC
-
-# Compiler flags
-PLAYERCTL_CFLAGS="$GOBJECT_CFLAGS $GIO_CFLAGS"
-AC_SUBST(PLAYERCTL_CFLAGS)
-
-PLAYERCTL_LIBS="$GOBJECT_LIBS $GIO_LIBS"
-AC_SUBST(PLAYERCTL_LIBS)
-
 AM_INIT_AUTOMAKE([-Wall -Werror foreign -Wno-portability])
 AM_PATH_GLIB_2_0
-AM_PROG_AR
 AM_SILENT_RULES([yes])
 LT_INIT
 

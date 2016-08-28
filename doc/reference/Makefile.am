@@ -78,3 +78,5 @@ GTKDOC_LIBS = $(top_builddir)/playerctl/libplayerctl-1.0.la $(GOBJECT_LIBS)
 include $(top_srcdir)/gtk-doc.make
 
 EXTRA_DIST += version.xml.in
+
+-include $(top_srcdir)/git.mk
