@@ -249,14 +249,14 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         "Player name",
         "The name of the player mpris player",
         NULL, /* default */
-        G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+        G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY| G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_STATUS] =
     g_param_spec_string("status",
         "Player status",
         "The play status of the player",
         NULL, /* default */
-        G_PARAM_READABLE);
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_VOLUME] =
     g_param_spec_double("volume",
@@ -265,7 +265,7 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         0,
         100,
         0,
-        G_PARAM_READWRITE);
+        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_POSITION] =
     g_param_spec_int64("position",
@@ -274,7 +274,7 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         0,
         INT64_MAX,
         0,
-        G_PARAM_READABLE);
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_METADATA] =
     g_param_spec_variant("metadata",
@@ -282,7 +282,7 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         "The metadata of the currently playing track",
         G_VARIANT_TYPE_VARIANT,
         NULL,
-        G_PARAM_READABLE);
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties(gobject_class, N_PROPERTIES, obj_properties);
 
