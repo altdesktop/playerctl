@@ -488,9 +488,8 @@ static void playerctl_player_initable_iface_init(GInitableIface *iface)
  *
  * Returns:(transfer full): A new #PlayerctlPlayer connected to the bus name or
  * NULL if an error occurred
- *
  */
-PlayerctlPlayer *playerctl_player_new(gchar *name, GError **err)
+PlayerctlPlayer *playerctl_player_new(const gchar *name, GError **err)
 {
   GError *tmp_error = NULL;
   PlayerctlPlayer *player;
@@ -516,7 +515,10 @@ PlayerctlPlayer *playerctl_player_new(gchar *name, GError **err)
  */
 PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, GClosure *callback, GError **err)
 {
-  GError *tmp_error = NULL;
+  g_return_val_if_fail(self != NULL, NULL);
+  g_return_val_if_fail(event != NULL, NULL);
+  g_return_val_if_fail(callback != NULL, NULL);
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
     g_propagate_error(err, g_error_copy(self->priv->init_error));
@@ -534,6 +536,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
 #define PLAYER_COMMAND_FUNC(COMMAND) \
   GError *tmp_error = NULL; \
  \
+  g_return_val_if_fail(self != NULL, NULL); \
   g_return_val_if_fail(err == NULL || *err == NULL, NULL); \
  \
   if (self->priv->init_error != NULL) { \
@@ -618,6 +621,7 @@ PlayerctlPlayer *playerctl_player_seek(PlayerctlPlayer *self, gint64 offset, GEr
 {
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -674,7 +678,7 @@ PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
  *
  * Returns: (transfer full): The artist from the metadata of the current track
  */
-gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, gchar *property, GError **err)
+gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *property, GError **err)
 {
   GVariant *prop_variant;
   const gchar **prop_strv;
@@ -682,6 +686,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, gchar *proper
   GVariant *metadata;
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -746,6 +751,7 @@ gchar *playerctl_player_get_artist(PlayerctlPlayer *self, GError **err)
 {
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -770,6 +776,7 @@ gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err)
 {
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -794,6 +801,7 @@ gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err)
 {
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -815,6 +823,7 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
 {
   GError *tmp_error = NULL;
 
+  g_return_if_fail(self != NULL);
   g_return_if_fail(err == NULL || *err == NULL);
 
   if (self->priv->init_error != NULL) {
