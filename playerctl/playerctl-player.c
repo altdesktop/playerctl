@@ -451,9 +451,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
 
   if (player->priv->player_name == NULL) {
     /* org.mpris.MediaPlayer2.[NAME] */
-    gchar **split_bus_name = g_strsplit(player->priv->bus_name, ".", 4);
-    player->priv->player_name = g_strdup(split_bus_name[3]);
-    g_strfreev(split_bus_name);
+    player->priv->player_name = g_strdup(player->priv->bus_name + 23);
   }
 
   player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
