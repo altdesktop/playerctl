@@ -84,7 +84,6 @@ static void playerctl_player_properties_changed_callback (GDBusProxy *_proxy, GV
       g_signal_emit(self, connection_signals[PAUSE], 0);
     else if (g_strcmp0(status_str, "Stopped") == 0)
       g_signal_emit(self, connection_signals[STOP], 0);
-
   }
 
   for (int i = 0; invalidated_properties[i] != NULL; i += 1) {
@@ -172,7 +171,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
         g_value_set_string(value, org_mpris_media_player2_player_get_playback_status(self->priv->proxy));
       else
         g_value_set_string(value, "");
-
       break;
 
     case PROP_METADATA:
@@ -191,7 +189,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
         g_value_set_double(value, org_mpris_media_player2_player_get_volume(self->priv->proxy));
       else
         g_value_set_double(value, 0);
-
       break;
 
     case PROP_POSITION:
@@ -504,7 +501,6 @@ PlayerctlPlayer *playerctl_player_new(gchar *name, GError **err)
 
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
-    return NULL;
   }
 
   return player;
@@ -551,7 +547,6 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
  \
   if (tmp_error != NULL) { \
     g_propagate_error(err, tmp_error); \
-    return self; \
   } \
  \
   return self;
@@ -847,6 +842,6 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
   org_mpris_media_player2_player_call_set_position_sync(self->priv->proxy, track_id, position, NULL, &tmp_error);
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
-    return;
   }
 }
+

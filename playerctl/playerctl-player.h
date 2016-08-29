@@ -50,21 +50,17 @@ struct _PlayerctlPlayer
 
   /* private member */
   PlayerctlPlayerPrivate *priv;
-
-  /* instance members */
 };
 
 struct _PlayerctlPlayerClass
 {
   /* Parent class structure */
   GObjectClass parent_class;
-
-  /* class members */
 };
 
 GType playerctl_player_get_type (void);
 
-PlayerctlPlayer * playerctl_player_new (gchar *name, GError **err);
+PlayerctlPlayer *playerctl_player_new (gchar *name, GError **err);
 
 /*
  * Method definitions.
