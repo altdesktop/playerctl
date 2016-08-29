@@ -680,10 +680,6 @@ PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
  */
 gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *property, GError **err)
 {
-  GVariant *prop_variant;
-  const gchar **prop_strv;
-  GString *prop;
-  GVariant *metadata;
   GError *tmp_error = NULL;
 
   g_return_val_if_fail(self != NULL, NULL);
@@ -694,7 +690,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
     return NULL;
   }
 
-  metadata = playerctl_player_get_metadata(self, &tmp_error);
+  GVariant *metadata = playerctl_player_get_metadata(self, &tmp_error);
 
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
@@ -705,19 +701,23 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
     return g_strdup("");
   }
 
-  if (!property)
-    return g_variant_print(metadata, FALSE);
+  if (!property) {
+    gchar *res = g_variant_print(metadata, FALSE);
+    g_variant_unref(metadata);
+    return res;
+  }
 
-  prop_variant = g_variant_lookup_value(metadata, property, NULL);
+  GVariant *prop_variant = g_variant_lookup_value(metadata, property, NULL);
+  g_variant_unref(metadata);
 
-  if (!prop_variant)
+  if (!prop_variant) {
     return g_strdup("");
+  }
 
-  prop = g_string_new("");
-
+  GString *prop = g_string_new("");
   if (g_variant_is_of_type(prop_variant, G_VARIANT_TYPE_STRING_ARRAY)) {
     gsize prop_count;
-    prop_strv = g_variant_get_strv(prop_variant, &prop_count);
+    const gchar **prop_strv = g_variant_get_strv(prop_variant, &prop_count);
 
     for (int i = 0; i < prop_count; i += 1) {
       g_string_append(prop, prop_strv[i]);
@@ -734,6 +734,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
     prop = g_variant_print_string(prop_variant, prop, FALSE);
   }
 
+  g_variant_unref(prop_variant);
   return g_string_free(prop, FALSE);
 }
 
@@ -838,6 +839,7 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
   }
 
   GVariant *track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_OBJECT_PATH);
+  g_variant_unref(metadata);
   if (track_id_variant == NULL) {
     tmp_error = g_error_new(playerctl_player_error_quark(), 1, "Could not get track id to set position");
     g_propagate_error(err, tmp_error);
@@ -847,6 +849,7 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
   const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
 
   org_mpris_media_player2_player_call_set_position_sync(self->priv->proxy, track_id, position, NULL, &tmp_error);
+  g_variant_unref(track_id_variant);
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
   }
