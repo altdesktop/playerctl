@@ -505,11 +505,11 @@ PlayerctlPlayer *playerctl_player_new(const gchar *name, GError **err)
 
 /**
  * playerctl_player_on:
- * @self: an #PlayerctlPlayer
+ * @self: a #PlayerctlPlayer
  * @event: the event to subscribe to
  * @callback: the callback to run on the event
  *
- * A convenience function for bindings to subscribe an event with a callback
+ * A convenience function for bindings to subscribe to an event with a callback
  *
  * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
@@ -557,7 +557,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
  * @self: a #PlayerctlPlayer
  * @err (allow-none): the location of a GError or NULL
  *
- * Command the player to play if it is playing or pause if it is paused
+ * Command the player to play if it is paused or pause if it is playing
  *
  * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
@@ -742,7 +742,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
  * @self: a #PlayerctlPlayer
  * @err: (allow-none): the location of a GError or NULL
  *
- * Gets the artist from the metadata of the current track, or empty string if
+ * Gets the artist from the metadata of the current track, or the empty string if
  * no track is playing.
  *
  * Returns: (transfer full): The artist from the metadata of the current track
