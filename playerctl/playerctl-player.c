@@ -375,53 +375,53 @@ static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err)
   }
 
   if (self->priv->player_name != NULL) {
-    bus_name = g_strjoin(".", "org.mpris.MediaPlayer2", self->priv->player_name, NULL);
-  } else {
-    GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
-        G_BUS_TYPE_SESSION,
-        G_DBUS_PROXY_FLAGS_NONE,
-        NULL,
-        "org.freedesktop.DBus",
-        "/org/freedesktop/DBus",
-        "org.freedesktop.DBus",
-        NULL,
-        &tmp_error);
-
-    if (tmp_error != NULL) {
-      g_propagate_error(err, tmp_error);
-      return NULL;
-    }
-
-    GVariant *reply = g_dbus_proxy_call_sync(proxy,
-        "ListNames",
-        NULL,
-        G_DBUS_CALL_FLAGS_NONE,
-        -1,
-        NULL,
-        &tmp_error);
-
-    if (tmp_error != NULL) {
-      g_propagate_error(err, tmp_error);
-      g_object_unref(proxy);
-      return NULL;
-    }
-
-    GVariant *reply_child = g_variant_get_child_value(reply, 0);
-    gsize reply_count;
-    const gchar** names = g_variant_get_strv(reply_child, &reply_count);
-
-    for (int i = 0; i < reply_count; i += 1) {
-      if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
-        bus_name = g_strdup(names[i]);
-        break;
-      }
-    }
-
-    g_object_unref(proxy);
-    g_variant_unref(reply);
-    g_variant_unref(reply_child);
-    g_free(names);
+    return g_strjoin(".", "org.mpris.MediaPlayer2", self->priv->player_name, NULL);
   }
+
+  GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
+      G_BUS_TYPE_SESSION,
+      G_DBUS_PROXY_FLAGS_NONE,
+      NULL,
+      "org.freedesktop.DBus",
+      "/org/freedesktop/DBus",
+      "org.freedesktop.DBus",
+      NULL,
+      &tmp_error);
+
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return NULL;
+  }
+
+  GVariant *reply = g_dbus_proxy_call_sync(proxy,
+      "ListNames",
+      NULL,
+      G_DBUS_CALL_FLAGS_NONE,
+      -1,
+      NULL,
+      &tmp_error);
+
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    g_object_unref(proxy);
+    return NULL;
+  }
+
+  GVariant *reply_child = g_variant_get_child_value(reply, 0);
+  gsize reply_count;
+  const gchar **names = g_variant_get_strv(reply_child, &reply_count);
+
+  for (int i = 0; i < reply_count; i += 1) {
+    if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
+      bus_name = g_strdup(names[i]);
+      break;
+    }
+  }
+
+  g_object_unref(proxy);
+  g_variant_unref(reply);
+  g_variant_unref(reply_child);
+  g_free(names);
 
   if (bus_name == NULL) {
     tmp_error = g_error_new(playerctl_player_error_quark(), 1, "No players found");
