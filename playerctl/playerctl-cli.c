@@ -72,9 +72,10 @@ static gchar *list_player_names(GError **err)
   gsize reply_count;
   const gchar **names = g_variant_get_strv(reply_child, &reply_count);
 
+  size_t offset = strlen ("org.mpris.MediaPlayer2");
   for (int i = 0; i < reply_count; i += 1) {
     if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
-      g_string_append_printf(names_str, "%s\n", names[i] + 23);
+      g_string_append_printf(names_str, "%s\n", names[i] + offset);
     }
   }
 
@@ -334,17 +335,21 @@ static gboolean parse_setup_options (int argc, char *argv[], GError **error)
   g_option_context_set_summary(context, summary);
 
   success = g_option_context_parse(context, &argc, &argv, error);
-  g_option_context_free(context);
 
   if (!success) {
+    g_option_context_free(context);
     return FALSE;
   }
 
   if (command == NULL) {
-    g_set_error (error, playerctl_cli_error_quark(), 1, "No command entered");
+    gchar *help = g_option_context_get_help(context, TRUE, NULL);
+    g_set_error (error, playerctl_cli_error_quark(), 1, "No command entered\n\n%s", help);
+    g_option_context_free(context);
+    g_free(help);
     return FALSE;
   }
 
+  g_option_context_free(context);
   return TRUE;
 }
 
@@ -358,9 +363,8 @@ int main (int argc, char *argv[])
   setlocale(LC_CTYPE, "");
 
   if (!parse_setup_options(argc, argv, &error)) {
-    g_printerr("%s\nRun '%s --help' to see a full list of available command line options\n",
-        error->message, argv[0]);
-    exit_status = 1;
+    g_printerr("%s\n", error->message);
+    exit_status = 0;
     goto end;
   }
 
