@@ -30,6 +30,8 @@ G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
 /* The player being controlled. */
 static gchar *player_name = NULL;
+/* If true, print the version and exit. */
+static gboolean print_version_and_exit;
 /* The commands passed on the command line, filled in via G_OPTION_REMAINING. */
 static gchar **command = NULL;
 
@@ -102,13 +104,6 @@ static gboolean list_all_players_and_exit (const gchar *name, const gchar *value
     g_print("%s", player_names);
   g_free(player_names);
 
-  exit(0);
-  return TRUE;
-}
-
-static gboolean print_version_and_exit (const gchar *name, const gchar *value, PlayerctlPlayer *player, GError **error)
-{
-  g_print("v%s\n", PLAYERCTL_VERSION_S);
   exit(0);
   return TRUE;
 }
@@ -304,7 +299,7 @@ static const GOptionEntry entries[] = {
     "The name of the player to control (default: the first available player)", "NAME" },
   { "list-all", 'l', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, list_all_players_and_exit,
     "List the names of running players that can be controlled and exit", NULL },
-  { "version", 'v', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, print_version_and_exit,
+  { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &print_version_and_exit,
     "Print version information and exit", NULL },
   { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command, NULL, "COMMAND" },
   { NULL }
@@ -340,7 +335,7 @@ static gboolean parse_setup_options (int argc, char *argv[], GError **error)
     return FALSE;
   }
 
-  if (command == NULL) {
+  if (command == NULL && !print_version_and_exit) {
     gchar *help = g_option_context_get_help(context, TRUE, NULL);
     g_set_error (error, playerctl_cli_error_quark(), 1, "No command entered\n\n%s", help);
     g_option_context_free(context);
@@ -363,6 +358,12 @@ int main (int argc, char *argv[])
 
   if (!parse_setup_options(argc, argv, &error)) {
     g_printerr("%s\n", error->message);
+    exit_status = 0;
+    goto end;
+  }
+
+  if (print_version_and_exit) {
+    g_print("v%s\n", PLAYERCTL_VERSION_S);
     exit_status = 0;
     goto end;
   }
