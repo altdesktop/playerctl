@@ -288,7 +288,7 @@ struct PlayerCommand {
   { "metadata", &get_metadata },
 };
 
-static gboolean parse_player_command (gchar **command, PlayerctlPlayer *player, GError **error)
+static gboolean handle_player_command (gchar **command, PlayerctlPlayer *player, GError **error)
 {
   for (int i = 0; i < LENGTH(commands); i++) {
     if (g_strcmp0(commands[i].name, command[0]) == 0) {
@@ -374,7 +374,7 @@ int main (int argc, char *argv[])
     goto end;
   }
 
-  if (!parse_player_command(command, player, &error)) {
+  if (!handle_player_command(command, player, &error)) {
     g_printerr("Could not execute command: %s\n", error->message);
     exit_status = 1;
   }
