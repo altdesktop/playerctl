@@ -30,6 +30,8 @@ G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
 /* The player being controlled. */
 static gchar *player_name = NULL;
+/* If true, list all available players' names and exit. */
+static gboolean list_all_players_and_exit;
 /* If true, print the version and exit. */
 static gboolean print_version_and_exit;
 /* The commands passed on the command line, filled in via G_OPTION_REMAINING. */
@@ -86,26 +88,6 @@ static gchar *list_player_names(GError **err)
   g_free(names);
 
   return g_string_free(names_str, FALSE);
-}
-
-static gboolean list_all_players_and_exit (const gchar *name, const gchar *value, PlayerctlPlayer *player, GError **error)
-{
-  GError *tmp_error = NULL;
-  gchar *player_names = list_player_names(&tmp_error);
-
-  if (tmp_error) {
-    g_propagate_error(error, tmp_error);
-    return FALSE;
-  }
-
-  if (player_names[0] == '\0')
-    g_printerr("No players were found");
-  else
-    g_print("%s", player_names);
-  g_free(player_names);
-
-  exit(0);
-  return TRUE;
 }
 
 #define PLAYER_COMMAND_FUNC(COMMAND) \
@@ -297,7 +279,7 @@ static gboolean handle_player_command (gchar **command, PlayerctlPlayer *player,
 static const GOptionEntry entries[] = {
   { "player", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &player_name,
     "The name of the player to control (default: the first available player)", "NAME" },
-  { "list-all", 'l', G_OPTION_FLAG_NO_ARG, G_OPTION_ARG_CALLBACK, list_all_players_and_exit,
+  { "list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &list_all_players_and_exit,
     "List the names of running players that can be controlled and exit", NULL },
   { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &print_version_and_exit,
     "Print version information and exit", NULL },
@@ -335,7 +317,7 @@ static gboolean parse_setup_options (int argc, char *argv[], GError **error)
     return FALSE;
   }
 
-  if (command == NULL && !print_version_and_exit) {
+  if (command == NULL && !print_version_and_exit && !list_all_players_and_exit) {
     gchar *help = g_option_context_get_help(context, TRUE, NULL);
     g_set_error (error, playerctl_cli_error_quark(), 1, "No command entered\n\n%s", help);
     g_option_context_free(context);
@@ -364,6 +346,25 @@ int main (int argc, char *argv[])
 
   if (print_version_and_exit) {
     g_print("v%s\n", PLAYERCTL_VERSION_S);
+    exit_status = 0;
+    goto end;
+  }
+
+  if (list_all_players_and_exit) {
+    gchar *player_names = list_player_names(&error);
+
+    if (error) {
+      g_printerr("%s\n", error->message);
+      exit_status = 1;
+      goto end;
+    }
+
+    if (player_names[0] == '\0')
+      g_printerr("No players were found");
+    else
+      g_print("%s", player_names);
+    g_free(player_names);
+
     exit_status = 0;
     goto end;
   }
