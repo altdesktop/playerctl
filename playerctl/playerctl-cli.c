@@ -15,8 +15,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with playerctl If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright © 2014, Tony Crisci
- * Copyright © 2016, Jente Hidskes <hjdskes@gmail.com>
+ * Copyright © 2014 - 2016, Tony Crisci and contributors.
  */
 
 #include "playerctl.h"
