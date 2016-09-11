@@ -100,56 +100,57 @@ static gchar *list_player_names(GError **err)
   } \
   return TRUE;
 
-static gboolean play (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean play (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
   PLAYER_COMMAND_FUNC(play);
 }
 
 /* Pause is defined in unistd.h */
-static gboolean paus (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean paus (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
   PLAYER_COMMAND_FUNC(pause);
 }
 
-static gboolean play_pause (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean play_pause (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
   PLAYER_COMMAND_FUNC(play_pause);
 }
 
-static gboolean stop (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean stop (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
   PLAYER_COMMAND_FUNC(stop);
 }
 
-static gboolean next (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean next (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
   PLAYER_COMMAND_FUNC(next);
 }
 
-static gboolean previous (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean previous (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
   PLAYER_COMMAND_FUNC(previous);
 }
 
 #undef PLAYER_COMMAND_FUNC
 
-static gboolean position (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean position (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
-  GError *tmp_error = NULL;
+  const gchar *position = *arguments;
   gint64 offset;
+  GError *tmp_error = NULL;
 
-  if (value) {
+  if (position) {
     char *endptr = NULL;
-    offset = strtod(value, &endptr);
+    offset = strtod(position, &endptr);
 
-    if (value == endptr) {
-      g_set_error(error, playerctl_cli_error_quark (), 1, "Could not parse position as a number: %s\n", value);
+    if (position == endptr) {
+      g_set_error(error, playerctl_cli_error_quark (), 1, "Could not parse position as a number: %s\n", position);
       return FALSE;
     }
 
-    size_t last = strlen(value) - 1;
-    if (value[last] == '+' || value[last] == '-') {
-      if (value[last] == '-') {
+    size_t last = strlen(position) - 1;
+    if (position[last] == '+' || position[last] == '-') {
+      if (position[last] == '-') {
         offset *= -1;
       }
 
@@ -173,9 +174,9 @@ static gboolean position (const gchar *value, PlayerctlPlayer *player, GError **
   return TRUE;
 }
 
-static gboolean set_or_get_volume (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean set_or_get_volume (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
-  const gchar *volume = value;
+  const gchar *volume = *arguments;
   gdouble level;
 
   if (volume) {
@@ -213,7 +214,7 @@ static gboolean set_or_get_volume (const gchar *value, PlayerctlPlayer *player, 
   return TRUE;
 }
 
-static gboolean status (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean status (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
   gchar *state = NULL;
 
@@ -224,19 +225,20 @@ static gboolean status (const gchar *value, PlayerctlPlayer *player, GError **er
   return TRUE;
 }
 
-static gboolean get_metadata (const gchar *value, PlayerctlPlayer *player, GError **error)
+static gboolean get_metadata (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
+  const gchar *type = *arguments;
   GError *tmp_error = NULL;
   gchar *data;
 
-  if (g_strcmp0(value, "artist") == 0)
+  if (g_strcmp0(type, "artist") == 0)
     data = playerctl_player_get_artist(player, &tmp_error);
-  else if (g_strcmp0(value, "title") == 0)
+  else if (g_strcmp0(type, "title") == 0)
     data = playerctl_player_get_title(player, &tmp_error);
-  else if (g_strcmp0(value, "album") == 0)
+  else if (g_strcmp0(type, "album") == 0)
     data = playerctl_player_get_album(player, &tmp_error);
   else
-    data = playerctl_player_print_metadata_prop(player, value, &tmp_error);
+    data = playerctl_player_print_metadata_prop(player, type, &tmp_error);
 
   if (tmp_error) {
     g_propagate_error(error, tmp_error);
@@ -251,7 +253,7 @@ static gboolean get_metadata (const gchar *value, PlayerctlPlayer *player, GErro
 
 struct PlayerCommand {
   const gchar *name;
-  gboolean (*func) (const gchar *value, PlayerctlPlayer *player, GError **error);
+  gboolean (*func) (PlayerctlPlayer *player, gchar **arguments, GError **error);
 } commands[] = {
   { "play", &play },
   { "pause", &paus },
@@ -265,11 +267,12 @@ struct PlayerCommand {
   { "metadata", &get_metadata },
 };
 
-static gboolean handle_player_command (gchar **command, PlayerctlPlayer *player, GError **error)
+static gboolean handle_player_command (PlayerctlPlayer *player, gchar **command, GError **error)
 {
   for (int i = 0; i < LENGTH(commands); i++) {
     if (g_strcmp0(commands[i].name, command[0]) == 0) {
-      return commands[i].func(command[1], player, error);
+      // Do not pass the command's name to the function that processes it.
+      return commands[i].func(player, command + 1, error);
     }
   }
   g_set_error(error, playerctl_cli_error_quark (), 1, "Command not recognized: %s", command[0], NULL);
@@ -376,7 +379,7 @@ int main (int argc, char *argv[])
     goto end;
   }
 
-  if (!handle_player_command(command, player, &error)) {
+  if (!handle_player_command(player, command, &error)) {
     g_printerr("Could not execute command: %s\n", error->message);
     exit_status = 1;
   }
