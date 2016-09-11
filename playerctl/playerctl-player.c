@@ -15,9 +15,10 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with playerctl If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright © 2014, Tony Crisci
+ * Copyright © 2014 - 2016, Tony Crisci and contributors.
  */
 
+#include <string.h>
 #include <gio/gio.h>
 #include <glib-object.h>
 
@@ -451,7 +452,8 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
 
   if (player->priv->player_name == NULL) {
     /* org.mpris.MediaPlayer2.[NAME] */
-    player->priv->player_name = g_strdup(player->priv->bus_name + 23);
+    size_t offset = strlen ("org.mpris.MediaPlayer2");
+    player->priv->player_name = g_strdup(player->priv->bus_name + offset);
   }
 
   player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
