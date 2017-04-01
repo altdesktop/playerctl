@@ -26,18 +26,17 @@
 #endif
 
 #include <glib-object.h>
-/**
-  * SECTION: playerctl-player
-  * @short_description: A class to control an MPRIS player
-  *
-  */
 
-#define PLAYERCTL_TYPE_PLAYER                  (playerctl_player_get_type ())
-#define PLAYERCTL_PLAYER(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), PLAYERCTL_TYPE_PLAYER, PlayerctlPlayer))
-#define PLAYERCTL_IS_PLAYER(obj)               (G_TYPE_CHECK_INSTANCE_TYPE ((obj), PLAYERCTL_TYPE_PLAYER))
-#define PLAYERCTL_PLAYER_CLASS(klass)          (G_TYPE_CHECK_CLASS_CAST ((klass), PLAYERCTL_TYPE_PLAYER, PlayerctlPlayerClass))
-#define PLAYERCTL_IS_PLAYER_CLASS(klass)       (G_TYPE_CHECK_CLASS_TYPE ((klass), PLAYERCTL_TYPE_PLAYER))
-#define PLAYERCTL_PLAYER_GET_CLASS(obj)        (G_TYPE_INSTANCE_GET_CLASS ((obj), PLAYERCTL_TYPE_PLAYER, PlayerctlPlayerClass))
+/**
+ * SECTION: playerctl-player
+ * @short_description: A class to control an MPRIS player
+ */
+#define PLAYERCTL_TYPE_PLAYER            (playerctl_player_get_type ())
+#define PLAYERCTL_PLAYER(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), PLAYERCTL_TYPE_PLAYER, PlayerctlPlayer))
+#define PLAYERCTL_IS_PLAYER(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), PLAYERCTL_TYPE_PLAYER))
+#define PLAYERCTL_PLAYER_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), PLAYERCTL_TYPE_PLAYER, PlayerctlPlayerClass))
+#define PLAYERCTL_IS_PLAYER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), PLAYERCTL_TYPE_PLAYER))
+#define PLAYERCTL_PLAYER_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), PLAYERCTL_TYPE_PLAYER, PlayerctlPlayerClass))
 
 typedef struct _PlayerctlPlayer        PlayerctlPlayer;
 typedef struct _PlayerctlPlayerClass   PlayerctlPlayerClass;
@@ -48,23 +47,19 @@ struct _PlayerctlPlayer
   /* Parent instance structure */
   GObject parent_instance;
 
-  /* private member */
+  /* Private members */
   PlayerctlPlayerPrivate *priv;
-
-  /* instance members */
 };
 
 struct _PlayerctlPlayerClass
 {
   /* Parent class structure */
   GObjectClass parent_class;
-
-  /* class members */
 };
 
 GType playerctl_player_get_type (void);
 
-PlayerctlPlayer * playerctl_player_new (gchar *name, GError **err);
+PlayerctlPlayer *playerctl_player_new (const gchar *name, GError **err);
 
 /*
  * Method definitions.

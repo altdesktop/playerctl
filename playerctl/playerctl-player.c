@@ -15,9 +15,10 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with playerctl If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright © 2014, Tony Crisci
+ * Copyright © 2014 - 2016, Tony Crisci and contributors.
  */
 
+#include <string.h>
 #include <gio/gio.h>
 #include <glib-object.h>
 
@@ -84,7 +85,6 @@ static void playerctl_player_properties_changed_callback (GDBusProxy *_proxy, GV
       g_signal_emit(self, connection_signals[PAUSE], 0);
     else if (g_strcmp0(status_str, "Stopped") == 0)
       g_signal_emit(self, connection_signals[STOP], 0);
-
   }
 
   for (int i = 0; invalidated_properties[i] != NULL; i += 1) {
@@ -172,7 +172,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
         g_value_set_string(value, org_mpris_media_player2_player_get_playback_status(self->priv->proxy));
       else
         g_value_set_string(value, "");
-
       break;
 
     case PROP_METADATA:
@@ -191,7 +190,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
         g_value_set_double(value, org_mpris_media_player2_player_get_volume(self->priv->proxy));
       else
         g_value_set_double(value, 0);
-
       break;
 
     case PROP_POSITION:
@@ -252,14 +250,14 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         "Player name",
         "The name of the player mpris player",
         NULL, /* default */
-        G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY);
+        G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY| G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_STATUS] =
     g_param_spec_string("status",
         "Player status",
         "The play status of the player",
         NULL, /* default */
-        G_PARAM_READABLE);
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_VOLUME] =
     g_param_spec_double("volume",
@@ -268,7 +266,7 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         0,
         100,
         0,
-        G_PARAM_READWRITE);
+        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_POSITION] =
     g_param_spec_int64("position",
@@ -277,7 +275,7 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         0,
         INT64_MAX,
         0,
-        G_PARAM_READABLE);
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   obj_properties[PROP_METADATA] =
     g_param_spec_variant("metadata",
@@ -285,7 +283,7 @@ static void playerctl_player_class_init (PlayerctlPlayerClass *klass) {
         "The metadata of the currently playing track",
         G_VARIANT_TYPE_VARIANT,
         NULL,
-        G_PARAM_READABLE);
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
   g_object_class_install_properties(gobject_class, N_PROPERTIES, obj_properties);
 
@@ -378,53 +376,53 @@ static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err)
   }
 
   if (self->priv->player_name != NULL) {
-    bus_name = g_strjoin(".", "org.mpris.MediaPlayer2", self->priv->player_name, NULL);
-  } else {
-    GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
-        G_BUS_TYPE_SESSION,
-        G_DBUS_PROXY_FLAGS_NONE,
-        NULL,
-        "org.freedesktop.DBus",
-        "/org/freedesktop/DBus",
-        "org.freedesktop.DBus",
-        NULL,
-        &tmp_error);
-
-    if (tmp_error != NULL) {
-      g_propagate_error(err, tmp_error);
-      return NULL;
-    }
-
-    GVariant *reply = g_dbus_proxy_call_sync(proxy,
-        "ListNames",
-        NULL,
-        G_DBUS_CALL_FLAGS_NONE,
-        -1,
-        NULL,
-        &tmp_error);
-
-    if (tmp_error != NULL) {
-      g_propagate_error(err, tmp_error);
-      g_object_unref(proxy);
-      return NULL;
-    }
-
-    GVariant *reply_child = g_variant_get_child_value(reply, 0);
-    gsize reply_count;
-    const gchar** names = g_variant_get_strv(reply_child, &reply_count);
-
-    for (int i = 0; i < reply_count; i += 1) {
-      if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
-        bus_name = g_strdup(names[i]);
-        break;
-      }
-    }
-
-    g_object_unref(proxy);
-    g_variant_unref(reply);
-    g_variant_unref(reply_child);
-    g_free(names);
+    return g_strjoin(".", "org.mpris.MediaPlayer2", self->priv->player_name, NULL);
   }
+
+  GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
+      G_BUS_TYPE_SESSION,
+      G_DBUS_PROXY_FLAGS_NONE,
+      NULL,
+      "org.freedesktop.DBus",
+      "/org/freedesktop/DBus",
+      "org.freedesktop.DBus",
+      NULL,
+      &tmp_error);
+
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return NULL;
+  }
+
+  GVariant *reply = g_dbus_proxy_call_sync(proxy,
+      "ListNames",
+      NULL,
+      G_DBUS_CALL_FLAGS_NONE,
+      -1,
+      NULL,
+      &tmp_error);
+
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    g_object_unref(proxy);
+    return NULL;
+  }
+
+  GVariant *reply_child = g_variant_get_child_value(reply, 0);
+  gsize reply_count;
+  const gchar **names = g_variant_get_strv(reply_child, &reply_count);
+
+  for (int i = 0; i < reply_count; i += 1) {
+    if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
+      bus_name = g_strdup(names[i]);
+      break;
+    }
+  }
+
+  g_object_unref(proxy);
+  g_variant_unref(reply);
+  g_variant_unref(reply_child);
+  g_free(names);
 
   if (bus_name == NULL) {
     tmp_error = g_error_new(playerctl_player_error_quark(), 1, "No players found");
@@ -454,9 +452,8 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
 
   if (player->priv->player_name == NULL) {
     /* org.mpris.MediaPlayer2.[NAME] */
-    gchar **split_bus_name = g_strsplit(player->priv->bus_name, ".", 4);
-    player->priv->player_name = g_strdup(split_bus_name[3]);
-    g_strfreev(split_bus_name);
+    size_t offset = strlen ("org.mpris.MediaPlayer2");
+    player->priv->player_name = g_strdup(player->priv->bus_name + offset);
   }
 
   player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
@@ -493,9 +490,8 @@ static void playerctl_player_initable_iface_init(GInitableIface *iface)
  *
  * Returns:(transfer full): A new #PlayerctlPlayer connected to the bus name or
  * NULL if an error occurred
- *
  */
-PlayerctlPlayer *playerctl_player_new(gchar *name, GError **err)
+PlayerctlPlayer *playerctl_player_new(const gchar *name, GError **err)
 {
   GError *tmp_error = NULL;
   PlayerctlPlayer *player;
@@ -511,17 +507,20 @@ PlayerctlPlayer *playerctl_player_new(gchar *name, GError **err)
 
 /**
  * playerctl_player_on:
- * @self: an #PlayerctlPlayer
+ * @self: a #PlayerctlPlayer
  * @event: the event to subscribe to
  * @callback: the callback to run on the event
  *
- * A convenience function for bindings to subscribe an event with a callback
+ * A convenience function for bindings to subscribe to an event with a callback
  *
  * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
 PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, GClosure *callback, GError **err)
 {
-  GError *tmp_error = NULL;
+  g_return_val_if_fail(self != NULL, NULL);
+  g_return_val_if_fail(event != NULL, NULL);
+  g_return_val_if_fail(callback != NULL, NULL);
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
     g_propagate_error(err, g_error_copy(self->priv->init_error));
@@ -539,6 +538,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
 #define PLAYER_COMMAND_FUNC(COMMAND) \
   GError *tmp_error = NULL; \
  \
+  g_return_val_if_fail(self != NULL, NULL); \
   g_return_val_if_fail(err == NULL || *err == NULL, NULL); \
  \
   if (self->priv->init_error != NULL) { \
@@ -550,7 +550,6 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
  \
   if (tmp_error != NULL) { \
     g_propagate_error(err, tmp_error); \
-    return self; \
   } \
  \
   return self;
@@ -560,7 +559,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, 
  * @self: a #PlayerctlPlayer
  * @err (allow-none): the location of a GError or NULL
  *
- * Command the player to play if it is playing or pause if it is paused
+ * Command the player to play if it is paused or pause if it is playing
  *
  * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
@@ -624,6 +623,7 @@ PlayerctlPlayer *playerctl_player_seek(PlayerctlPlayer *self, gint64 offset, GEr
 {
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -682,12 +682,9 @@ PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err)
  */
 gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *property, GError **err)
 {
-  GVariant *prop_variant;
-  const gchar **prop_strv;
-  GString *prop;
-  GVariant *metadata;
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -695,7 +692,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
     return NULL;
   }
 
-  metadata = playerctl_player_get_metadata(self, &tmp_error);
+  GVariant *metadata = playerctl_player_get_metadata(self, &tmp_error);
 
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
@@ -706,19 +703,23 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
     return g_strdup("");
   }
 
-  if (!property)
-    return g_variant_print(metadata, FALSE);
+  if (!property) {
+    gchar *res = g_variant_print(metadata, FALSE);
+    g_variant_unref(metadata);
+    return res;
+  }
 
-  prop_variant = g_variant_lookup_value(metadata, property, NULL);
+  GVariant *prop_variant = g_variant_lookup_value(metadata, property, NULL);
+  g_variant_unref(metadata);
 
-  if (!prop_variant)
+  if (!prop_variant) {
     return g_strdup("");
+  }
 
-  prop = g_string_new("");
-
+  GString *prop = g_string_new("");
   if (g_variant_is_of_type(prop_variant, G_VARIANT_TYPE_STRING_ARRAY)) {
     gsize prop_count;
-    prop_strv = g_variant_get_strv(prop_variant, &prop_count);
+    const gchar **prop_strv = g_variant_get_strv(prop_variant, &prop_count);
 
     for (int i = 0; i < prop_count; i += 1) {
       g_string_append(prop, prop_strv[i]);
@@ -735,6 +736,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
     prop = g_variant_print_string(prop_variant, prop, FALSE);
   }
 
+  g_variant_unref(prop_variant);
   return g_string_free(prop, FALSE);
 }
 
@@ -743,7 +745,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
  * @self: a #PlayerctlPlayer
  * @err: (allow-none): the location of a GError or NULL
  *
- * Gets the artist from the metadata of the current track, or empty string if
+ * Gets the artist from the metadata of the current track, or the empty string if
  * no track is playing.
  *
  * Returns: (transfer full): The artist from the metadata of the current track
@@ -752,6 +754,7 @@ gchar *playerctl_player_get_artist(PlayerctlPlayer *self, GError **err)
 {
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -776,6 +779,7 @@ gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err)
 {
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -800,6 +804,7 @@ gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err)
 {
   GError *tmp_error = NULL;
 
+  g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
   if (self->priv->init_error != NULL) {
@@ -821,6 +826,7 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
 {
   GError *tmp_error = NULL;
 
+  g_return_if_fail(self != NULL);
   g_return_if_fail(err == NULL || *err == NULL);
 
   if (self->priv->init_error != NULL) {
@@ -835,6 +841,7 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
   }
 
   GVariant *track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_OBJECT_PATH);
+  g_variant_unref(metadata);
   if (track_id_variant == NULL) {
     tmp_error = g_error_new(playerctl_player_error_quark(), 1, "Could not get track id to set position");
     g_propagate_error(err, tmp_error);
@@ -844,8 +851,9 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
   const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
 
   org_mpris_media_player2_player_call_set_position_sync(self->priv->proxy, track_id, position, NULL, &tmp_error);
+  g_variant_unref(track_id_variant);
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
-    return;
   }
 }
+
