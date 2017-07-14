@@ -29,7 +29,7 @@ source_c = \
 
 DISTCLEANFILES += playerctl-version.h
 
-playerctl-generated.c:
+playerctl-generated.h playerctl-generated.c:
 	$(GDBUS_CODEGEN) --generate-c-code playerctl-generated mpris-dbus-interface.xml
 
 BUILT_SOURCES += \
@@ -74,6 +74,7 @@ INTROSPECTION_COMPILER_ARGS =
 
 if HAVE_INTROSPECTION
 
+Playerctl_1_0_gir: libplayerctl-1.0.la
 Playerctl-1.0.gir: libplayerctl-1.0.la
 Playerctl_1_0_gir_INCLUDES = GObject-2.0
 Playerctl_1_0_gir_CFLAGS = $(AM_CPPFLAGS)
