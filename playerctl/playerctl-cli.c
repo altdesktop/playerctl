@@ -75,9 +75,9 @@ static gchar *list_player_names(GError **err)
   gsize reply_count;
   const gchar **names = g_variant_get_strv(reply_child, &reply_count);
 
-  size_t offset = strlen ("org.mpris.MediaPlayer2");
+  size_t offset = strlen ("org.mpris.MediaPlayer2.");
   for (int i = 0; i < reply_count; i += 1) {
-    if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
+    if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2.")) {
       g_string_append_printf(names_str, "%s\n", names[i] + offset);
     }
   }
