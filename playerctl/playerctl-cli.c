@@ -141,7 +141,7 @@ static gboolean position (PlayerctlPlayer *player, gchar **arguments, GError **e
 
   if (position) {
     char *endptr = NULL;
-    offset = strtod(position, &endptr);
+    offset = 1000000.0 * strtod(position, &endptr);
 
     if (position == endptr) {
       g_set_error(error, playerctl_cli_error_quark (), 1, "Could not parse position as a number: %s\n", position);
@@ -154,13 +154,13 @@ static gboolean position (PlayerctlPlayer *player, gchar **arguments, GError **e
         offset *= -1;
       }
 
-      playerctl_player_seek(player, offset * 1000000, &tmp_error);
+      playerctl_player_seek(player, offset, &tmp_error);
       if (tmp_error != NULL) {
 	g_propagate_error(error, tmp_error);
         return FALSE;
       }
     } else {
-      playerctl_player_set_position(player, offset * 1000000, &tmp_error);
+      playerctl_player_set_position(player, offset, &tmp_error);
       if (tmp_error != NULL) {
 	g_propagate_error(error, tmp_error);
         return FALSE;
@@ -168,7 +168,7 @@ static gboolean position (PlayerctlPlayer *player, gchar **arguments, GError **e
     }
   } else {
     g_object_get(player, "position", &offset, NULL);
-    g_print("%g\n", (double)offset / 1000000);
+    g_print("%g\n", (double)offset / 1000000.0);
   }
 
   return TRUE;
