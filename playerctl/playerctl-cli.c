@@ -92,7 +92,7 @@ static gchar *list_player_names(GError **err)
 
 #define PLAYER_COMMAND_FUNC(COMMAND) \
   GError *tmp_error = NULL; \
- \
+  \
   playerctl_player_##COMMAND(player, &tmp_error); \
   if (tmp_error) { \
     g_propagate_error(error, tmp_error); \
@@ -156,13 +156,13 @@ static gboolean position (PlayerctlPlayer *player, gchar **arguments, GError **e
 
       playerctl_player_seek(player, offset, &tmp_error);
       if (tmp_error != NULL) {
-	g_propagate_error(error, tmp_error);
+        g_propagate_error(error, tmp_error);
         return FALSE;
       }
     } else {
       playerctl_player_set_position(player, offset, &tmp_error);
       if (tmp_error != NULL) {
-	g_propagate_error(error, tmp_error);
+        g_propagate_error(error, tmp_error);
         return FALSE;
       }
     }
@@ -192,7 +192,7 @@ static gboolean set_or_get_volume (PlayerctlPlayer *player, gchar **arguments, G
       }
 
       if(volume[last] == '-') {
-          adjustment *= -1;
+        adjustment *= -1;
       }
 
       g_object_get(player, "volume", &level, NULL);
