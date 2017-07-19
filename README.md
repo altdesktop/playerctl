@@ -29,6 +29,7 @@ sudo make install
 You can skip the install step by adding the location where the library files build to your library path. Put this in your shell rc file while you work on the project:
 
     export LD_LIBRARY_PATH=/path/to/playerctl/playerctl/.libs:$LD_LIBRARY_PATH
+    export GI_TYPELIB_PATH=/path/to/playerctl/playerctl:$GI_TYPELIB_PATH
 
 ## Using the CLI
 
