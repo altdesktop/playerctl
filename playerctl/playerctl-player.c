@@ -60,6 +60,7 @@ struct _PlayerctlPlayerPrivate
   gchar *bus_name;
   GError *init_error;
   gboolean initted;
+  GVariant *metadata;
 };
 
 static void playerctl_player_properties_changed_callback (GDBusProxy *_proxy, GVariant *changed_properties, const gchar *const *invalidated_properties, gpointer user_data)
@@ -107,7 +108,7 @@ static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **e
   GVariant *metadata;
   GError *tmp_error = NULL;
 
-  metadata = org_mpris_media_player2_player_get_metadata(self->priv->proxy);
+  metadata = org_mpris_media_player2_player_dup_metadata(self->priv->proxy);
 
   if (!metadata) {
     // XXX: Ugly spotify workaround. Spotify does not seem to use the property
@@ -181,6 +182,10 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
         if (self->priv->proxy)
           metadata = playerctl_player_get_metadata(self, NULL);
 
+        if (self->priv->metadata != NULL)
+          g_variant_unref(self->priv->metadata);
+
+        self->priv->metadata = metadata;
         g_value_set_variant(value, metadata);
         break;
       }
