@@ -108,6 +108,7 @@ static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **e
   GVariant *metadata;
   GError *tmp_error = NULL;
 
+  g_main_context_iteration(NULL, FALSE);
   metadata = org_mpris_media_player2_player_dup_metadata(self->priv->proxy);
 
   if (!metadata) {
@@ -169,10 +170,12 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
       break;
 
     case PROP_STATUS:
-      if (self->priv->proxy)
+      if (self->priv->proxy) {
+        g_main_context_iteration(NULL, FALSE);
         g_value_set_string(value, org_mpris_media_player2_player_get_playback_status(self->priv->proxy));
-      else
+      } else {
         g_value_set_string(value, "");
+      }
       break;
 
     case PROP_METADATA:
@@ -191,17 +194,22 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
       }
 
     case PROP_VOLUME:
-      if (self->priv->proxy)
+      if (self->priv->proxy) {
+        g_main_context_iteration(NULL, FALSE);
         g_value_set_double(value, org_mpris_media_player2_player_get_volume(self->priv->proxy));
-      else
+      } else {
         g_value_set_double(value, 0);
+      }
       break;
 
     case PROP_POSITION:
-      if (self->priv->proxy)
+      if (self->priv->proxy) {
+        // TODO why is position still not updated with the main loop?
+        g_main_context_iteration(NULL, FALSE);
         g_value_set_int64(value, org_mpris_media_player2_player_get_position(self->priv->proxy));
-      else
+      } else {
         g_value_set_int64(value, 0);
+      }
       break;
 
     default:
