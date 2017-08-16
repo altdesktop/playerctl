@@ -30,6 +30,8 @@ G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
 /* The player being controlled. */
 static gchar *player_name_list = NULL;
+/* If true, control all available media players */
+static gboolean select_all_players;
 /* If true, list all available players' names and exit. */
 static gboolean list_all_players_and_exit;
 /* If true, print the version and exit. */
@@ -281,7 +283,9 @@ static gboolean handle_player_command (PlayerctlPlayer *player, gchar **command,
 
 static const GOptionEntry entries[] = {
   { "player", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &player_name_list,
-    "The name of the player to control (default: the first available player)", "NAME" },
+    "A comma separated list of names of players to control (default: the first available player)", "NAME" },
+  { "all-players", 'a', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &select_all_players,
+    "Select all available players to be controlled", NULL },
   { "list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &list_all_players_and_exit,
     "List the names of running players that can be controlled and exit", NULL },
   { "version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &print_version_and_exit,
@@ -372,21 +376,27 @@ int main (int argc, char *argv[])
     goto end;
   }
 
-  if (player_name_list == NULL) {
-    player = playerctl_player_new(player_name_list, &error);
-  } else {
-    gchar *player_names = player_name_list;
+  gchar *player_names = player_name_list;
+  if (select_all_players) {
+    player_names = list_player_names(&error);
 
-    if (g_strcmp0(player_names, "*") == 0) {
-      player_names = list_player_names(&error);
+    if (error) {
+      g_printerr("%s\n", error->message);
+      exit_status = 1;
+      goto end;
+    }
+  }
 
-      if (error) {
-        g_printerr("%s\n", error->message);
-        exit_status = 1;
-        goto end;
-      }
+  if (player_names == NULL) {
+    player = playerctl_player_new(player_names, &error);
+
+    if (!handle_player_command(player, command, &error)) {
+      g_printerr("Could not execute command: %s\n", error->message);
+      exit_status = 1;
     }
 
+    g_object_unref(player);
+  } else {
     const gchar *delim = ",\n";
     gchar *player_name = strtok(player_names, delim);
 
