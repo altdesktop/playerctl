@@ -406,6 +406,7 @@ int main (int argc, char *argv[])
       if (error != NULL) {
         g_printerr("Connection to player failed: %s\n", error->message);
         exit_status = 1;
+        g_object_unref(player);
         continue;
       }
 
