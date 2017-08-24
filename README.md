@@ -36,10 +36,10 @@ You can skip the install step by adding the location where the library files bui
 The `playerctl` binary should now be in your path.
 
 ```
-playerctl [--version] [--list-all] [--player=NAME] COMMAND
+playerctl [--version] [--list-all] [--all-players] [--player=NAME] COMMAND
 ```
 
-Pass the name of your player with the `--player` flag. You can find out what players are available to control with the `--list-all` switch. If no player is specified, it will use the first player it can find.
+Pass the name of your player with the `--player` flag, or select all available players with the `--all-players` flag. You can find out what players are available to control with the `--list-all` switch. If no player is specified, it will use the first player it can find.
 
 Here is a list of available commands:
 

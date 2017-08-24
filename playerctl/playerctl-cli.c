@@ -387,37 +387,32 @@ int main (int argc, char *argv[])
     }
   }
 
-  if (player_names == NULL) {
-    player = playerctl_player_new(player_names, &error);
+  const gchar *delim = ",\n";
+  gchar *player_name = player_names == NULL ?
+    NULL : strtok(player_names, delim);
+
+  for (;;) {
+    player = playerctl_player_new(player_name, &error);
+
+    if (error != NULL) {
+      g_printerr("Connection to player failed: %s\n", error->message);
+      exit_status = 1;
+      goto loopend;
+    }
 
     if (!handle_player_command(player, command, &error)) {
       g_printerr("Could not execute command: %s\n", error->message);
       exit_status = 1;
     }
 
+loopend:
     g_object_unref(player);
-  } else {
-    const gchar *delim = ",\n";
-    gchar *player_name = strtok(player_names, delim);
+    g_clear_error(&error);
+    error = NULL;
 
-    while (player_name) {
-      player = playerctl_player_new(player_name, &error);
-
-      if (error != NULL) {
-        g_printerr("Connection to player failed: %s\n", error->message);
-        exit_status = 1;
-        g_object_unref(player);
-        continue;
-      }
-
-      if (!handle_player_command(player, command, &error)) {
-        g_printerr("Could not execute command: %s\n", error->message);
-        exit_status = 1;
-      }
-
-      g_object_unref(player);
-      player_name = strtok(NULL, delim);
-    }
+    player_name = strtok(NULL, delim);
+    if (!player_name)
+      return exit_status;
   }
 
 end:
