@@ -16,6 +16,8 @@ First, check and see if the library is available from your package manager (if i
 
 Using the cli and library requires [GLib](https://developer.gnome.org/glib/) (which is a dependency of almost all of these players as well, so you probably already have it). You can use the library in almost any programming language with the associated [introspection binding library](https://wiki.gnome.org/Projects/GObjectIntrospection/Users).
 
+Fedora users require `redhat-rpm-config`, `gobject-introspection-devel`, `gtk-doc`, & `libtool`.
+
 Building the project for development requires [gtk-doc](http://www.gtk.org/gtk-doc/) and [gobject-introspection](https://wiki.gnome.org/action/show/Projects/GObjectIntrospection).
 
 To generate and build the project to contribute to development:
