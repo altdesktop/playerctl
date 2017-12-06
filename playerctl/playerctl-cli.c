@@ -388,8 +388,8 @@ int main (int argc, char *argv[])
   }
 
   const gchar *delim = ",\n";
-  gchar *player_name = player_names == NULL ?
-    NULL : strtok(player_names, delim);
+  const gboolean multiple_names = player_names != NULL;
+  gchar *player_name = multiple_names ? strtok(player_names, delim) : NULL;
 
   for (;;) {
     player = playerctl_player_new(player_name, &error);
@@ -409,6 +409,9 @@ loopend:
     g_object_unref(player);
     g_clear_error(&error);
     error = NULL;
+
+    if (!multiple_names)
+      return exit_status;
 
     player_name = strtok(NULL, delim);
     if (!player_name)
