@@ -42,7 +42,7 @@ playerctl_executable = executable(
   include_directories: configuration_inc,
   install: true)
 
-install_headers(headers, install_dir: 'playerctl')
+install_headers(headers, install_dir: join_paths(get_option('includedir'), 'playerctl'))
 
 if get_option('introspection')
   gnome.generate_gir(
