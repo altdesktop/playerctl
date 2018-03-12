@@ -17,7 +17,7 @@ gio_dep = dependency('gio-unix-2.0')
 
 subdir('playerctl')
 
-#if get_option('gtk-doc')
-#    gtkdoc = find_program('gtkdoc-scan')
-#  subdir('doc')
-#endif
+if get_option('gtk-doc')
+  gtkdoc = find_program('gtkdoc-scan')
+  subdir('doc')
+endif
