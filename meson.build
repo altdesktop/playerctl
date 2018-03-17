@@ -1,9 +1,9 @@
 project('playerctl', 'c',
   version: '0.5.0',
-  meson_version: '>=0.40.0')
+  meson_version: '>=0.42.0')
 
 gnome = import('gnome')
-pkg = import('pkgconfig')
+pkgconfig = import('pkgconfig')
 
 version_conf = configuration_data()
 
@@ -16,6 +16,7 @@ version_conf.set('PLAYERCTL_MICRO_VERSION', version_array[2].to_int())
 
 gobject_dep = dependency('gobject-2.0', version: '>=2.38')
 gio_dep = dependency('gio-unix-2.0')
+glib_dep = dependency('glib-2.0')
 
 subdir('playerctl')
 
