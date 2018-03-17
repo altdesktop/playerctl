@@ -7,11 +7,20 @@ configure_file(input : 'version.xml.in',
 
 gnome.gtkdoc(
   meson.project_name(),
-  src_dir: join_paths(meson.build_root(), meson.project_name()),
-  dependencies: [ dependency('glib-2.0'), gobject_dep ],
-  mkdb_args: [ '--sgml-mode', '--output-format=xml' ],
+  src_dir: join_paths(meson.source_root(), 'playerctl'),
+  dependencies: [
+    playerctl_shared_link,
+    dependency('glib-2.0'),
+  ],
+  mkdb_args: [
+    '--sgml-mode',
+    '--output-format=xml',
+    '--name-space=meson.project_name()',
+  ],
+  scan_args: [
+    '--deprecated-guards="PLAYERCTL_DISABLE_DEPRECATED"',
+  ],
   gobject_typesfile: meson.project_name() + '.types',
-  scan_args: '--deprecated-guards="PLAYERCTL_DISABLE_DEPRECATED"',
   fixxref_args: [
     '--extra-dir=@0@'.format(join_paths(glib_docpath, 'gobject')),
     '--extra-dir=@0@'.format(join_paths(glib_docpath, 'gio')),

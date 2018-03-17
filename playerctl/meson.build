@@ -42,6 +42,13 @@ playerctl_executable = executable(
   include_directories: configuration_inc,
   install: true)
 
+# Required for gtk-doc
+playerctl_shared_link = declare_dependency(
+  include_directories: include_directories('.'),
+  link_with: [ playerctl_shared ],
+  dependencies: deps,
+)
+
 install_headers(headers, install_dir: join_paths(get_option('includedir'), 'playerctl'))
 
 if get_option('introspection')
