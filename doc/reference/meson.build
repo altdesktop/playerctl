@@ -14,7 +14,6 @@ gnome.gtkdoc(
     playerctl_shared_link,
   ],
   mkdb_args: [
-    '--sgml-mode',
     '--output-format=xml',
     '--name-space=meson.project_name()',
   ],
