@@ -1,0 +1,2 @@
+option('gtk-doc', type: 'boolean', value: true, description: 'build docs')
+option('introspection', type: 'boolean', value: false, description: 'build gir data')
