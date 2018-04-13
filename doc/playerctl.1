@@ -1,0 +1,87 @@
+.TH PLAYERCTL "1" "April 2018" "playerctl 0.5.0" "User Commands"
+.SH NAME
+\fBplayerctl\fR \- utility to control media players via MPRIS
+.SH SYNOPSIS
+.TP
+\fBplayerctl\fR [\fIOPTION\fR] \fICOMMAND\fR
+.SH DESCRIPTION
+.RE
+\fBplayerctl\fR is a command line utility to control MPRIS-enabled media\&
+players. In addition to offering play/pause/stop control, \fBplayerctl\fR\&
+also offers previous/next track support, the ability to seek backward/forward\&
+in a track, and volume control.
+\fBplayerctl\fR also supports displaying metadata (e.g. artist/title/album) for the\&
+current track, and showing the status of the player.
+.PP
+Players that can be controlled using \fBplayerctl\fR include audacious, cmus,\&
+mopidy, mpd, quod libet, rhythmbox, vlc and xmms2. However, any player that implements\&
+the MPRIS interface specification should be able to be controlled using \fBplayerctl\fR.
+.SH OPTIONS
+.TP
+\fB\-p\fR, \fB\-\-player\fR=\fI\,NAME\/\fR
+The name of the player to control (default: first available player)
+.TP
+\fB\-l\fR, \fB\-\-list\-all\fR
+List the names of running players that can be controlled
+.TP
+\fB\-a\fR, \fB\-\-all\-players\fR
+Apply command to all available players
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print this help, then exit
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version number, then exit
+.SH COMMANDS
+.TP
+\fBstatus\fR
+Get the current status of the player
+.TP
+\fBplay\fR
+Command the player to play
+.TP
+\fBpause\fR
+Command the player to pause
+.TP
+\fBplay\-pause\fR
+Command the player to toggle between play/pause
+.TP
+\fBstop\fR
+Command the player to stop
+.TP
+\fBnext\fR
+Command the player to skip to the next track
+.TP
+\fBprevious\fR
+Command the player to skip to the previous track
+.TP
+\fBposition\fR [\fIOFFSET\fR][\fI+\fR|\fI\-\fR]
+Print the position of the current track in seconds. With \fIOFFSET\fR specified, seek to \fIOFFSET\fR seconds from the start of the current track.
+With the optional [\fI+\fR|\fI\-\fR] appended, seek forward/backward \fIOFFSET\fR seconds from the current position.
+.TP
+\fBvolume\fR [\fILEVEL\fR][\fI+\fR|\fI\-\fR]
+Print the player's volume scaled from 0.0 (0%) to 1.0 (100%). With \fILEVEL\fR specified, set
+the player's volume to \fILEVEL\fR. With the optional [\fI+\fR|\fI\-\fR] appended, increase/decrease the player's
+volume by \fILEVEL\fR.
+.TP
+\fBmetadata\fR [\fIKEY\fR]
+Print available metadata information for the current track. When \fIKEY\fR is specified, print the value of \fIKEY\fR.
+.SH SEE ALSO
+.TP
+Online API documentation: https://dubstepdish.com/playerctl
+.TP
+GObject Introspection language bindings: https://wiki.gnome.org/Projects/GObjectIntrospection/Users
+.SH REPORTING BUGS
+.TP
+Please review and report bugs to https://github.com/acrisci/playerctl/issues
+.SH AVAILABILITY
+.TP
+The latest version of \fBplayerctl\fR is available at https://github.com/acrisci/playerctl
+.SH AUTHOR
+.TP
+This  manual  page was created by Nick Morrott <knowledgejunkie@gmail.com> for the Debian GNU/Linux system, but may be used by others.
+.SH COPYRIGHT
+.TP
+Copyright © 2014, Tony Crisci.
+.TP
+This work is made available under the GNU Lesser General Public License 3.0.
