@@ -67,14 +67,12 @@ playerctl_SOURCES = playerctl-cli.c
 playerctl_CPPFLAGS = $(AM_CPPFLAGS)
 playerctl_LDADD = libplayerctl-1.0.la $(PLAYERCTL_LIBS)
 
+if HAVE_INTROSPECTION
 -include $(INTROSPECTION_MAKEFILE)
-INTROSPECTION_GIRS = Playerctl_1_0_gir
+INTROSPECTION_GIRS = Playerctl-1.0.gir
 INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) --warn-all
 INTROSPECTION_COMPILER_ARGS =
 
-if HAVE_INTROSPECTION
-
-Playerctl_1_0_gir: libplayerctl-1.0.la
 Playerctl-1.0.gir: libplayerctl-1.0.la
 Playerctl_1_0_gir_INCLUDES = GObject-2.0
 Playerctl_1_0_gir_CFLAGS = $(AM_CPPFLAGS)
@@ -82,13 +80,12 @@ Playerctl_1_0_gir_PACKAGES =
 Playerctl_1_0_gir_LIBS = libplayerctl-1.0.la
 Playerctl_1_0_gir_FILES = $(source_h) $(source_c)
 Playerctl_1_0_gir_NAMESPACE = Playerctl
-INTROSPECTION_GIRS += Playerctl-1.0.gir
 
 girdir = $(datadir)/gir-1.0
 gir_DATA = $(INTROSPECTION_GIRS)
 
 typelibdir = $(libdir)/girepository-1.0
-typelib_DATA = $(INTROSPECTION_GIRS:.gir=.typelib)
+typelib_DATA = Playerctl-1.0.typelib
 
 CLEANFILES += $(gir_DATA) $(typelib_DATA)
 endif
