@@ -11,6 +11,7 @@
 /config.h.in
 /config.log
 /config.status
+/build/
 /build/ar-lib
 /build/compile
 /build/config.guess
