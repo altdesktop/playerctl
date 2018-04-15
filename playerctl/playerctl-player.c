@@ -204,9 +204,36 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
 
     case PROP_POSITION:
       if (self->priv->proxy) {
-        // TODO why is position still not updated with the main loop?
-        g_main_context_iteration(NULL, FALSE);
-        g_value_set_int64(value, org_mpris_media_player2_player_get_position(self->priv->proxy));
+        // XXX: the position cache seems to never be updated after the
+        // connection is made so we have to call the method directly here or it
+        // won't work.
+        GError *tmp_error = NULL;
+        GVariant *call_reply = g_dbus_proxy_call_sync (G_DBUS_PROXY(self->priv->proxy),
+            "org.freedesktop.DBus.Properties.Get",
+            g_variant_new ("(ss)",
+              "org.mpris.MediaPlayer2.Player",
+              "Position"),
+            G_DBUS_CALL_FLAGS_NONE,
+            -1,
+            NULL,
+            &tmp_error);
+
+        if (tmp_error) {
+          g_warning("Get position property failed. Using cache. (%s)", tmp_error->message);
+          gint64 cached_position = org_mpris_media_player2_player_get_position(self->priv->proxy);
+          g_value_set_int64(value, cached_position);
+          break;
+        }
+
+        GVariant *call_reply_properties = g_variant_get_child_value(call_reply, 0);
+        GVariant *call_reply_unboxed = g_variant_get_variant(call_reply_properties);
+
+        gint64 position = g_variant_get_int64(call_reply_unboxed);
+        g_value_set_int64(value, position);
+
+        g_variant_unref(call_reply);
+        g_variant_unref(call_reply_properties);
+        g_variant_unref(call_reply_unboxed);
       } else {
         g_value_set_int64(value, 0);
       }
