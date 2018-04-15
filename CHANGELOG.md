@@ -1,5 +1,19 @@
 # Changelog
 
+## Version 0.6.0
+
+Version 0.6.0 includes bug fixes and new features.
+
+* control multiple players at once by putting commas between the names
+* add the --all-players option to control all players at once
+* lib: better cache invalidation strategy for getting properties
+* bugfix: Set position in fractional seconds
+* Fix various memory leaks and errors
+
+NOTE: This will be the last minor release that uses autotools. Playerctl will switch to the meson build system as of the next minor release.
+
+Github releases will have a debian package and an rpm, but these will soon be deprecated as package maintainers create official packages for distros.
+
 ## Version 0.5.0
 
 Version 0.5.0 includes some new features.
