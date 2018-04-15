@@ -62,7 +62,7 @@ function fpm_rpm() {
     command -v rpm &> /dev/null && {
         echo -e "\nRPM PACKAGE CONTENTS"
         echo -e "--------------------"
-        rpm -qlp $RPM_DIR/playerctl-0.5.0_x86_64.rpm
+        rpm -qlp $RPM_DIR/playerctl-${VERSION}_x86_64.rpm
     }
 }
 
