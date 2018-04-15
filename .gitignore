@@ -45,6 +45,7 @@
 /playerctl/Playerctl-1.0.gir
 /playerctl/Playerctl-1.0.typelib
 /playerctl/Playerctl_1_0_gir
+/playerctl-fpm
 
 # ASD
 .flagged
