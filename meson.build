@@ -35,8 +35,4 @@ gio_dep = dependency('gio-unix-2.0')
 glib_dep = dependency('glib-2.0')
 
 subdir('playerctl')
-
-if get_option('gtk-doc')
-  gtkdoc = find_program('gtkdoc-scan')
-  subdir('doc')
-endif
+subdir('doc')
