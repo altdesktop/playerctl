@@ -4,7 +4,7 @@ playerctl_version_header = configure_file(
   configuration: version_conf,
 )
 
-# Include playerctl_version_header
+# Include the just generated playerctl_version header
 configuration_inc = include_directories('../',)
 
 playerctl_generated = gnome.gdbus_codegen(
@@ -23,7 +23,7 @@ playerctl_sources = [
   playerctl_generated,
 ]
 
-# Allow including playerctl.h
+# Allow including playerctl.h during compilation
 add_global_arguments(
   '-DPLAYERCTL_COMPILATION',
   language: 'c',
@@ -84,12 +84,13 @@ if get_option('introspection')
   )
 endif
 
-pkgconfig.generate(libraries: playerctl_shared,
-             subdirs: 'playerctl',
-             version: '0.5.0',
-             name: 'Playerctl',
-             filebase: 'playerctl',
-             description: 'A C library for MPRIS players',
-             requires: 'gobject-2.0',
-             requires_private: 'gio-2.0',
+pkgconfig.generate(
+  libraries: playerctl_shared,
+  subdirs: 'playerctl',
+  version: '0.5.0',
+  name: 'Playerctl',
+  filebase: 'playerctl',
+  description: 'A C library for MPRIS players',
+  requires: 'gobject-2.0',
+  requires_private: 'gio-2.0',
 )
