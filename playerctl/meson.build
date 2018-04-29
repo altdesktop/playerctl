@@ -79,9 +79,9 @@ endif
 pkgconfig.generate(
   libraries: playerctl_lib.get_shared_lib(),
   subdirs: 'playerctl',
-  version: '0.5.0',
+  version: meson.project_version(),
   name: 'Playerctl',
-  filebase: 'playerctl',
+  filebase: 'playerctl-1.0',
   description: 'A C library for MPRIS players',
   requires: 'gobject-2.0',
   requires_private: 'gio-2.0',
