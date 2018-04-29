@@ -5,7 +5,7 @@ playerctl_version_header = configure_file(
 )
 
 # Include the just generated playerctl_version header
-configuration_inc = include_directories('../',)
+configuration_inc = include_directories('..')
 
 playerctl_generated = gnome.gdbus_codegen(
   'playerctl-generated',
@@ -34,26 +34,19 @@ deps = [
   gio_dep,
 ]
 
-playerctl_shared = shared_library(
+playerctl_lib = both_libraries(
   'playerctl-1.0',
   sources: playerctl_sources,
   dependencies: deps,
+  include_directories: configuration_inc,
   version: '0.0.0',
   install: true,
 )
 
 # Required for linking against the shared lib we just built
 playerctl_shared_link = declare_dependency(
-  link_with: playerctl_shared,
+  link_with: playerctl_lib.get_shared_lib(),
   dependencies: deps,
-)
-
-playerctl_static = static_library(
-  'playerctl-1.0',
-  sources: playerctl_sources,
-  dependencies: deps,
-  version: '0.0.0',
-  install: true,
 )
 
 playerctl_executable = executable(
@@ -71,7 +64,7 @@ install_headers(
 
 if get_option('introspection')
   gnome.generate_gir(
-    playerctl_shared,
+    playerctl_lib.get_shared_lib(),
     sources: [
       'playerctl-player.c',
       'playerctl-player.h',
@@ -84,7 +77,7 @@ if get_option('introspection')
 endif
 
 pkgconfig.generate(
-  libraries: playerctl_shared,
+  libraries: playerctl_lib.get_shared_lib(),
   subdirs: 'playerctl',
   version: '0.5.0',
   name: 'Playerctl',
