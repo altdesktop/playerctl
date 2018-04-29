@@ -4,8 +4,8 @@ playerctl_version_header = configure_file(
   configuration: version_conf,
 )
 
-# Include playerctl_version_header
-configuration_inc = include_directories('../',)
+# Include the just generated playerctl_version header
+configuration_inc = include_directories('..')
 
 playerctl_generated = gnome.gdbus_codegen(
   'playerctl-generated',
@@ -23,7 +23,7 @@ playerctl_sources = [
   playerctl_generated,
 ]
 
-# Allow including playerctl.h
+# Allow including playerctl.h during compilation
 add_global_arguments(
   '-DPLAYERCTL_COMPILATION',
   language: 'c',
@@ -34,35 +34,27 @@ deps = [
   gio_dep,
 ]
 
-playerctl_shared = shared_library(
+playerctl_lib = both_libraries(
   'playerctl-1.0',
   sources: playerctl_sources,
   dependencies: deps,
+  include_directories: configuration_inc,
   version: '0.0.0',
   install: true,
 )
 
-playerctl_static = static_library(
-  'playerctl-1.0',
-  sources: playerctl_sources,
+# Required for linking against the shared lib we just built
+playerctl_shared_link = declare_dependency(
+  link_with: playerctl_lib.get_shared_lib(),
   dependencies: deps,
-  version: '0.0.0',
-  install: true,
 )
 
 playerctl_executable = executable(
   'playerctl',
   'playerctl-cli.c',
-  dependencies: deps,
-  link_with: playerctl_shared,
+  dependencies: playerctl_shared_link,
   include_directories: configuration_inc,
   install: true,
-)
-
-# Required for gtk-doc
-playerctl_shared_link = declare_dependency(
-  link_with: playerctl_shared,
-  dependencies: deps,
 )
 
 install_headers(
@@ -72,7 +64,7 @@ install_headers(
 
 if get_option('introspection')
   gnome.generate_gir(
-    playerctl_shared,
+    playerctl_lib.get_shared_lib(),
     sources: [
       'playerctl-player.c',
       'playerctl-player.h',
@@ -84,12 +76,13 @@ if get_option('introspection')
   )
 endif
 
-pkgconfig.generate(libraries: playerctl_shared,
-             subdirs: 'playerctl',
-             version: '0.5.0',
-             name: 'Playerctl',
-             filebase: 'playerctl',
-             description: 'A C library for MPRIS players',
-             requires: 'gobject-2.0',
-             requires_private: 'gio-2.0',
+pkgconfig.generate(
+  libraries: playerctl_lib.get_shared_lib(),
+  subdirs: 'playerctl',
+  version: meson.project_version(),
+  name: 'Playerctl',
+  filebase: 'playerctl-1.0',
+  description: 'A C library for MPRIS players',
+  requires: 'gobject-2.0',
+  requires_private: 'gio-2.0',
 )
