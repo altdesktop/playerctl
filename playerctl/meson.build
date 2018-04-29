@@ -42,6 +42,12 @@ playerctl_shared = shared_library(
   install: true,
 )
 
+# Required for linking against the shared lib we just built
+playerctl_shared_link = declare_dependency(
+  link_with: playerctl_shared,
+  dependencies: deps,
+)
+
 playerctl_static = static_library(
   'playerctl-1.0',
   sources: playerctl_sources,
@@ -53,16 +59,9 @@ playerctl_static = static_library(
 playerctl_executable = executable(
   'playerctl',
   'playerctl-cli.c',
-  dependencies: deps,
-  link_with: playerctl_shared,
+  dependencies: playerctl_shared_link,
   include_directories: configuration_inc,
   install: true,
-)
-
-# Required for gtk-doc
-playerctl_shared_link = declare_dependency(
-  link_with: playerctl_shared,
-  dependencies: deps,
 )
 
 install_headers(
