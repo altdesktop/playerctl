@@ -39,12 +39,12 @@ static gboolean print_version_and_exit;
 /* The commands passed on the command line, filled in via G_OPTION_REMAINING. */
 static gchar **command = NULL;
 
-static gchar *list_player_names(GError **err)
+static GString *list_player_names_on_bus(GError **err, GBusType busType)
 {
   GError *tmp_error = NULL;
 
   GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
-      G_BUS_TYPE_SESSION,
+      busType,
       G_DBUS_PROXY_FLAGS_NONE,
       NULL,
       "org.freedesktop.DBus",
@@ -89,8 +89,26 @@ static gchar *list_player_names(GError **err)
   g_variant_unref(reply_child);
   g_free(names);
 
-  return g_string_free(names_str, FALSE);
+  return names_str;
 }
+
+static gchar *list_player_names(GError **err) {
+  GString *sessionPlayers = list_player_names_on_bus(err, G_BUS_TYPE_SESSION);
+  GString *systemPlayers = list_player_names_on_bus(err, G_BUS_TYPE_SYSTEM);
+
+  if (!sessionPlayers && !systemPlayers)
+    return NULL;
+
+  if (!sessionPlayers)
+    return g_string_free(systemPlayers, FALSE);
+  if (!systemPlayers)
+    return g_string_free(sessionPlayers, FALSE);
+
+  g_string_append(sessionPlayers, systemPlayers->str);
+  g_string_free(systemPlayers, TRUE);
+  return g_string_free(sessionPlayers, FALSE);
+}
+
 
 #define PLAYER_COMMAND_FUNC(COMMAND) \
   GError *tmp_error = NULL; \
