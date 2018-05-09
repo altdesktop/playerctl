@@ -404,7 +404,7 @@ static void playerctl_player_init (PlayerctlPlayer *self)
   self->priv = playerctl_player_get_instance_private(self);
 }
 
-static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err)
+static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err, GBusType busType)
 {
   gchar *bus_name = NULL;
   GError *tmp_error = NULL;
@@ -420,7 +420,7 @@ static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err)
   }
 
   GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
-      G_BUS_TYPE_SESSION,
+      busType,
       G_DBUS_PROXY_FLAGS_NONE,
       NULL,
       "org.freedesktop.DBus",
@@ -477,13 +477,19 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
 {
   GError *tmp_error = NULL;
   PlayerctlPlayer *player = PLAYERCTL_PLAYER(initable);
+  GBusType busType = G_BUS_TYPE_SESSION;
 
   if (player->priv->initted)
     return TRUE;
 
   g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
 
-  player->priv->bus_name = playerctl_player_get_bus_name(player, &tmp_error);
+  player->priv->bus_name = playerctl_player_get_bus_name(player, &tmp_error, busType);
+  if (tmp_error) {
+    g_clear_error(&tmp_error);
+    busType = G_BUS_TYPE_SYSTEM;
+    player->priv->bus_name = playerctl_player_get_bus_name(player, &tmp_error, busType);
+  }
 
   if (tmp_error != NULL) {
     g_propagate_error(err, tmp_error);
@@ -497,7 +503,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
   }
 
   player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
-      G_BUS_TYPE_SESSION,
+      busType,
       G_DBUS_PROXY_FLAGS_NONE,
       player->priv->bus_name,
       "/org/mpris/MediaPlayer2",
