@@ -16,22 +16,46 @@ First, check and see if the library is available from your package manager (if i
 
 Using the cli and library requires [GLib](https://developer.gnome.org/glib/) (which is a dependency of almost all of these players as well, so you probably already have it). You can use the library in almost any programming language with the associated [introspection binding library](https://wiki.gnome.org/Projects/GObjectIntrospection/Users).
 
-Fedora users require `redhat-rpm-config`, `gobject-introspection-devel`, `gtk-doc`, & `libtool`.
+Additionally, you also need the following build dependencies:
 
-Building the project for development requires [gtk-doc](http://www.gtk.org/gtk-doc/) and [gobject-introspection](https://wiki.gnome.org/action/show/Projects/GObjectIntrospection).
+[gobject-introspection](https://wiki.gnome.org/action/show/Projects/GObjectIntrospection) for building introspection data (configurable with the `introspection` meson option)
 
-To generate and build the project to contribute to development:
+[gtk-doc](http://www.gtk.org/gtk-doc/) for building documentation (configurable with the `gtk-doc` meson option)
 
-```shell
-./autogen.sh # --prefix=/usr may be required
-make
-sudo make install
+Fedora users also need to install `redhat-rpm-config`
+
+
+To generate and build the project to contribute to development and install playerctl to `/`:
+
+```
+meson mesonbuild
+sudo ninja -C mesonbuild install
 ```
 
-You can skip the install step by adding the location where the library files build to your library path. Put this in your shell rc file while you work on the project:
+Note that you need `meson >= 0.46.0` installed. In case your distro only has an older version of meson in its repository you can install the newest version via pip:
 
-    export LD_LIBRARY_PATH=/path/to/playerctl/playerctl/.libs:$LD_LIBRARY_PATH
-    export GI_TYPELIB_PATH=/path/to/playerctl/playerctl:$GI_TYPELIB_PATH
+```
+pip3 install meson
+```
+
+Also keep in mind that gtk-doc and gobject-introspection are enabled by default, you can disable them with `-Dintrospection=false` and `-Dgtk-doc=false`.
+
+If you don't want to install playerctl to `/` you can install it elsewhere by exporting `DESTDIR` before invoking ninja, e.g.:
+
+```
+export PREFIX="/usr/local"
+meson --prefix="${PREFIX}" --libdir="${PREFIX}/lib" mesonbuild
+export DESTDIR="$(pwd)/install"
+ninja -C mesonbuild install
+```
+
+You can use it later on by exporting the following variables:
+
+```
+export LD_LIBRARY_PATH="$DESTDIR/${PREFIX}/lib/:$LD_LIBRARY_PATH"
+export GI_TYPELIB_PATH="$DESTDIR/${PREFIX}/lib/:$GI_TYPELIB_PATH"
+export PATH="$DESTDIR/${PREFIX}/bin:$PATH"
+```
 
 ## Using the CLI
 
