@@ -65,10 +65,7 @@ struct _PlayerctlPlayerPrivate
 
 static void playerctl_player_properties_changed_callback (GDBusProxy *_proxy, GVariant *changed_properties, const gchar *const *invalidated_properties, gpointer user_data)
 {
-  OrgMprisMediaPlayer2Player *proxy;
-
   PlayerctlPlayer *self = user_data;
-  proxy = ORG_MPRIS_MEDIA_PLAYER2_PLAYER(_proxy);
 
   GVariant *metadata = g_variant_lookup_value(changed_properties, "Metadata", NULL);
   GVariant *playback_status = g_variant_lookup_value(changed_properties, "PlaybackStatus", NULL);
@@ -798,8 +795,6 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self, const gchar *
  */
 gchar *playerctl_player_get_artist(PlayerctlPlayer *self, GError **err)
 {
-  GError *tmp_error = NULL;
-
   g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
@@ -823,8 +818,6 @@ gchar *playerctl_player_get_artist(PlayerctlPlayer *self, GError **err)
  */
 gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err)
 {
-  GError *tmp_error = NULL;
-
   g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
@@ -848,8 +841,6 @@ gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err)
  */
 gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err)
 {
-  GError *tmp_error = NULL;
-
   g_return_val_if_fail(self != NULL, NULL);
   g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 

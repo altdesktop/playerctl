@@ -295,7 +295,7 @@ static gboolean handle_player_command (PlayerctlPlayer *player, gchar **command,
       return commands[i].func(player, command + 1, error);
     }
   }
-  g_set_error(error, playerctl_cli_error_quark (), 1, "Command not recognized: %s", command[0], NULL);
+  g_set_error(error, playerctl_cli_error_quark (), 1, "Command not recognized: %s", command[0]);
   return FALSE;
 }
 
