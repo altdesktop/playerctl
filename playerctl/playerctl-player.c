@@ -887,6 +887,14 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
   }
 
   GVariant *track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_OBJECT_PATH);
+
+  if (track_id_variant == NULL) {
+    // XXX some players set this as a string, which is against the protocol,
+    // but a lot of them do it and I don't feel like fixing it on all the
+    // players in the world.
+    track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_STRING);
+  }
+
   g_variant_unref(metadata);
   if (track_id_variant == NULL) {
     tmp_error = g_error_new(playerctl_player_error_quark(), 1, "Could not get track id to set position");
