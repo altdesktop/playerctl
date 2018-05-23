@@ -63,6 +63,14 @@ install_headers(
 )
 
 if get_option('introspection')
+  # The below isn't strictly required, since meson checks for gobject-introspection anyway when
+  # we call gnome.generate_gir. However, doing it this way we have a little nicer error reporting
+  # in case the user enabled instropection but doesn't have gobject-introspection installed.
+  introspection_dep = dependency('gobject-introspection-1.0', required: false)
+  if not introspection_dep.found()
+      error('You need to have gobject-introspection installed to generate Gir data. Disable it with `-Dintrospection=false` if you don\'t want to build it')
+  endif
+
   gnome.generate_gir(
     playerctl_lib.get_shared_lib(),
     sources: [
