@@ -32,6 +32,7 @@
 /doc/reference/html/**/*
 /doc/reference/xml/**/*
 /doc/reference/version.xml
+/doc/playerctl.1
 
 # Project-specific
 /playerctl/.deps/**/*

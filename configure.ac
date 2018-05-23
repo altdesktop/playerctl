@@ -66,6 +66,7 @@ AC_CONFIG_FILES([Makefile
                  doc/Makefile
                  doc/reference/Makefile
                  doc/reference/version.xml
+                 doc/playerctl.1
                  ])
 
 AC_OUTPUT
