@@ -153,6 +153,20 @@ static gboolean previous (PlayerctlPlayer *player, gchar **arguments, GError **e
 
 #undef PLAYER_COMMAND_FUNC
 
+static gboolean open (PlayerctlPlayer *player, gchar **arguments, GError **error)
+{
+  const gchar *uri = *arguments;
+  GError *tmp_error = NULL;
+  if (uri) {
+    playerctl_player_open(player, g_file_get_uri(g_file_new_for_commandline_arg(uri)), &tmp_error);
+    if (tmp_error != NULL) {
+      g_propagate_error(error, tmp_error);
+      return FALSE;
+    }
+  }
+  return TRUE;
+}
+
 static gboolean position (PlayerctlPlayer *player, gchar **arguments, GError **error)
 {
   const gchar *position = *arguments;
@@ -275,6 +289,7 @@ struct PlayerCommand {
   const gchar *name;
   gboolean (*func) (PlayerctlPlayer *player, gchar **arguments, GError **error);
 } commands[] = {
+  { "open", &open },
   { "play", &play },
   { "pause", &paus },
   { "play-pause", &play_pause },
@@ -315,6 +330,8 @@ static const GOptionEntry entries[] = {
 static gboolean parse_setup_options (int argc, char *argv[], GError **error)
 {
   static const gchar *description = "Available Commands:"
+    "\n  open [URI]              Command for the player to open given URI."
+    "\n                          URI can be either file path or remote URL with mandatory scheme, like http://..."
     "\n  play                    Command the player to play"
     "\n  pause                   Command the player to pause"
     "\n  play-pause              Command the player to toggle between play/pause"

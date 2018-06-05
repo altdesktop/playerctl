@@ -612,6 +612,36 @@ PlayerctlPlayer *playerctl_player_play_pause(PlayerctlPlayer *self, GError **err
 }
 
 /**
+ * playerctl_player_open:
+ * @self: a #PlayerctlPlayer
+ * @err (allow-none): the location of a GError or NULL
+ *
+ * Command the player to open given URI
+ *
+ * Returns: (transfer none): the #PlayerctlPlayer for chaining
+ */
+PlayerctlPlayer *playerctl_player_open(PlayerctlPlayer *self, gchar *uri, GError **err)
+{
+  GError *tmp_error = NULL;
+
+  g_return_val_if_fail(self != NULL, NULL);
+  g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+
+  if (self->priv->init_error != NULL) {
+    g_propagate_error(err, g_error_copy(self->priv->init_error));
+    return self;
+  }
+  org_mpris_media_player2_player_call_open_uri_sync(self->priv->proxy, uri, NULL, &tmp_error);
+
+  if (tmp_error != NULL) {
+    g_propagate_error(err, tmp_error);
+    return self;
+  }
+
+  return self;
+}
+
+/**
  * playerctl_player_play:
  * @self: a #PlayerctlPlayer
  * @err (allow-none): the location of a GError or NULL
