@@ -424,7 +424,9 @@ int main (int argc, char *argv[])
     }
 
 loopend:
-    g_object_unref(player);
+    if (player != NULL) {
+      g_object_unref(player);
+    }
     g_clear_error(&error);
     error = NULL;
 
