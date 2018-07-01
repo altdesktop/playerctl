@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 0.6.1
+
+Version 0.6.1 includes bug fixes and some minor features.
+
+* Bugfix: unref of a null player when no players are present
+* Playerctl now searches the system bus for players
+* Parse trackid as a string as a workaround for noncompliant players
+* Various meson fixes
+
 ## Version 0.6.0
 
 Version 0.6.0 includes bug fixes and new features.
