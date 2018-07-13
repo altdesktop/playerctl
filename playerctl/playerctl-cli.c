@@ -188,7 +188,7 @@ static gboolean position (PlayerctlPlayer *player, gchar **arguments, GError **e
     }
   } else {
     g_object_get(player, "position", &offset, NULL);
-    g_print("%g\n", (double)offset / 1000000.0);
+    printf("%f\n", (double)offset / 1000000.0);
   }
 
   return TRUE;
@@ -228,7 +228,7 @@ static gboolean set_or_get_volume (PlayerctlPlayer *player, gchar **arguments, G
     g_object_set(player, "volume", level, NULL);
   } else {
     g_object_get(player, "volume", &level, NULL);
-    g_print("%g\n", level);
+    g_print("%f\n", level);
   }
 
   return TRUE;
@@ -239,7 +239,7 @@ static gboolean status (PlayerctlPlayer *player, gchar **arguments, GError **err
   gchar *state = NULL;
 
   g_object_get(player, "status", &state, NULL);
-  g_print("%s\n", state ? state : "Not available");
+  printf("%s\n", state ? state : "Not available");
   g_free(state);
 
   return TRUE;
@@ -265,7 +265,7 @@ static gboolean get_metadata (PlayerctlPlayer *player, gchar **arguments, GError
     return FALSE;
   }
 
-  g_print("%s", data);
+  printf("%s", data);
   g_free(data);
 
   return TRUE;
