@@ -20,6 +20,7 @@
 
 #include "playerctl.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <gio/gio.h>
 #include <locale.h>
 #include <string.h>
