@@ -16,10 +16,10 @@ gnome.gtkdoc(
   ],
   mkdb_args: [
     '--output-format=xml',
-    '--name-space=meson.project_name()',
+    '--name-space=' + meson.project_name(),
   ],
   scan_args: '--deprecated-guards="PLAYERCTL_DISABLE_DEPRECATED"',
-  gobject_typesfile: meson.project_name() + '.types',
+  gobject_typesfile: join_paths(meson.current_build_dir(), meson.project_name() + '.types'),
   fixxref_args: [
     '--extra-dir=@0@'.format(join_paths(glib_docpath, 'gobject')),
     '--extra-dir=@0@'.format(join_paths(glib_docpath, 'gio')),
