@@ -316,9 +316,9 @@ static const GOptionEntry entries[] = {
      NULL},
     {"list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
      &list_all_players_and_exit,
-     "List the names of running players that can be controlled and exit", NULL},
+     "List the names of running players that can be controlled", NULL},
     {"version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
-     &print_version_and_exit, "Print version information and exit", NULL},
+     &print_version_and_exit, "Print version information", NULL},
     {G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command, NULL,
      "COMMAND"},
     {NULL}};
@@ -326,9 +326,6 @@ static const GOptionEntry entries[] = {
 static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
     static const gchar *description =
         "Available Commands:"
-        "\n  open [URI]              Command for the player to open given URI."
-        "\n                          URI can be either file path or remote URL "
-        "with mandatory scheme, like http://..."
         "\n  play                    Command the player to play"
         "\n  pause                   Command the player to pause"
         "\n  play-pause              Command the player to toggle between "
@@ -345,13 +342,15 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         "\n  metadata [KEY]          Print metadata information for the current "
         "track. If KEY is passed,"
         "\n                          print only that value. KEY may be one of "
-        "artist, title or album";
+        "artist, title or album"
+        "\n  open [URI]              Command for the player to open given URI."
+        "\n                          URI can be either file path or remote URL.";
     static const gchar *summary =
-        "  Only for players supporting the MPRIS D-Bus specification";
+        "  For players supporting the MPRIS D-Bus specification";
     GOptionContext *context = NULL;
     gboolean success;
 
-    context = g_option_context_new("- Controller for MPRIS players");
+    context = g_option_context_new("- Controller for media players");
     g_option_context_add_main_entries(context, entries, NULL);
     g_option_context_set_description(context, description);
     g_option_context_set_summary(context, summary);
