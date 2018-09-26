@@ -67,6 +67,8 @@ PlayerctlPlayer *playerctl_player_new (const gchar *name, GError **err);
 
 PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event, GClosure *callback, GError **err);
 
+PlayerctlPlayer *playerctl_player_open(PlayerctlPlayer *self, gchar *uri, GError **err);
+
 PlayerctlPlayer *playerctl_player_play_pause(PlayerctlPlayer *self, GError **err);
 
 PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err);
