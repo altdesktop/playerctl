@@ -36,7 +36,7 @@ open [URI]              Command for the player to open given URI.
 
 ## Using the Library
 
-To use a scripting library, find your favorite language from [this list](https://wiki.gnome.org/Projects/GObjectIntrospection/Users) and install the bindings library.
+To use a scripting library, find your favorite language from [this list](https://wiki.gnome.org/Projects/GObjectIntrospection/Users) and install the bindings library. Documentation for the library is hosted [here](https://dubstepdish.com/playerctl).
 
 ### Example Python Script
 
