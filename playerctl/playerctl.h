@@ -1,5 +1,4 @@
-/* vim:ts=2:sw=2:expandtab
- *
+/*
  * This file is part of playerctl.
  *
  * playerctl is free software: you can redistribute it and/or modify it under
@@ -23,8 +22,8 @@
 
 #define __PLAYERCTL_INSIDE__
 
-#include <playerctl/playerctl-version.h>
 #include <playerctl/playerctl-player.h>
+#include <playerctl/playerctl-version.h>
 
 #undef __PLAYERCTL_INSIDE__
 
