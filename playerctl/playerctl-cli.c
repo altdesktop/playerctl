@@ -140,7 +140,7 @@ static gboolean previous(PlayerctlPlayer *player, gchar **arguments,
 
 #undef PLAYER_COMMAND_FUNC
 
-static gboolean open(PlayerctlPlayer *player, gchar **arguments,
+static gboolean open_uri(PlayerctlPlayer *player, gchar **arguments,
                      GError **error) {
     const gchar *uri = *arguments;
     GError *tmp_error = NULL;
@@ -280,7 +280,7 @@ struct PlayerCommand {
     const gchar *name;
     gboolean (*func)(PlayerctlPlayer *player, gchar **arguments, GError **error);
 } commands[] = {
-    {"open", &open},
+    {"open", &open_uri},
     {"play", &play},
     {"pause", &paus},
     {"play-pause", &play_pause},
