@@ -17,6 +17,7 @@
  * Copyright © 2014, Tony Crisci and contributors.
  */
 
+#include <stdbool.h>
 #include <gio/gio.h>
 #include <locale.h>
 #include <stdio.h>
@@ -111,42 +112,42 @@ static gchar *list_player_names(GError **err) {
     }                                               \
     return TRUE;
 
-static gboolean play(PlayerctlPlayer *player, gchar **arguments,
+static gboolean play(PlayerctlPlayer *player, gchar **argv, gint argc,
                      GError **error) {
     PLAYER_COMMAND_FUNC(play);
 }
 
 /* Pause is defined in unistd.h */
-static gboolean paus(PlayerctlPlayer *player, gchar **arguments,
+static gboolean paus(PlayerctlPlayer *player, gchar **argv, gint argc,
                      GError **error) {
     PLAYER_COMMAND_FUNC(pause);
 }
 
-static gboolean play_pause(PlayerctlPlayer *player, gchar **arguments,
+static gboolean play_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
                            GError **error) {
     PLAYER_COMMAND_FUNC(play_pause);
 }
 
-static gboolean stop(PlayerctlPlayer *player, gchar **arguments,
+static gboolean stop(PlayerctlPlayer *player, gchar **argv, gint argc,
                      GError **error) {
     PLAYER_COMMAND_FUNC(stop);
 }
 
-static gboolean next(PlayerctlPlayer *player, gchar **arguments,
+static gboolean next(PlayerctlPlayer *player, gchar **argv, gint argc,
                      GError **error) {
     PLAYER_COMMAND_FUNC(next);
 }
 
-static gboolean previous(PlayerctlPlayer *player, gchar **arguments,
+static gboolean previous(PlayerctlPlayer *player, gchar **argv, gint argc,
                          GError **error) {
     PLAYER_COMMAND_FUNC(previous);
 }
 
 #undef PLAYER_COMMAND_FUNC
 
-static gboolean open_uri(PlayerctlPlayer *player, gchar **arguments,
-                     GError **error) {
-    const gchar *uri = *arguments;
+static gboolean open_uri(PlayerctlPlayer *player, gchar **argv, gint argc,
+                         GError **error) {
+    const gchar *uri = *argv;
     GError *tmp_error = NULL;
     if (uri) {
         playerctl_player_open(player,
@@ -160,9 +161,9 @@ static gboolean open_uri(PlayerctlPlayer *player, gchar **arguments,
     return TRUE;
 }
 
-static gboolean position(PlayerctlPlayer *player, gchar **arguments,
+static gboolean position(PlayerctlPlayer *player, gchar **argv, gint argc,
                          GError **error) {
-    const gchar *position = *arguments;
+    const gchar *position = *argv;
     gint64 offset;
     GError *tmp_error = NULL;
 
@@ -202,9 +203,9 @@ static gboolean position(PlayerctlPlayer *player, gchar **arguments,
     return TRUE;
 }
 
-static gboolean set_or_get_volume(PlayerctlPlayer *player, gchar **arguments,
+static gboolean set_or_get_volume(PlayerctlPlayer *player, gchar **argv, gint argc,
                                   GError **error) {
-    const gchar *volume = *arguments;
+    const gchar *volume = *argv;
     gdouble level;
 
     if (volume) {
@@ -243,7 +244,7 @@ static gboolean set_or_get_volume(PlayerctlPlayer *player, gchar **arguments,
     return TRUE;
 }
 
-static gboolean status(PlayerctlPlayer *player, gchar **arguments,
+static gboolean status(PlayerctlPlayer *player, gchar **argv, gint argc,
                        GError **error) {
     gchar *state = NULL;
 
@@ -254,9 +255,9 @@ static gboolean status(PlayerctlPlayer *player, gchar **arguments,
     return TRUE;
 }
 
-static gboolean get_metadata(PlayerctlPlayer *player, gchar **arguments,
+static gboolean get_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
                              GError **error) {
-    const gchar *type = *arguments;
+    const gchar *type = *argv;
     GError *tmp_error = NULL;
     gchar *data;
 
@@ -283,7 +284,7 @@ static gboolean get_metadata(PlayerctlPlayer *player, gchar **arguments,
 
 struct PlayerCommand {
     const gchar *name;
-    gboolean (*func)(PlayerctlPlayer *player, gchar **arguments, GError **error);
+    gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, GError **error);
 } commands[] = {
     {"open", &open_uri},
     {"play", &play},
@@ -299,11 +300,15 @@ struct PlayerCommand {
 };
 
 static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
-                                      GError **error) {
+                                      gint num_commands, GError **error) {
+    if (num_commands < 1) {
+        return FALSE;
+    }
+
     for (int i = 0; i < LENGTH(commands); i++) {
         if (g_strcmp0(commands[i].name, command[0]) == 0) {
             // Do not pass the command's name to the function that processes it.
-            return commands[i].func(player, command + 1, error);
+            return commands[i].func(player, command + 1, num_commands - 1, error);
         }
     }
     g_set_error(error, playerctl_cli_error_quark(), 1,
@@ -385,6 +390,7 @@ int main(int argc, char *argv[]) {
     PlayerctlPlayer *player;
     GError *error = NULL;
     int exit_status = 0;
+    gint num_commands = 0;
 
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
@@ -436,6 +442,11 @@ int main(int argc, char *argv[]) {
     const gboolean multiple_names = player_names != NULL;
     gchar *player_name = multiple_names ? strtok(player_names, delim) : NULL;
 
+    // count the extra arguments given
+    while (command[num_commands] != NULL) {
+        ++num_commands;
+    }
+
     for (;;) {
         player = playerctl_player_new(player_name, &error);
 
@@ -445,7 +456,7 @@ int main(int argc, char *argv[]) {
             goto loopend;
         }
 
-        if (!handle_player_command(player, command, &error)) {
+        if (!handle_player_command(player, command, num_commands, &error)) {
             g_printerr("Could not execute command: %s\n", error->message);
             exit_status = 1;
         }
