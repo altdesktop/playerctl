@@ -275,7 +275,7 @@ static gboolean get_metadata(PlayerctlPlayer *player, gchar **arguments,
         return FALSE;
     }
 
-    printf("%s", data);
+    printf("%s\n", data);
     g_free(data);
 
     return TRUE;
@@ -411,7 +411,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (player_names[0] == '\0') {
-            g_printerr("No players were found");
+            g_printerr("No players were found\n");
         } else {
             g_print("%s", player_names);
         }
