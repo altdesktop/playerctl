@@ -112,40 +112,39 @@ static gchar *list_player_names(GError **err) {
     }                                               \
     return TRUE;
 
-static gboolean play(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
                      GError **error) {
     PLAYER_COMMAND_FUNC(play);
 }
 
-/* Pause is defined in unistd.h */
-static gboolean paus(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
                      GError **error) {
     PLAYER_COMMAND_FUNC(pause);
 }
 
-static gboolean play_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
                            GError **error) {
     PLAYER_COMMAND_FUNC(play_pause);
 }
 
-static gboolean stop(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
                      GError **error) {
     PLAYER_COMMAND_FUNC(stop);
 }
 
-static gboolean next(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc,
                      GError **error) {
     PLAYER_COMMAND_FUNC(next);
 }
 
-static gboolean previous(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_previous(PlayerctlPlayer *player, gchar **argv, gint argc,
                          GError **error) {
     PLAYER_COMMAND_FUNC(previous);
 }
 
 #undef PLAYER_COMMAND_FUNC
 
-static gboolean open_uri(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
                          GError **error) {
     const gchar *uri = *argv;
     GError *tmp_error = NULL;
@@ -161,7 +160,7 @@ static gboolean open_uri(PlayerctlPlayer *player, gchar **argv, gint argc,
     return TRUE;
 }
 
-static gboolean position(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint argc,
                          GError **error) {
     const gchar *position = *argv;
     gint64 offset;
@@ -203,7 +202,7 @@ static gboolean position(PlayerctlPlayer *player, gchar **argv, gint argc,
     return TRUE;
 }
 
-static gboolean set_or_get_volume(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint argc,
                                   GError **error) {
     const gchar *volume = *argv;
     gdouble level;
@@ -244,7 +243,7 @@ static gboolean set_or_get_volume(PlayerctlPlayer *player, gchar **argv, gint ar
     return TRUE;
 }
 
-static gboolean status(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint argc,
                        GError **error) {
     gchar *state = NULL;
 
@@ -255,7 +254,7 @@ static gboolean status(PlayerctlPlayer *player, gchar **argv, gint argc,
     return TRUE;
 }
 
-static gboolean get_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
+static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
                              GError **error) {
     const gchar *type = *argv;
     GError *tmp_error = NULL;
@@ -286,17 +285,17 @@ struct PlayerCommand {
     const gchar *name;
     gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, GError **error);
 } commands[] = {
-    {"open", &open_uri},
-    {"play", &play},
-    {"pause", &paus},
-    {"play-pause", &play_pause},
-    {"stop", &stop},
-    {"next", &next},
-    {"previous", &previous},
-    {"position", &position},
-    {"volume", &set_or_get_volume},
-    {"status", &status},
-    {"metadata", &get_metadata},
+    {"open", &playercmd_open},
+    {"play", &playercmd_play},
+    {"pause", &playercmd_pause},
+    {"play-pause", &playercmd_play_pause},
+    {"stop", &playercmd_stop},
+    {"next", &playercmd_next},
+    {"previous", &playercmd_previous},
+    {"position", &playercmd_position},
+    {"volume", &playercmd_volume},
+    {"status", &playercmd_status},
+    {"metadata", &playercmd_metadata},
 };
 
 static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
