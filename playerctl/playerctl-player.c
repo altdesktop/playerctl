@@ -80,12 +80,13 @@ static void playerctl_player_properties_changed_callback(
     if (playback_status) {
         const gchar *status_str = g_variant_get_string(playback_status, NULL);
 
-        if (g_strcmp0(status_str, "Playing") == 0)
+        if (g_strcmp0(status_str, "Playing") == 0) {
             g_signal_emit(self, connection_signals[PLAY], 0);
-        else if (g_strcmp0(status_str, "Paused") == 0)
+        } else if (g_strcmp0(status_str, "Paused") == 0) {
             g_signal_emit(self, connection_signals[PAUSE], 0);
-        else if (g_strcmp0(status_str, "Stopped") == 0)
+        } else if (g_strcmp0(status_str, "Stopped") == 0) {
             g_signal_emit(self, connection_signals[STOP], 0);
+        }
     }
 
     for (int i = 0; invalidated_properties[i] != NULL; i += 1) {
@@ -182,11 +183,13 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
     case PROP_METADATA: {
         GVariant *metadata = NULL;
 
-        if (self->priv->proxy)
+        if (self->priv->proxy) {
             metadata = playerctl_player_get_metadata(self, NULL);
+        }
 
-        if (self->priv->metadata != NULL)
+        if (self->priv->metadata != NULL) {
             g_variant_unref(self->priv->metadata);
+        }
 
         self->priv->metadata = metadata;
         g_value_set_variant(value, metadata);
@@ -453,8 +456,9 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
     PlayerctlPlayer *player = PLAYERCTL_PLAYER(initable);
     GBusType busType = G_BUS_TYPE_SESSION;
 
-    if (player->priv->initted)
+    if (player->priv->initted) {
         return TRUE;
+    }
 
     g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
 

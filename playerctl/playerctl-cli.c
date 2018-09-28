@@ -84,13 +84,17 @@ static gchar *list_player_names(GError **err) {
     GString *sessionPlayers = list_player_names_on_bus(err, G_BUS_TYPE_SESSION);
     GString *systemPlayers = list_player_names_on_bus(err, G_BUS_TYPE_SYSTEM);
 
-    if (!sessionPlayers && !systemPlayers)
+    if (!sessionPlayers && !systemPlayers) {
         return NULL;
+    }
 
-    if (!sessionPlayers)
+    if (!sessionPlayers) {
         return g_string_free(systemPlayers, FALSE);
-    if (!systemPlayers)
+    }
+
+    if (!systemPlayers) {
         return g_string_free(sessionPlayers, FALSE);
+    }
 
     g_string_append(sessionPlayers, systemPlayers->str);
     g_string_free(systemPlayers, TRUE);
@@ -256,14 +260,15 @@ static gboolean get_metadata(PlayerctlPlayer *player, gchar **arguments,
     GError *tmp_error = NULL;
     gchar *data;
 
-    if (g_strcmp0(type, "artist") == 0)
+    if (g_strcmp0(type, "artist") == 0) {
         data = playerctl_player_get_artist(player, &tmp_error);
-    else if (g_strcmp0(type, "title") == 0)
+    } else if (g_strcmp0(type, "title") == 0) {
         data = playerctl_player_get_title(player, &tmp_error);
-    else if (g_strcmp0(type, "album") == 0)
+    } else if (g_strcmp0(type, "album") == 0) {
         data = playerctl_player_get_album(player, &tmp_error);
-    else
+    } else {
         data = playerctl_player_print_metadata_prop(player, type, &tmp_error);
+    }
 
     if (tmp_error) {
         g_propagate_error(error, tmp_error);
@@ -405,10 +410,11 @@ int main(int argc, char *argv[]) {
             goto end;
         }
 
-        if (player_names[0] == '\0')
+        if (player_names[0] == '\0') {
             g_printerr("No players were found");
-        else
+        } else {
             g_print("%s", player_names);
+        }
         g_free(player_names);
 
         exit_status = 0;
@@ -451,12 +457,14 @@ int main(int argc, char *argv[]) {
         g_clear_error(&error);
         error = NULL;
 
-        if (!multiple_names)
+        if (!multiple_names) {
             return exit_status;
+        }
 
         player_name = strtok(NULL, delim);
-        if (!player_name)
+        if (!player_name) {
             return exit_status;
+        }
     }
 
 end:
