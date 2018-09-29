@@ -28,8 +28,8 @@ previous                Command the player to skip to the previous track
 position [OFFSET][+/-]  Command the player to go to the position or seek forward/backward OFFSET in seconds
 volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 to 1.0
 status                  Get the play status of the player
-metadata [KEY]          Print metadata information for the current track. If KEY is passed,
-                        print only that value. KEY may be one of artist, title or album
+metadata [KEY...]       Print metadata information for the current track. If KEY is passed,
+                        print only those values. KEY may be artist, title, album, or any key found in the metadata
 open [URI]              Command for the player to open given URI.
                         URI can be either file path or remote URL.
 ```

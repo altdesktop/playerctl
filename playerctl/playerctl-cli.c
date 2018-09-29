@@ -256,27 +256,37 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
 
 static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
                              GError **error) {
-    const gchar *type = *argv;
-    GError *tmp_error = NULL;
-    gchar *data;
+    if (argc == 0) {
+        GError *tmp_error = NULL;
+        gchar *data = playerctl_player_print_metadata_prop(player, NULL, &tmp_error);
 
-    if (g_strcmp0(type, "artist") == 0) {
-        data = playerctl_player_get_artist(player, &tmp_error);
-    } else if (g_strcmp0(type, "title") == 0) {
-        data = playerctl_player_get_title(player, &tmp_error);
-    } else if (g_strcmp0(type, "album") == 0) {
-        data = playerctl_player_get_album(player, &tmp_error);
+        printf("%s\n", data);
+        g_free(data);
     } else {
-        data = playerctl_player_print_metadata_prop(player, type, &tmp_error);
-    }
+        for (int i = 0; i < argc; ++i) {
+            const gchar *type = argv[i];
+            GError *tmp_error = NULL;
+            gchar *data;
 
-    if (tmp_error) {
-        g_propagate_error(error, tmp_error);
-        return FALSE;
-    }
+            if (g_strcmp0(type, "artist") == 0) {
+                data = playerctl_player_get_artist(player, &tmp_error);
+            } else if (g_strcmp0(type, "title") == 0) {
+                data = playerctl_player_get_title(player, &tmp_error);
+            } else if (g_strcmp0(type, "album") == 0) {
+                data = playerctl_player_get_album(player, &tmp_error);
+            } else {
+                data = playerctl_player_print_metadata_prop(player, type, &tmp_error);
+            }
 
-    printf("%s\n", data);
-    g_free(data);
+            if (tmp_error) {
+                g_propagate_error(error, tmp_error);
+                return FALSE;
+            }
+
+            printf("%s\n", data);
+            g_free(data);
+        }
+    }
 
     return TRUE;
 }
@@ -348,10 +358,10 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         "\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 "
         "to 1.0"
         "\n  status                  Get the play status of the player"
-        "\n  metadata [KEY]          Print metadata information for the current "
+        "\n  metadata [KEY...]       Print metadata information for the current "
         "track. If KEY is passed,"
-        "\n                          print only that value. KEY may be one of "
-        "artist, title or album"
+        "\n                          print only those values. KEY may be artist,"
+        "title, album, or any key found in the metadata."
         "\n  open [URI]              Command for the player to open given URI."
         "\n                          URI can be either file path or remote URL.";
     static const gchar *summary =
