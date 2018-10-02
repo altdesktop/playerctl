@@ -39,6 +39,8 @@ static gboolean list_all_players_and_exit;
 static gboolean print_version_and_exit;
 /* The commands passed on the command line, filled in via G_OPTION_REMAINING. */
 static gchar **command = NULL;
+/* A format string for printing properties and metadata */
+static gchar *format_string = NULL;
 
 static GString *list_player_names_on_bus(GError **err, GBusType busType) {
     GError *tmp_error = NULL;
@@ -160,6 +162,40 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
     return TRUE;
 }
 
+static GList *tokenize_format(const char *format){
+    GList *tokens = NULL;
+
+    int len = strlen(format);
+    char buf[1028];
+    int buf_len = 0;
+
+    for (int i = 0; i < len; ++i) {
+        if (format[i] == '{' && i < len + 1 && format[i+1] == '{') {
+            buf[buf_len] = '\0';
+            tokens = g_list_append(tokens, g_strdup(buf));
+            tokens = g_list_append(tokens, g_strdup("{{"));
+            i += 1;
+            buf_len = 0;
+            continue;
+        } else if (format[i] == '}' && i < len + 1 && format[i+1] == '}') {
+            buf[buf_len] = '\0';
+            tokens = g_list_append(tokens, g_strdup(buf));
+            tokens = g_list_append(tokens, g_strdup("}}"));
+            i += 1;
+            buf_len = 0;
+            continue;
+        }
+        buf[buf_len++] = format[i];
+    }
+
+    if (buf_len > 0) {
+        buf[buf_len] = '\0';
+        tokens = g_list_append(tokens, g_strdup(buf));
+    }
+
+    return tokens;
+}
+
 static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint argc,
                          GError **error) {
     const gchar *position = *argv;
@@ -254,10 +290,130 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
     return TRUE;
 }
 
+static gchar *print_gvariant(GVariant *value) {
+    GString *printed = g_string_new("");
+    if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING_ARRAY)) {
+        gsize prop_count;
+        const gchar **prop_strv = g_variant_get_strv(value, &prop_count);
+
+        for (int i = 0; i < prop_count; i += 1) {
+            g_string_append(printed, prop_strv[i]);
+
+            if (i != prop_count - 1) {
+                g_string_append(printed, ", ");
+            }
+        }
+
+        g_free(prop_strv);
+    } else if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
+        g_string_append(printed, g_variant_get_string(value, NULL));
+    } else {
+        printed = g_variant_print_string(value, printed, FALSE);
+    }
+
+    return g_string_free(printed, FALSE);
+}
+
+static gchar *expand_format(const gchar *format, GVariantDict *context, GError **error) {
+#define STATE_PASSTHROUGH 1
+#define STATE_INSIDE 2
+    GString *expanded = g_string_new("");
+    int state = STATE_PASSTHROUGH;
+    GList *tokens = tokenize_format(format);
+    int tokens_len = g_list_length(tokens);
+    for (int i = 0; i < tokens_len; ++i) {
+        gchar *token = g_list_nth(tokens, i)->data;
+        if (g_strcmp0(token, "}}") == 0) {
+            if (state == STATE_INSIDE) {
+                state = STATE_PASSTHROUGH;
+            }
+        } else if (g_strcmp0(token, "{{") == 0) {
+            if (state == STATE_INSIDE) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            "Unexpected token: \"{{\"");
+                g_list_free_full(tokens, g_free);
+                g_string_free(expanded, TRUE);
+                return NULL;
+            }
+            state = STATE_INSIDE;
+        } else if (state == STATE_INSIDE) {
+            token = g_strstrip(token);
+            if (g_variant_dict_contains(context, token)) {
+                GVariant *value = g_variant_dict_lookup_value(context, token, NULL);
+                gchar *value_str = print_gvariant(value);
+                g_string_append(expanded, value_str);
+                g_variant_unref(value);
+                g_free(value_str);
+            }
+        } else if (state == STATE_PASSTHROUGH) {
+            expanded = g_string_append(expanded, token);
+        }
+    }
+    g_list_free_full(tokens, g_free);
+    return g_string_free(expanded, FALSE);
+
+#undef STATE_PASSTHROUGH
+#undef STATE_INSIDE
+}
+
+static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *format, GError **error) {
+    GError *tmp_error = NULL;
+    GVariant *metadata = NULL;
+    g_object_get(player, "metadata", &metadata, NULL);
+    if (metadata == NULL) {
+        g_set_error(error, playerctl_cli_error_quark(), 1,
+                    "Could not get metadata for player");
+        return NULL;
+    }
+
+    // set our default properties
+    GVariantDict *metadata_dict = g_variant_dict_new(metadata);
+    if (!g_variant_dict_contains(metadata_dict, "artist") &&
+            g_variant_dict_contains(metadata_dict, "xesam:artist")) {
+        GVariant *artist = g_variant_dict_lookup_value(metadata_dict, "xesam:artist", NULL);
+        g_variant_dict_insert_value(metadata_dict, "artist", artist);
+        g_variant_unref(artist);
+    }
+    if (!g_variant_dict_contains(metadata_dict, "album") &&
+            g_variant_dict_contains(metadata_dict, "xesam:album")) {
+        GVariant *album = g_variant_dict_lookup_value(metadata_dict, "xesam:album", NULL);
+        g_variant_dict_insert_value(metadata_dict, "album", album);
+        g_variant_unref(album);
+    }
+    if (!g_variant_dict_contains(metadata_dict, "title") &&
+            g_variant_dict_contains(metadata_dict, "xesam:title")) {
+        GVariant *title = g_variant_dict_lookup_value(metadata_dict, "xesam:title", NULL);
+        g_variant_dict_insert_value(metadata_dict, "title", title);
+        g_variant_unref(title);
+    }
+
+    gchar *result = expand_format(format, metadata_dict, &tmp_error);
+    if (tmp_error) {
+        g_propagate_error(error, tmp_error);
+        return NULL;
+    }
+
+    g_variant_unref(metadata);
+    g_variant_dict_unref(metadata_dict);
+
+    return result;
+}
+
 static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
                              GError **error) {
+    GError *tmp_error = NULL;
+
+    if (format_string != NULL) {
+        gchar *data = get_metadata_formatted(player, format_string, &tmp_error);
+        if (tmp_error) {
+            g_propagate_error(error, tmp_error);
+            return FALSE;
+        }
+        printf("%s\n", data);
+        return TRUE;
+    }
+
     if (argc == 0) {
-        GError *tmp_error = NULL;
         gchar *data = playerctl_player_print_metadata_prop(player, NULL, &tmp_error);
 
         printf("%s\n", data);
@@ -265,7 +421,6 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
     } else {
         for (int i = 0; i < argc; ++i) {
             const gchar *type = argv[i];
-            GError *tmp_error = NULL;
             gchar *data;
 
             if (g_strcmp0(type, "artist") == 0) {
@@ -333,6 +488,8 @@ static const GOptionEntry entries[] = {
     {"all-players", 'a', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
      &select_all_players, "Select all available players to be controlled",
      NULL},
+    {"format", 'f', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &format_string,
+     "A format string for printing properties and metadata", NULL},
     {"list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
      &list_all_players_and_exit,
      "List the names of running players that can be controlled", NULL},
