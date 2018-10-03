@@ -340,10 +340,12 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
             token = g_strstrip(token);
             if (g_variant_dict_contains(context, token)) {
                 GVariant *value = g_variant_dict_lookup_value(context, token, NULL);
-                gchar *value_str = print_gvariant(value);
-                g_string_append(expanded, value_str);
-                g_variant_unref(value);
-                g_free(value_str);
+                if (value != NULL) {
+                    gchar *value_str = print_gvariant(value);
+                    g_string_append(expanded, value_str);
+                    g_variant_unref(value);
+                    g_free(value_str);
+                }
             }
         } else if (state == STATE_PASSTHROUGH) {
             expanded = g_string_append(expanded, token);
