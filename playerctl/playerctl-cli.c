@@ -162,40 +162,6 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
     return TRUE;
 }
 
-static GList *tokenize_format(const char *format){
-    GList *tokens = NULL;
-
-    int len = strlen(format);
-    char buf[1028];
-    int buf_len = 0;
-
-    for (int i = 0; i < len; ++i) {
-        if (format[i] == '{' && i < len + 1 && format[i+1] == '{') {
-            buf[buf_len] = '\0';
-            tokens = g_list_append(tokens, g_strdup(buf));
-            tokens = g_list_append(tokens, g_strdup("{{"));
-            i += 1;
-            buf_len = 0;
-            continue;
-        } else if (format[i] == '}' && i < len + 1 && format[i+1] == '}') {
-            buf[buf_len] = '\0';
-            tokens = g_list_append(tokens, g_strdup(buf));
-            tokens = g_list_append(tokens, g_strdup("}}"));
-            i += 1;
-            buf_len = 0;
-            continue;
-        }
-        buf[buf_len++] = format[i];
-    }
-
-    if (buf_len > 0) {
-        buf[buf_len] = '\0';
-        tokens = g_list_append(tokens, g_strdup(buf));
-    }
-
-    return tokens;
-}
-
 static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint argc,
                          GError **error) {
     const gchar *position = *argv;
@@ -314,27 +280,163 @@ static gchar *print_gvariant(GVariant *value) {
     return g_string_free(printed, FALSE);
 }
 
+enum parser_state {
+    STATE_INSIDE = 0,
+    STATE_PARAMS_OPEN,
+    STATE_PARAMS_CLOSED,
+    STATE_PASSTHROUGH,
+};
+
+#define FORMAT_ERROR "[format error] "
+
+static GList *tokenize_format(const char *format, GError **error) {
+    GList *tokens = NULL;
+
+    int len = strlen(format);
+    char buf[1028];
+    int buf_len = 0;
+
+    enum parser_state state = STATE_PASSTHROUGH;
+    for (int i = 0; i < len; ++i) {
+        if (format[i] == '{' && i < len + 1 && format[i+1] == '{') {
+            if (state == STATE_INSIDE) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            FORMAT_ERROR "unexpected token: \"{{\" (position %d)", i);
+                g_list_free_full(tokens, g_free);
+                return NULL;
+            }
+            if (buf_len != 0) {
+                buf[buf_len] = '\0';
+                tokens = g_list_append(tokens, g_strdup(buf));
+            }
+            tokens = g_list_append(tokens, g_strdup("{{"));
+            i += 1;
+            buf_len = 0;
+            state = STATE_INSIDE;
+        } else if (format[i] == '}' && i < len + 1 && format[i+1] == '}' && state != STATE_PASSTHROUGH) {
+            if (state == STATE_PARAMS_OPEN) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            FORMAT_ERROR "unexpected token: \"}}\" (expected closing parens: \")\" at position %d)", i);
+                g_list_free_full(tokens, g_free);
+                return NULL;
+            }
+
+            if (state != STATE_PARAMS_CLOSED) {
+                buf[buf_len] = '\0';
+                gchar *token = g_strstrip(g_strdup(buf));
+                if (strlen(token) == 0) {
+                    g_set_error(error, playerctl_cli_error_quark(), 1,
+                            FORMAT_ERROR "got empty template expression at position %d", i);
+                    g_list_free_full(tokens, g_free);
+                    g_free(token);
+                    return NULL;
+                }
+
+                tokens = g_list_append(tokens, token);
+            } else if (buf_len > 0) {
+                for (int k = 0; k < buf_len; ++k) {
+                    if (buf[k] != ' ') {
+                        g_set_error(error, playerctl_cli_error_quark(), 1,
+                                FORMAT_ERROR "got unexpected input after closing parens at position %d", i - buf_len + k);
+                        g_list_free_full(tokens, g_free);
+                        return NULL;
+                    }
+                }
+            }
+
+            tokens = g_list_append(tokens, g_strdup("}}"));
+            i += 1;
+            buf_len = 0;
+            state = STATE_PASSTHROUGH;
+        } else if (format[i] == '(' && state != STATE_PASSTHROUGH) {
+            if (state == STATE_PARAMS_OPEN) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            FORMAT_ERROR "unexpected token: \"(\" at position %d", i);
+                g_list_free_full(tokens, g_free);
+                return NULL;
+            }
+            if (state == STATE_PARAMS_CLOSED) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            FORMAT_ERROR "unexpected token: \"(\" at position %d", i);
+                g_list_free_full(tokens, g_free);
+                return NULL;
+            }
+            buf[buf_len] = '\0';
+            gchar *token = g_strstrip(g_strdup(buf));
+            if (strlen(token) == 0) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                        FORMAT_ERROR "expected a function name to call at position %d", i);
+                g_list_free_full(tokens, g_free);
+                g_free(token);
+                return NULL;
+            }
+            tokens = g_list_append(tokens, token);
+            tokens = g_list_append(tokens, g_strdup("("));
+            buf_len = 0;
+            state = STATE_PARAMS_OPEN;
+        } else if (format[i] == ')' && state != STATE_PASSTHROUGH) {
+            if (state != STATE_PARAMS_OPEN) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            FORMAT_ERROR "unexpected token: \")\" at position %d", i);
+                g_list_free_full(tokens, g_free);
+                return NULL;
+            }
+            buf[buf_len] = '\0';
+            gchar *token = g_strstrip(g_strdup(buf));
+            if (strlen(token) == 0) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                        FORMAT_ERROR "expected a function parameter at position %d", i);
+                g_list_free_full(tokens, g_free);
+                g_free(token);
+                return NULL;
+            }
+            tokens = g_list_append(tokens, token);
+            tokens = g_list_append(tokens, g_strdup(")"));
+            buf_len = 0;
+            state = STATE_PARAMS_CLOSED;
+        } else {
+            buf[buf_len++] = format[i];
+        }
+    }
+
+    if (state == STATE_INSIDE || state == STATE_PARAMS_CLOSED) {
+        g_set_error(error, playerctl_cli_error_quark(), 1,
+                    FORMAT_ERROR "unmatched opener \"{{\" (expected a matching \"}}\" at the end)");
+        g_list_free_full(tokens, g_free);
+        return NULL;
+    } else if (state == STATE_PARAMS_OPEN) {
+        g_set_error(error, playerctl_cli_error_quark(), 1,
+                    FORMAT_ERROR "unmatched opener \"(\" (expected a matching \")\")");
+        g_list_free_full(tokens, g_free);
+        return NULL;
+    }
+
+    if (buf_len > 0) {
+        buf[buf_len] = '\0';
+        tokens = g_list_append(tokens, g_strdup(buf));
+    }
+
+    return tokens;
+}
+
 static gchar *expand_format(const gchar *format, GVariantDict *context, GError **error) {
-#define STATE_PASSTHROUGH 1
-#define STATE_INSIDE 2
-    GString *expanded = g_string_new("");
-    int state = STATE_PASSTHROUGH;
-    GList *tokens = tokenize_format(format);
+    GError *tmp_error = NULL;
+    GString *expanded;
+    enum parser_state state = STATE_PASSTHROUGH;
+
+    GList *tokens = tokenize_format(format, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return NULL;
+    }
+
+    expanded = g_string_new("");
     int tokens_len = g_list_length(tokens);
     for (int i = 0; i < tokens_len; ++i) {
         gchar *token = g_list_nth(tokens, i)->data;
         if (g_strcmp0(token, "}}") == 0) {
-            if (state == STATE_INSIDE) {
-                state = STATE_PASSTHROUGH;
-            }
+            state = STATE_PASSTHROUGH;
         } else if (g_strcmp0(token, "{{") == 0) {
-            if (state == STATE_INSIDE) {
-                g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "Unexpected token: \"{{\"");
-                g_list_free_full(tokens, g_free);
-                g_string_free(expanded, TRUE);
-                return NULL;
-            }
             state = STATE_INSIDE;
         } else if (state == STATE_INSIDE) {
             token = g_strstrip(token);
@@ -353,9 +455,6 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
     }
     g_list_free_full(tokens, g_free);
     return g_string_free(expanded, FALSE);
-
-#undef STATE_PASSTHROUGH
-#undef STATE_INSIDE
 }
 
 static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *format, GError **error) {
