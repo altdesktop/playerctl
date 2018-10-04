@@ -654,7 +654,22 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
         g_object_set(player, "volume", level, NULL);
     } else {
         g_object_get(player, "volume", &level, NULL);
-        g_print("%f\n", level);
+
+        if (format_string) {
+            GError *tmp_error = NULL;
+            GVariantDict *context = g_variant_dict_new(NULL);
+            GVariant *volume_variant = g_variant_new_double(level);
+            g_variant_dict_insert_value(context, "volume", volume_variant);
+            gchar *formatted = expand_format(format_string, context, &tmp_error);
+            if (tmp_error != NULL) {
+                g_propagate_error(error, tmp_error);
+                g_variant_dict_unref(context);
+                return FALSE;
+            }
+            printf("%s\n", formatted);
+        } else {
+            g_print("%f\n", level);
+        }
     }
 
     return TRUE;
