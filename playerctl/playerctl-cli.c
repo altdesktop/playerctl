@@ -588,7 +588,25 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
         }
     } else {
         g_object_get(player, "position", &offset, NULL);
-        printf("%f\n", (double)offset / 1000000.0);
+
+        if (format_string) {
+            GVariantDict *context = g_variant_dict_new(NULL);
+            GVariant *position = g_variant_new_int64(offset);
+            g_variant_dict_insert_value(context, "position", position);
+            gchar *formatted = expand_format(format_string, context, &tmp_error);
+            if (tmp_error != NULL) {
+                g_propagate_error(error, tmp_error);
+                g_variant_dict_unref(context);
+                return FALSE;
+            }
+
+            printf("%s\n", formatted);
+
+            g_free(formatted);
+            g_variant_dict_unref(context);
+        } else {
+            printf("%f\n", (double)offset / 1000000.0);
+        }
     }
 
     return TRUE;
