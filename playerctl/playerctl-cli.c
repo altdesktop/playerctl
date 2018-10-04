@@ -465,6 +465,8 @@ static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *forma
 
     gchar *result = expand_format(format, metadata_dict, &tmp_error);
     if (tmp_error) {
+        g_variant_unref(metadata);
+        g_variant_dict_unref(metadata_dict);
         g_propagate_error(error, tmp_error);
         return NULL;
     }
