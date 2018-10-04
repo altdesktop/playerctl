@@ -178,6 +178,12 @@ static GList *tokenize_format(const char *format, GError **error) {
     char buf[1028];
     int buf_len = 0;
 
+    if (len >= 1028) {
+        g_set_error(error, playerctl_cli_error_quark(), 1,
+                    FORMAT_ERROR "the maximum format string length is 1028");
+        return NULL;
+    }
+
     enum parser_state state = STATE_PASSTHROUGH;
     for (int i = 0; i < len; ++i) {
         if (format[i] == '{' && i < len + 1 && format[i+1] == '{') {
