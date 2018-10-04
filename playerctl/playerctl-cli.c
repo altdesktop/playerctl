@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <inttypes.h>
 #include "playerctl.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
@@ -293,13 +294,13 @@ struct token {
     struct token *arg;
 };
 
-struct token *token_create(enum token_type type) {
+static struct token *token_create(enum token_type type) {
     struct token *token = calloc(1, sizeof(struct token));
     token->type = type;
     return token;
 }
 
-void token_destroy(struct token *token) {
+static void token_destroy(struct token *token) {
     if (token == NULL) {
         return;
     }
@@ -309,7 +310,7 @@ void token_destroy(struct token *token) {
     free(token);
 }
 
-void token_list_destroy(GList *list) {
+static void token_list_destroy(GList *list) {
     g_list_free_full(list, (GDestroyNotify)token_destroy);
 }
 
@@ -463,6 +464,51 @@ static GList *tokenize_format(const char *format, GError **error) {
     return tokens;
 }
 
+static gchar *helperfn_lc(GVariant *arg) {
+    gchar *printed = print_gvariant(arg);
+    gchar *printed_lc = g_utf8_strdown(printed, -1);
+    g_free(printed);
+    return printed_lc;
+}
+
+static gchar *helperfn_uc(GVariant *arg) {
+    gchar *printed = print_gvariant(arg);
+    gchar *printed_uc = g_utf8_strup(printed, -1);
+    g_free(printed);
+    return printed_uc;
+}
+
+static gchar *helperfn_duration(GVariant *arg) {
+    // mpris durations are represented as int64 in microseconds
+    if (!g_variant_type_equal(g_variant_get_type(arg), G_VARIANT_TYPE_INT64)) {
+        return NULL;
+    }
+
+    gint64 duration = g_variant_get_int64(arg);
+    gint64 seconds = (duration / 1000000) % 60;
+    gint64 minutes = (duration / 1000000 / 60) % 60;
+    gint64 hours = (duration / 1000000 / 60 / 60);
+
+    GString *formatted = g_string_new("");
+
+    if (hours != 0) {
+		g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64 ":%02" PRId64, hours, minutes, seconds);
+    } else {
+		g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64, minutes, seconds);
+	}
+
+    return g_string_free(formatted, FALSE);
+}
+
+struct TemplateHelper {
+    const gchar *name;
+    gchar *(*func)(GVariant *arg);
+} helpers[] = {
+    {"lc", &helperfn_lc},
+    {"uc", &helperfn_uc},
+    {"duration", &helperfn_duration},
+};
+
 static gchar *expand_format(const gchar *format, GVariantDict *context, GError **error) {
     GError *tmp_error = NULL;
     GString *expanded;
@@ -496,8 +542,42 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
             break;
         }
         case TOKEN_FUNCTION:
-            printf("warning: template functions are not implemented: (name = %s, arg name = %s)\n", token->data, token->arg->data);
+        {
+            // XXX: functions must have an argument and that argument must be a
+            // variable (enforced in the tokenization step)
+            assert(token->arg != NULL);
+            assert(token->arg->type == TOKEN_VARIABLE);
+
+            gboolean found = FALSE;
+            gchar *fn_name = token->data;
+            gchar *arg_name = token->arg->data;
+
+            for (int i = 0; i < LENGTH(helpers); ++i) {
+                if (g_strcmp0(helpers[i].name, fn_name) == 0) {
+                    GVariant *value = g_variant_dict_lookup_value(context, arg_name, NULL);
+                    if (value != NULL) {
+                        gchar *result = helpers[i].func(value);
+                        if (result != NULL) {
+                            expanded = g_string_append(expanded, result);
+                            g_free(result);
+                        }
+                        g_variant_unref(value);
+                    }
+                    found = TRUE;
+                    break;
+                }
+            }
+
+            if (!found) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            FORMAT_ERROR "unknown template function: %s", fn_name);
+                token_list_destroy(tokens);
+                g_string_free(expanded, TRUE);
+                return NULL;
+            }
+
             break;
+        }
         }
     }
     token_list_destroy(tokens);
@@ -617,7 +697,7 @@ static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
         return FALSE;
     }
 
-    for (int i = 0; i < LENGTH(commands); i++) {
+    for (int i = 0; i < LENGTH(commands); ++i) {
         if (g_strcmp0(commands[i].name, command[0]) == 0) {
             // Do not pass the command's name to the function that processes it.
             return commands[i].func(player, command + 1, num_commands - 1, error);
