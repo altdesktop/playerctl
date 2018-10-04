@@ -662,10 +662,29 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
 
 static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint argc,
                        GError **error) {
+    GError *tmp_error = NULL;
     gchar *state = NULL;
-
     g_object_get(player, "status", &state, NULL);
-    printf("%s\n", state ? state : "Not available");
+
+    if (format_string) {
+        GVariantDict *context = g_variant_dict_new(NULL);
+        GVariant *status_variant = g_variant_new_string(state);
+        g_variant_dict_insert_value(context, "status", status_variant);
+        gchar *formatted = expand_format(format_string, context, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            g_variant_dict_unref(context);
+            return FALSE;
+        }
+
+        printf("%s\n", formatted);
+
+        g_variant_dict_unref(context);
+        g_free(formatted);
+    } else {
+        printf("%s\n", state ? state : "Not available");
+    }
+
     g_free(state);
 
     return TRUE;
