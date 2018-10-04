@@ -106,182 +106,6 @@ static gchar *list_player_names(GError **err) {
     return g_string_free(sessionPlayers, FALSE);
 }
 
-#define PLAYER_COMMAND_FUNC(COMMAND)                                            \
-    GError *tmp_error = NULL;                                                   \
-                                                                                \
-    if (format_string != NULL) {                                                \
-        g_set_error(error, playerctl_cli_error_quark(), 1,                      \
-                    "format strings are not supported on command functions.");  \
-        return FALSE;                                                           \
-    }                                                                           \
-                                                                                \
-    playerctl_player_##COMMAND(player, &tmp_error);                             \
-    if (tmp_error) {                                                            \
-        g_propagate_error(error, tmp_error);                                    \
-        return FALSE;                                                           \
-    }                                                                           \
-    return TRUE;
-
-static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
-                     GError **error) {
-    PLAYER_COMMAND_FUNC(play);
-}
-
-static gboolean playercmd_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
-                     GError **error) {
-    PLAYER_COMMAND_FUNC(pause);
-}
-
-static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
-                           GError **error) {
-    PLAYER_COMMAND_FUNC(play_pause);
-}
-
-static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
-                     GError **error) {
-    PLAYER_COMMAND_FUNC(stop);
-}
-
-static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc,
-                     GError **error) {
-    PLAYER_COMMAND_FUNC(next);
-}
-
-static gboolean playercmd_previous(PlayerctlPlayer *player, gchar **argv, gint argc,
-                         GError **error) {
-    PLAYER_COMMAND_FUNC(previous);
-}
-
-#undef PLAYER_COMMAND_FUNC
-
-static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
-                         GError **error) {
-    const gchar *uri = *argv;
-    GError *tmp_error = NULL;
-
-    if (format_string != NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-        return FALSE;
-    }
-
-    if (uri) {
-        playerctl_player_open(player,
-                              g_file_get_uri(g_file_new_for_commandline_arg(uri)),
-                              &tmp_error);
-        if (tmp_error != NULL) {
-            g_propagate_error(error, tmp_error);
-            return FALSE;
-        }
-    }
-    return TRUE;
-}
-
-static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint argc,
-                         GError **error) {
-    const gchar *position = *argv;
-    gint64 offset;
-    GError *tmp_error = NULL;
-
-    if (position) {
-        if (format_string != NULL) {
-            g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-            return FALSE;
-        }
-
-        char *endptr = NULL;
-        offset = 1000000.0 * strtod(position, &endptr);
-
-        if (position == endptr) {
-            g_set_error(error, playerctl_cli_error_quark(), 1,
-                        "Could not parse position as a number: %s\n", position);
-            return FALSE;
-        }
-
-        size_t last = strlen(position) - 1;
-        if (position[last] == '+' || position[last] == '-') {
-            if (position[last] == '-') {
-                offset *= -1;
-            }
-
-            playerctl_player_seek(player, offset, &tmp_error);
-            if (tmp_error != NULL) {
-                g_propagate_error(error, tmp_error);
-                return FALSE;
-            }
-        } else {
-            playerctl_player_set_position(player, offset, &tmp_error);
-            if (tmp_error != NULL) {
-                g_propagate_error(error, tmp_error);
-                return FALSE;
-            }
-        }
-    } else {
-        g_object_get(player, "position", &offset, NULL);
-        printf("%f\n", (double)offset / 1000000.0);
-    }
-
-    return TRUE;
-}
-
-static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint argc,
-                                  GError **error) {
-    const gchar *volume = *argv;
-    gdouble level;
-
-    if (volume) {
-        if (format_string != NULL) {
-            g_set_error(error, playerctl_cli_error_quark(), 1,
-                        "format strings are not supported on command functions.");
-            return FALSE;
-        }
-        char *endptr = NULL;
-        size_t last = strlen(volume) - 1;
-
-        if (volume[last] == '+' || volume[last] == '-') {
-            gdouble adjustment = strtod(volume, &endptr);
-
-            if (volume == endptr) {
-                g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "Could not parse volume as a number: %s\n", volume);
-                return FALSE;
-            }
-
-            if (volume[last] == '-') {
-                adjustment *= -1;
-            }
-
-            g_object_get(player, "volume", &level, NULL);
-            level += adjustment;
-        } else {
-            level = strtod(volume, &endptr);
-            if (volume == endptr) {
-                g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "Could not parse volume as a number: %s\n", volume);
-                return FALSE;
-            }
-        }
-        g_object_set(player, "volume", level, NULL);
-    } else {
-        g_object_get(player, "volume", &level, NULL);
-        g_print("%f\n", level);
-    }
-
-    return TRUE;
-}
-
-static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint argc,
-                       GError **error) {
-    gchar *state = NULL;
-
-    g_object_get(player, "status", &state, NULL);
-    printf("%s\n", state ? state : "Not available");
-    g_free(state);
-
-    return TRUE;
-}
-
 static gchar *print_gvariant(GVariant *value) {
     GString *printed = g_string_new("");
     if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING_ARRAY)) {
@@ -649,6 +473,182 @@ static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *forma
     g_variant_dict_unref(metadata_dict);
 
     return result;
+}
+
+#define PLAYER_COMMAND_FUNC(COMMAND)                                            \
+    GError *tmp_error = NULL;                                                   \
+                                                                                \
+    if (format_string != NULL) {                                                \
+        g_set_error(error, playerctl_cli_error_quark(), 1,                      \
+                    "format strings are not supported on command functions.");  \
+        return FALSE;                                                           \
+    }                                                                           \
+                                                                                \
+    playerctl_player_##COMMAND(player, &tmp_error);                             \
+    if (tmp_error) {                                                            \
+        g_propagate_error(error, tmp_error);                                    \
+        return FALSE;                                                           \
+    }                                                                           \
+    return TRUE;
+
+static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
+                     GError **error) {
+    PLAYER_COMMAND_FUNC(play);
+}
+
+static gboolean playercmd_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
+                     GError **error) {
+    PLAYER_COMMAND_FUNC(pause);
+}
+
+static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
+                           GError **error) {
+    PLAYER_COMMAND_FUNC(play_pause);
+}
+
+static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
+                     GError **error) {
+    PLAYER_COMMAND_FUNC(stop);
+}
+
+static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc,
+                     GError **error) {
+    PLAYER_COMMAND_FUNC(next);
+}
+
+static gboolean playercmd_previous(PlayerctlPlayer *player, gchar **argv, gint argc,
+                         GError **error) {
+    PLAYER_COMMAND_FUNC(previous);
+}
+
+#undef PLAYER_COMMAND_FUNC
+
+static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
+                         GError **error) {
+    const gchar *uri = *argv;
+    GError *tmp_error = NULL;
+
+    if (format_string != NULL) {
+        g_set_error(error, playerctl_cli_error_quark(), 1,
+                    "format strings are not supported on command functions.");
+        return FALSE;
+    }
+
+    if (uri) {
+        playerctl_player_open(player,
+                              g_file_get_uri(g_file_new_for_commandline_arg(uri)),
+                              &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint argc,
+                         GError **error) {
+    const gchar *position = *argv;
+    gint64 offset;
+    GError *tmp_error = NULL;
+
+    if (position) {
+        if (format_string != NULL) {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                    "format strings are not supported on command functions.");
+            return FALSE;
+        }
+
+        char *endptr = NULL;
+        offset = 1000000.0 * strtod(position, &endptr);
+
+        if (position == endptr) {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                        "Could not parse position as a number: %s\n", position);
+            return FALSE;
+        }
+
+        size_t last = strlen(position) - 1;
+        if (position[last] == '+' || position[last] == '-') {
+            if (position[last] == '-') {
+                offset *= -1;
+            }
+
+            playerctl_player_seek(player, offset, &tmp_error);
+            if (tmp_error != NULL) {
+                g_propagate_error(error, tmp_error);
+                return FALSE;
+            }
+        } else {
+            playerctl_player_set_position(player, offset, &tmp_error);
+            if (tmp_error != NULL) {
+                g_propagate_error(error, tmp_error);
+                return FALSE;
+            }
+        }
+    } else {
+        g_object_get(player, "position", &offset, NULL);
+        printf("%f\n", (double)offset / 1000000.0);
+    }
+
+    return TRUE;
+}
+
+static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint argc,
+                                  GError **error) {
+    const gchar *volume = *argv;
+    gdouble level;
+
+    if (volume) {
+        if (format_string != NULL) {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                        "format strings are not supported on command functions.");
+            return FALSE;
+        }
+        char *endptr = NULL;
+        size_t last = strlen(volume) - 1;
+
+        if (volume[last] == '+' || volume[last] == '-') {
+            gdouble adjustment = strtod(volume, &endptr);
+
+            if (volume == endptr) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            "Could not parse volume as a number: %s\n", volume);
+                return FALSE;
+            }
+
+            if (volume[last] == '-') {
+                adjustment *= -1;
+            }
+
+            g_object_get(player, "volume", &level, NULL);
+            level += adjustment;
+        } else {
+            level = strtod(volume, &endptr);
+            if (volume == endptr) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            "Could not parse volume as a number: %s\n", volume);
+                return FALSE;
+            }
+        }
+        g_object_set(player, "volume", level, NULL);
+    } else {
+        g_object_get(player, "volume", &level, NULL);
+        g_print("%f\n", level);
+    }
+
+    return TRUE;
+}
+
+static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint argc,
+                       GError **error) {
+    gchar *state = NULL;
+
+    g_object_get(player, "status", &state, NULL);
+    printf("%s\n", state ? state : "Not available");
+    g_free(state);
+
+    return TRUE;
 }
 
 static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
