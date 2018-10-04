@@ -106,14 +106,20 @@ static gchar *list_player_names(GError **err) {
     return g_string_free(sessionPlayers, FALSE);
 }
 
-#define PLAYER_COMMAND_FUNC(COMMAND)                \
-    GError *tmp_error = NULL;                       \
-                                                    \
-    playerctl_player_##COMMAND(player, &tmp_error); \
-    if (tmp_error) {                                \
-        g_propagate_error(error, tmp_error);        \
-        return FALSE;                               \
-    }                                               \
+#define PLAYER_COMMAND_FUNC(COMMAND)                                            \
+    GError *tmp_error = NULL;                                                   \
+                                                                                \
+    if (format_string != NULL) {                                                \
+        g_set_error(error, playerctl_cli_error_quark(), 1,                      \
+                    "format strings are not supported on command functions.");  \
+        return FALSE;                                                           \
+    }                                                                           \
+                                                                                \
+    playerctl_player_##COMMAND(player, &tmp_error);                             \
+    if (tmp_error) {                                                            \
+        g_propagate_error(error, tmp_error);                                    \
+        return FALSE;                                                           \
+    }                                                                           \
     return TRUE;
 
 static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
@@ -152,6 +158,13 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
                          GError **error) {
     const gchar *uri = *argv;
     GError *tmp_error = NULL;
+
+    if (format_string != NULL) {
+        g_set_error(error, playerctl_cli_error_quark(), 1,
+                    "format strings are not supported on command functions.");
+        return FALSE;
+    }
+
     if (uri) {
         playerctl_player_open(player,
                               g_file_get_uri(g_file_new_for_commandline_arg(uri)),
@@ -171,6 +184,12 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
     GError *tmp_error = NULL;
 
     if (position) {
+        if (format_string != NULL) {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                    "format strings are not supported on command functions.");
+            return FALSE;
+        }
+
         char *endptr = NULL;
         offset = 1000000.0 * strtod(position, &endptr);
 
@@ -212,6 +231,11 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
     gdouble level;
 
     if (volume) {
+        if (format_string != NULL) {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                        "format strings are not supported on command functions.");
+            return FALSE;
+        }
         char *endptr = NULL;
         size_t last = strlen(volume) - 1;
 
@@ -492,10 +516,10 @@ static gchar *helperfn_duration(GVariant *arg) {
     GString *formatted = g_string_new("");
 
     if (hours != 0) {
-		g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64 ":%02" PRId64, hours, minutes, seconds);
+        g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64 ":%02" PRId64, hours, minutes, seconds);
     } else {
-		g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64, minutes, seconds);
-	}
+        g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64, minutes, seconds);
+    }
 
     return g_string_free(formatted, FALSE);
 }
