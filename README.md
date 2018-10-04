@@ -11,7 +11,7 @@ For more advanced users, Playerctl provides an [introspectable](https://wiki.gno
 ## Using the CLI
 
 ```
-playerctl [--version] [--list-all] [--all-players] [--player=NAME] COMMAND
+playerctl [--version] [--list-all] [--all-players] [--player=NAME] [--format=FORMAT] COMMAND
 ```
 
 Pass the name of your player with the `--player` flag, or select all available players with the `--all-players` flag. You can find out what players are available to control with the `--list-all` switch. If no player is specified, it will use the first player it can find.
@@ -33,6 +33,36 @@ metadata [KEY...]       Print metadata information for the current track. If KEY
 open [URI]              Command for the player to open given URI.
                         URI can be either file path or remote URL.
 ```
+
+## Printing Properties and Metadata
+
+You can pass a format string with the `--format` argument to print properties in a specific format. Pass the variable you want to print in the format string between double braces like `{{ VARIABLE }}`. The variables available are either the name of the query command, or anything in the metadata map which can be viewed with `playerctl metadata`. You can use this to integrate playerctl into a statusline generator.
+
+For a simple "now playing" banner:
+
+```bash
+playerctl metadata --format "Now playing: {{ artist }} - {{ album }} - {{ title }}"
+# prints 'Now playing: Lana Del Rey - Born To Die - Video Games'
+```
+
+Included in the template language are some helper functions for common formatting that you can call on template variables.
+
+```bash
+playerctl metadata --format "Total length: {{ duration(mpris:length) }}"
+# prints 'Total length: 3:23'
+playerctl position --format "At position: {{ duration(position) }}"
+# prints 'At position: 1:16'
+playerctl metadata --format "Artist in lowercase: {{ lc(artist) }}"
+# prints 'Artist in lowercase: lana del rey'
+playerctl metadata status --format "STATUS: {{ uc(status) }}"
+# prints 'STATUS: PLAYING'
+```
+
+| Function   | Argument | Description                             |
+| ---------- | -------- | --------------------------------------- |
+| `lc`       | string   | convert the string to lowercase         |
+| `uc`       | string   | convert the string to uppercase         |
+| `duration` | int      | convert the duration to hh:mm:ss format |
 
 ## Using the Library
 
