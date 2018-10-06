@@ -2,6 +2,7 @@ tags
 .clang_complete
 /build
 /mesonbuild
+/playerctl-fpm
 .swp
 .swo
 .swn

@@ -2,68 +2,71 @@
 
 set -e
 
-PROJECT_ROOT=$PWD
-FPM_DIR=$PWD/playerctl-fpm
-DEB_DIR=$FPM_DIR/deb
-RPM_DIR=$FPM_DIR/rpm
+PROJECT_ROOT=${PWD}
+FPM_DIR=${PWD}/playerctl-fpm
+DEB_DIR=${FPM_DIR}/deb
+RPM_DIR=${FPM_DIR}/rpm
+MESON_DIR=${FPM_DIR}/build
 
 # sanity check
-if [ ! -f playerctl/playerctl.h ]; then
+if [[ ! -f playerctl/playerctl.h ]]; then
     echo 'You must run this from the playerctl project directory'
     exit 1
 fi
 
-command -v fpm &> /dev/null || {
-    echo "you need fpm to package playerctl"
-    exit 127
-}
+packages=(fpm rpm dpkg)
+for pkg in ${packages[@]}; do
+    if ! hash ${pkg}; then
+        echo "you need ${pkg} to package playerctl"
+        exit 127
+    fi
+done
 
-VERSION=`./playerctl/playerctl -v | sed s/^v//`
+rm -rf ${FPM_DIR}
+mkdir -p ${FPM_DIR}
 
-rm -rf $FPM_DIR
+fpm_deb() {
+    cd ${PROJECT_ROOT}
+    meson ${DEB_DIR}/build --prefix=/usr --libdir=/usr/lib
+    DESTDIR=${DEB_DIR}/install ninja -C ${DEB_DIR}/build install
+	VERSION=`LD_LIBRARY_PATH=${DEB_DIR}/install/usr/lib ${DEB_DIR}/install/usr/bin/playerctl -v | sed s/^v//`
 
-function fpm_deb() {
-    cd $PROJECT_ROOT
-    make clean
-    ./configure --prefix=/usr --libdir=/usr/lib
-    make
+    cd ${DEB_DIR}/install
 
-    DESTDIR=$DEB_DIR make install
-
-    cd $DEB_DIR
-
-    fpm -s dir -t deb -n playerctl -v $VERSION \
+    fpm -s dir -t deb -n playerctl -v ${VERSION} \
         -p playerctl-VERSION_ARCH.deb \
         -d "libglib2.0-0" \
-        usr/include usr/lib usr/bin usr/share/gir-1.0
+        usr/include usr/lib usr/bin usr/share
 
-    command -v dpkg &> /dev/null && {
-        echo -e "\nDEBIAN PACKAGE CONTENTS"
-        echo -e "-----------------------"
-        dpkg -c $DEB_DIR/playerctl-${VERSION}_amd64.deb
-    }
+    echo -e "\nDEBIAN PACKAGE CONTENTS"
+    echo -e "-----------------------"
+    dpkg -c ${DEB_DIR}/install/playerctl-${VERSION}_amd64.deb
+
+    mv ${DEB_DIR}/install/playerctl-${VERSION}_amd64.deb ${FPM_DIR}
+
+	cd - &> /dev/null
 }
 
 function fpm_rpm() {
-    cd $PROJECT_ROOT
-    make clean
-    ./configure --prefix=/usr --libdir=/usr/lib64
-    make
+    cd ${PROJECT_ROOT}
+    meson ${RPM_DIR}/build --prefix=/usr --libdir=/usr/lib64
+    DESTDIR=${RPM_DIR}/install ninja -C ${RPM_DIR}/build install
+	VERSION=`LD_LIBRARY_PATH=${RPM_DIR}/install/usr/lib64 ${RPM_DIR}/install/usr/bin/playerctl -v | sed s/^v//`
 
-    DESTDIR=$RPM_DIR make install
+    cd ${RPM_DIR}/install
 
-    cd $RPM_DIR
-
-    fpm -s dir -t rpm -n playerctl -v $VERSION \
+    fpm -s dir -t rpm -n playerctl -v ${VERSION} \
         -p playerctl-VERSION_ARCH.rpm \
         -d "glib2" \
-        usr/include usr/lib64 usr/bin usr/share/gir-1.0
+        usr/include usr/lib64 usr/bin usr/share
 
-    command -v rpm &> /dev/null && {
-        echo -e "\nRPM PACKAGE CONTENTS"
-        echo -e "--------------------"
-        rpm -qlp $RPM_DIR/playerctl-${VERSION}_x86_64.rpm
-    }
+    echo -e "\nRPM PACKAGE CONTENTS"
+    echo -e "--------------------"
+    rpm -qlp ${RPM_DIR}/install/playerctl-${VERSION}_x86_64.rpm
+
+    mv ${RPM_DIR}/install/playerctl-${VERSION}_x86_64.rpm ${FPM_DIR}
+
+    cd - &> /dev/null
 }
 
 fpm_deb
