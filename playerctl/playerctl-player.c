@@ -721,14 +721,90 @@ PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self,
     PLAYER_COMMAND_FUNC(previous);
 }
 
+static gchar *print_gvariant(GVariant *variant) {
+    GString *prop = g_string_new("");
+    if (g_variant_type_equal(g_variant_get_type(variant), G_VARIANT_TYPE_STRING_ARRAY)) {
+        gsize prop_count;
+        const gchar **prop_strv = g_variant_get_strv(variant, &prop_count);
+
+        for (int i = 0; i < prop_count; i += 1) {
+            g_string_append(prop, prop_strv[i]);
+
+            if (i != prop_count - 1) {
+                g_string_append(prop, ", ");
+            }
+        }
+
+        g_free(prop_strv);
+    } else if (g_variant_is_of_type(variant, G_VARIANT_TYPE_STRING)) {
+        g_string_append(prop, g_variant_get_string(variant, NULL));
+    } else if (g_variant_is_of_type(variant, G_VARIANT_TYPE_VARIANT)) {
+        int len = g_variant_n_children(variant);
+        for (int i = 0; i < len; ++i) {
+            GVariant *child_value = g_variant_get_child_value(variant, i);
+            gchar *child_value_str = print_gvariant(child_value);
+            g_string_append(prop, child_value_str);
+            g_free(child_value_str);
+            if (i != len - 1) {
+                g_string_append(prop, ", ");
+            }
+        }
+    } else {
+        prop = g_variant_print_string(variant, prop, FALSE);
+    }
+
+    return g_string_free(prop, FALSE);
+}
+
+static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
+    GVariantIter iter;
+    GVariant *child;
+    GString *tsv = g_string_new("");
+	const gchar *fmt = "%-5s %-25s %s\n";
+
+    if (g_strcmp0(g_variant_get_type_string(metadata), "a{sv}") != 0) {
+        return NULL;
+    }
+
+    g_variant_iter_init (&iter, metadata);
+    while ((child = g_variant_iter_next_value(&iter))) {
+        GVariant *key_variant = g_variant_get_child_value(child, 0);
+        const gchar *key = g_variant_get_string(key_variant, 0);
+        GVariant *value_variant = g_variant_lookup_value(metadata, key, NULL);
+
+		if (g_variant_is_container(value_variant)) {
+			// only go depth 1
+			int len = g_variant_n_children(value_variant);
+			for (int i = 0; i < len; ++i) {
+				GVariant *child_value = g_variant_get_child_value(value_variant, i);
+				gchar *child_value_str = print_gvariant(child_value);
+				g_string_append_printf(tsv, fmt, player_name, key, child_value_str);
+				g_free(child_value_str);
+				g_variant_unref(child_value);
+			}
+		} else {
+			gchar *value = print_gvariant(value_variant);
+			g_string_append_printf(tsv, fmt, player_name, key, value);
+			g_free(value);
+		}
+
+        g_variant_unref(child);
+        g_variant_unref(key_variant);
+        g_variant_unref(value_variant);
+    }
+
+    return g_string_free(tsv, FALSE);
+}
+
 /**
  * playerctl_player_print_metadata_prop:
  * @self: a #PlayerctlPlayer
  * @property: (allow-none): the property from the metadata to print
  * @err: (allow-none): the location of a GError or NULL
  *
- * Gets the artist from the metadata of the current track, or empty string if
- * no track is playing.
+ * Gets the given property from the metadata of the current track. If property
+ * is null, prints all the metadata properties. Returns empty string if no
+ * track is playing.
  *
  * Returns: (transfer full): The artist from the metadata of the current track
  */
@@ -757,7 +833,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self,
     }
 
     if (!property) {
-        gchar *res = g_variant_print(metadata, FALSE);
+        gchar *res = print_metadata_table(metadata, self->priv->player_name);
         g_variant_unref(metadata);
         return res;
     }
@@ -769,28 +845,9 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self,
         return g_strdup("");
     }
 
-    GString *prop = g_string_new("");
-    if (g_variant_is_of_type(prop_variant, G_VARIANT_TYPE_STRING_ARRAY)) {
-        gsize prop_count;
-        const gchar **prop_strv = g_variant_get_strv(prop_variant, &prop_count);
-
-        for (int i = 0; i < prop_count; i += 1) {
-            g_string_append(prop, prop_strv[i]);
-
-            if (i != prop_count - 1) {
-                g_string_append(prop, ", ");
-            }
-        }
-
-        g_free(prop_strv);
-    } else if (g_variant_is_of_type(prop_variant, G_VARIANT_TYPE_STRING)) {
-        g_string_append(prop, g_variant_get_string(prop_variant, NULL));
-    } else {
-        prop = g_variant_print_string(prop_variant, prop, FALSE);
-    }
-
+    gchar *prop = print_gvariant(prop_variant);
     g_variant_unref(prop_variant);
-    return g_string_free(prop, FALSE);
+    return prop;
 }
 
 /**
