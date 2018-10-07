@@ -478,7 +478,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
 
     if (player->priv->player_name == NULL) {
         /* org.mpris.MediaPlayer2.[NAME] */
-        size_t offset = strlen("org.mpris.MediaPlayer2");
+        size_t offset = strlen("org.mpris.MediaPlayer2.");
         player->priv->player_name = g_strdup(player->priv->bus_name + offset);
     }
 
