@@ -35,6 +35,13 @@ enum {
     PROP_METADATA,
     PROP_POSITION,
 
+    PROP_CAN_CONTROL,
+    PROP_CAN_PLAY,
+    PROP_CAN_PAUSE,
+    PROP_CAN_SEEK,
+    PROP_CAN_GO_NEXT,
+    PROP_CAN_GO_PREVIOUS,
+
     N_PROPERTIES
 };
 
@@ -243,6 +250,66 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
         }
         break;
 
+    case PROP_CAN_CONTROL:
+        if (self->priv->proxy == NULL) {
+            g_value_set_boolean(value, FALSE);
+            break;
+        }
+        g_main_context_iteration(NULL, FALSE);
+        g_value_set_boolean(value,
+                            org_mpris_media_player2_player_get_can_control(self->priv->proxy));
+        break;
+
+    case PROP_CAN_PLAY:
+        if (self->priv->proxy == NULL) {
+            g_value_set_boolean(value, FALSE);
+            break;
+        }
+        g_main_context_iteration(NULL, FALSE);
+        g_value_set_boolean(value,
+                            org_mpris_media_player2_player_get_can_play(self->priv->proxy));
+        break;
+
+    case PROP_CAN_PAUSE:
+        if (self->priv->proxy == NULL) {
+            g_value_set_boolean(value, FALSE);
+            break;
+        }
+        g_main_context_iteration(NULL, FALSE);
+        g_value_set_boolean(value,
+                            org_mpris_media_player2_player_get_can_pause(self->priv->proxy));
+        break;
+
+    case PROP_CAN_SEEK:
+        if (self->priv->proxy == NULL) {
+            g_value_set_boolean(value, FALSE);
+            break;
+        }
+        g_main_context_iteration(NULL, FALSE);
+        g_value_set_boolean(value,
+                            org_mpris_media_player2_player_get_can_seek(self->priv->proxy));
+        break;
+
+    case PROP_CAN_GO_NEXT:
+        if (self->priv->proxy == NULL) {
+            g_value_set_boolean(value, FALSE);
+            break;
+        }
+        g_main_context_iteration(NULL, FALSE);
+        g_value_set_boolean(value,
+                            org_mpris_media_player2_player_get_can_go_next(self->priv->proxy));
+        break;
+
+    case PROP_CAN_GO_PREVIOUS:
+        if (self->priv->proxy == NULL) {
+            g_value_set_boolean(value, FALSE);
+            break;
+        }
+        g_main_context_iteration(NULL, FALSE);
+        g_value_set_boolean(value,
+                            org_mpris_media_player2_player_get_can_go_previous(self->priv->proxy));
+        break;
+
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -309,6 +376,32 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
         "metadata", "Player metadata",
         "The metadata of the currently playing track", G_VARIANT_TYPE_VARIANT,
         NULL, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+    obj_properties[PROP_CAN_CONTROL] = g_param_spec_boolean(
+        "can-control", "Can control", "Whether the player can be controlled by playerctl", FALSE,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+    obj_properties[PROP_CAN_PLAY] = g_param_spec_boolean(
+        "can-play", "Can play", "Whether the player can start playing", FALSE,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+    obj_properties[PROP_CAN_PAUSE] = g_param_spec_boolean(
+        "can-pause", "Can pause", "Whether the player can pause", FALSE,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+    obj_properties[PROP_CAN_SEEK] = g_param_spec_boolean(
+        "can-seek", "Can seek", "Whether the player can seek", FALSE,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+    obj_properties[PROP_CAN_GO_NEXT] = g_param_spec_boolean(
+        "can-go-next", "Can go next",
+        "Whether the player can go to the next track", FALSE,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+    obj_properties[PROP_CAN_GO_PREVIOUS] = g_param_spec_boolean(
+        "can-go-previous", "Can go previous",
+        "Whether the player can go to the previous track", FALSE,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties(gobject_class, N_PROPERTIES,
                                       obj_properties);
