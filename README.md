@@ -16,23 +16,19 @@ playerctl [--version] [--list-all] [--all-players] [--player=NAME] [--ignore-pla
 
 Here is a list of available commands:
 
-```
-play                    Command the player to play
-pause                   Command the player to pause
-play-pause              Command the player to toggle between play/pause
-stop                    Command the player to stop
-next                    Command the player to skip to the next track
-previous                Command the player to skip to the previous track
-position [OFFSET][+/-]  Command the player to go to the position or seek
-                        forward/backward OFFSET in seconds
-volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 to 1.0
-status                  Get the play status of the player
-metadata [KEY...]       Print metadata information for the current track. If
-                        KEY is passed, print only those values. KEY may be
-                        artist, title, album, or any key found in the metadata
-open [URI]              Command for the player to open given URI.  URI can be
-                        either file path or remote URL.
-```
+| Command                  | Description                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `play`                   | Command the player to play.                                                                            |
+| `pause`                  | Command the player to pause                                                                            |
+| `play-pause`             | Command the player to toggle between play/pause.                                                       |
+| `stop`                   | Command the player to stop.                                                                            |
+| `next`                   | Command the player to skip to the next track.                                                          |
+| `previous`               | Command the player to skip to the previous track.                                                      |
+| `position [OFFSET][+/-]` | Command the player to go to the position or seek forward or backward OFFSET in seconds.                |
+| `volume [LEVEL][+/-]`    | Print or set the volume to LEVEL from 0.0 to 1.0.                                                      |
+| `status`                 | Get the play status of the player. Either "Playing", "Paused", or "Stopped".                           |
+| `metadata [KEY...]`      | Print the metadata for the current track. If KEY is passed, print only those values from the metadata. |
+| `open [URI]`             | Command for the player to open a given URI. Can be either a file path or a remote URL.                 |
 
 ### Selecting Players to Control
 
