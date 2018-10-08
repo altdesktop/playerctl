@@ -32,7 +32,7 @@
 G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
 /* The player being controlled. */
-static gchar *player_name_list = NULL;
+static gchar *player_arg = NULL;
 /* If true, control all available media players */
 static gboolean select_all_players;
 /* If true, list all available players' names and exit. */
@@ -44,11 +44,12 @@ static gchar **command = NULL;
 /* A format string for printing properties and metadata */
 static gchar *format_string = NULL;
 
-static GString *list_player_names_on_bus(GError **err, GBusType busType) {
+static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
     GError *tmp_error = NULL;
+    GList *players = NULL;
 
     GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
-        busType, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
+        bus_type, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
         "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &tmp_error);
 
     if (tmp_error != NULL) {
@@ -65,7 +66,6 @@ static GString *list_player_names_on_bus(GError **err, GBusType busType) {
         return NULL;
     }
 
-    GString *names_str = g_string_new("");
     GVariant *reply_child = g_variant_get_child_value(reply, 0);
     gsize reply_count;
     const gchar **names = g_variant_get_strv(reply_child, &reply_count);
@@ -73,7 +73,7 @@ static GString *list_player_names_on_bus(GError **err, GBusType busType) {
     size_t offset = strlen("org.mpris.MediaPlayer2.");
     for (int i = 0; i < reply_count; i += 1) {
         if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2.")) {
-            g_string_append_printf(names_str, "%s\n", names[i] + offset);
+            players = g_list_append(players, g_strdup(names[i] + offset));
         }
     }
 
@@ -82,28 +82,28 @@ static GString *list_player_names_on_bus(GError **err, GBusType busType) {
     g_variant_unref(reply_child);
     g_free(names);
 
-    return names_str;
+    return players;
 }
 
-static gchar *list_player_names(GError **err) {
-    GString *sessionPlayers = list_player_names_on_bus(err, G_BUS_TYPE_SESSION);
-    GString *systemPlayers = list_player_names_on_bus(err, G_BUS_TYPE_SYSTEM);
+static GList *list_player_names(GError **error) {
+    GError *tmp_error = NULL;
+    GList *players = NULL;
 
-    if (!sessionPlayers && !systemPlayers) {
+    GList *session_players = list_player_names_on_bus(G_BUS_TYPE_SESSION, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
         return NULL;
     }
 
-    if (!sessionPlayers) {
-        return g_string_free(systemPlayers, FALSE);
+    GList *system_players = list_player_names_on_bus(G_BUS_TYPE_SYSTEM, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return NULL;
     }
 
-    if (!systemPlayers) {
-        return g_string_free(sessionPlayers, FALSE);
-    }
-
-    g_string_append(sessionPlayers, systemPlayers->str);
-    g_string_free(systemPlayers, TRUE);
-    return g_string_free(sessionPlayers, FALSE);
+    players = g_list_concat(session_players, system_players);
+    g_list_free(system_players);
+    return players;
 }
 
 static gchar *print_gvariant(GVariant *value) {
@@ -848,6 +848,10 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
 
     if (argc == 0) {
         gchar *data = playerctl_player_print_metadata_prop(player, NULL, &tmp_error);
+        if (tmp_error) {
+            g_propagate_error(error, tmp_error);
+            return FALSE;
+        }
 
         printf("%s\n", data);
         g_free(data);
@@ -914,7 +918,7 @@ static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
 }
 
 static const GOptionEntry entries[] = {
-    {"player", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &player_name_list,
+    {"player", 'p', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &player_arg,
      "A comma separated list of names of players to control (default: the "
      "first available player)",
      "NAME"},
@@ -985,10 +989,78 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
     return TRUE;
 }
 
+static GList *parse_player_list(gchar *player_list_arg) {
+    GList *players = NULL;
+    if (player_list_arg == NULL) {
+        return NULL;
+    }
+
+    const gchar *delim = ",";
+    gchar *token = strtok(player_list_arg, delim);
+    while (token != NULL) {
+        players = g_list_append(players, g_strdup(g_strstrip(token)));
+        token = strtok(NULL, ",");
+    }
+
+    return players;
+}
+
+static int handle_version_flag() {
+    g_print("v%s\n", PLAYERCTL_VERSION_S);
+    return 0;
+}
+
+static int handle_list_all_flag() {
+    GError *tmp_error = NULL;
+    GList *player_names = list_player_names(&tmp_error);
+
+    if (tmp_error != NULL) {
+        g_printerr("%s\n", tmp_error->message);
+        return 1;
+    }
+
+    if (player_names == NULL) {
+        g_printerr("No players were found\n");
+        return 0;
+    }
+
+    int len = g_list_length(player_names);
+    for (int i = 0; i < len; ++i) {
+        gchar *name = g_list_nth_data(player_names, i);
+        printf("%s\n", name);
+    }
+
+    g_list_free_full(player_names, g_free);
+    return 0;
+}
+
+static GList *select_players(GList *players, GList *all_players) {
+    GList *result = NULL;
+
+    int players_len = g_list_length(players);
+    for (int i = 0; i < players_len; ++i) {
+        gchar *player_name = g_list_nth_data(players, i);
+
+        int len = g_list_length(all_players);
+        for (int j = 0; j < len; ++j) {
+            gchar *current_name = g_list_nth_data(all_players, j);
+            gboolean exact_match = (g_strcmp0(player_name, current_name) == 0);
+            gboolean instance_match = !exact_match && (g_str_has_prefix(current_name, player_name) &&
+                    g_str_has_prefix(current_name + strlen(player_name), ".instance"));
+            if (exact_match || instance_match) {
+                if (!g_list_find(result, current_name)) {
+                    result = g_list_append(result, current_name);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
 int main(int argc, char *argv[]) {
     PlayerctlPlayer *player;
     GError *error = NULL;
-    int exit_status = 0;
     gint num_commands = 0;
 
     // seems to be required to print unicode (see #8)
@@ -996,93 +1068,76 @@ int main(int argc, char *argv[]) {
 
     if (!parse_setup_options(argc, argv, &error)) {
         g_printerr("%s\n", error->message);
-        exit_status = 0;
-        goto end;
+        g_clear_error(&error);
+        exit(0);
     }
 
     if (print_version_and_exit) {
-        g_print("v%s\n", PLAYERCTL_VERSION_S);
-        exit_status = 0;
-        goto end;
+        int result = handle_version_flag();
+        exit(result);
     }
 
     if (list_all_players_and_exit) {
-        gchar *player_names = list_player_names(&error);
-
-        if (error) {
-            g_printerr("%s\n", error->message);
-            exit_status = 1;
-            goto end;
-        }
-
-        if (player_names[0] == '\0') {
-            g_printerr("No players were found\n");
-        } else {
-            g_print("%s", player_names);
-        }
-        g_free(player_names);
-
-        exit_status = 0;
-        goto end;
+        int result = handle_list_all_flag();
+        exit(result);
     }
 
-    gchar *player_names = player_name_list;
-    if (select_all_players) {
-        player_names = list_player_names(&error);
-
-        if (error) {
-            g_printerr("%s\n", error->message);
-            exit_status = 1;
-            goto end;
-        }
+    GList *all_players = list_player_names(&error);
+    if (error != NULL) {
+        g_printerr("%s\n", error->message);
+        g_clear_error(&error);
+        exit(1);
     }
 
-    const gchar *delim = ",\n";
-    const gboolean multiple_names = player_names != NULL;
-    gchar *player_name = multiple_names ? strtok(player_names, delim) : NULL;
+    if (all_players == NULL) {
+        g_printerr("No players were found\n");
+        exit(0);
+    }
+
+    GList *players = parse_player_list(player_arg);
+    if (players == NULL) {
+        players = g_list_copy_deep(all_players, (GCopyFunc)g_strdup, NULL);
+    }
+
+    GList *selected_players = select_players(players, all_players);
 
     // count the extra arguments given
     while (command[num_commands] != NULL) {
         ++num_commands;
     }
 
-    for (;;) {
-        player = playerctl_player_new(player_name, &error);
+    int players_len = g_list_length(selected_players);
+    int status = 0;
+    for (int i = 0; i < players_len; ++i) {
+        gchar *player_name = g_list_nth_data(selected_players, i);
+        if (player_name == NULL) {
+            continue;
+        }
 
+        player = playerctl_player_new(player_name, &error);
         if (error != NULL) {
             g_printerr("Connection to player failed: %s\n", error->message);
-            exit_status = 1;
-            goto loopend;
+            status = 1;
+            goto end;
         }
 
-        // TODO stop if the command was successful and all-players was not
-        // passed
-        handle_player_command(player, command, num_commands, &error);
+        gboolean result = handle_player_command(player, command, num_commands, &error);
         if (error != NULL) {
             g_printerr("Could not execute command: %s\n", error->message);
-            exit_status = 1;
-            goto loopend;
+            g_clear_error(&error);
+            status = 1;
+            goto end;
         }
 
-    loopend:
-        if (player != NULL) {
-            g_object_unref(player);
-        }
-        g_clear_error(&error);
-        error = NULL;
+        g_object_unref(player);
 
-        if (!multiple_names) {
-            return exit_status;
-        }
-
-        player_name = strtok(NULL, delim);
-        if (!player_name) {
-            return exit_status;
+        if (result && !select_all_players) {
+            break;
         }
     }
 
 end:
-    g_clear_error(&error);
-
-    return exit_status;
+    g_list_free_full(all_players, g_free);
+    g_list_free_full(players, g_free);
+    exit(status);
 }
