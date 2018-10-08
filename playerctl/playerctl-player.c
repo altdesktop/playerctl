@@ -852,7 +852,7 @@ static gchar *print_gvariant(GVariant *variant) {
 static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
     GVariantIter iter;
     GVariant *child;
-    GString *tsv = g_string_new("");
+    GString *table = g_string_new("");
 	const gchar *fmt = "%-5s %-25s %s\n";
 
     if (g_strcmp0(g_variant_get_type_string(metadata), "a{sv}") != 0) {
@@ -871,13 +871,13 @@ static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
 			for (int i = 0; i < len; ++i) {
 				GVariant *child_value = g_variant_get_child_value(value_variant, i);
 				gchar *child_value_str = print_gvariant(child_value);
-				g_string_append_printf(tsv, fmt, player_name, key, child_value_str);
+				g_string_append_printf(table, fmt, player_name, key, child_value_str);
 				g_free(child_value_str);
 				g_variant_unref(child_value);
 			}
 		} else {
 			gchar *value = print_gvariant(value_variant);
-			g_string_append_printf(tsv, fmt, player_name, key, value);
+			g_string_append_printf(table, fmt, player_name, key, value);
 			g_free(value);
 		}
 
@@ -886,7 +886,14 @@ static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
         g_variant_unref(value_variant);
     }
 
-    return g_string_free(tsv, FALSE);
+    if (table->len == 0) {
+        g_string_free(table, TRUE);
+        return NULL;
+    }
+    // cut off the last newline
+    table = g_string_truncate(table, table->len - 1);
+
+    return g_string_free(table, FALSE);
 }
 
 /**
@@ -896,7 +903,7 @@ static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
  * @err: (allow-none): the location of a GError or NULL
  *
  * Gets the given property from the metadata of the current track. If property
- * is null, prints all the metadata properties. Returns empty string if no
+ * is null, prints all the metadata properties. Returns NULL string if no
  * track is playing.
  *
  * Returns: (transfer full): The artist from the metadata of the current track
@@ -922,7 +929,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self,
     }
 
     if (!metadata) {
-        return g_strdup("");
+        return NULL;
     }
 
     if (!property) {
@@ -935,7 +942,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self,
     g_variant_unref(metadata);
 
     if (!prop_variant) {
-        return g_strdup("");
+        return NULL;
     }
 
     gchar *prop = print_gvariant(prop_variant);
@@ -948,8 +955,8 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self,
  * @self: a #PlayerctlPlayer
  * @err: (allow-none): the location of a GError or NULL
  *
- * Gets the artist from the metadata of the current track, or the empty string
- * if no track is playing.
+ * Gets the artist from the metadata of the current track, or NULL if no
+ * track is playing.
  *
  * Returns: (transfer full): The artist from the metadata of the current track
  */
@@ -970,7 +977,7 @@ gchar *playerctl_player_get_artist(PlayerctlPlayer *self, GError **err) {
  * @self: a #PlayerctlPlayer
  * @err: (allow-none): the location of a GError or NULL
  *
- * Gets the title from the metadata of the current track, or empty string if
+ * Gets the title from the metadata of the current track, or NULL if
  * no track is playing.
  *
  * Returns: (transfer full): The title from the metadata of the current track
@@ -992,7 +999,7 @@ gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err) {
  * @self: a #PlayerctlPlayer
  * @err: (allow-none): the location of a GError or NULL
  *
- * Gets the album from the metadata of the current track, or empty string if
+ * Gets the album from the metadata of the current track, or NULL if
  * no track is playing.
  *
  * Returns: (transfer full): The album from the metadata of the current track

@@ -855,8 +855,10 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
             return FALSE;
         }
 
-        printf("%s\n", data);
-        g_free(data);
+        if (data != NULL) {
+            printf("%s\n", data);
+            g_free(data);
+        }
     } else {
         for (int i = 0; i < argc; ++i) {
             const gchar *type = argv[i];
@@ -877,8 +879,10 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
                 return FALSE;
             }
 
-            printf("%s\n", data);
-            g_free(data);
+            if (data != NULL) {
+                printf("%s\n", data);
+                g_free(data);
+            }
         }
     }
 
