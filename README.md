@@ -4,17 +4,15 @@ For true players only: spotify, vlc, audacious, bmp, xmms2, and others.
 
 ## About
 
-Playerctl is a command-line utility and library for controlling media players that implement the [MPRIS](http://specifications.freedesktop.org/mpris-spec/latest/) D-Bus Interface Specification. Playerctl makes it easy to bind player actions, such as play and pause, to media keys.
+Playerctl is a command-line utility and library for controlling media players that implement the [MPRIS](http://specifications.freedesktop.org/mpris-spec/latest/) D-Bus Interface Specification. Playerctl makes it easy to bind player actions, such as play and pause, to media keys. You can also get metadata about the playing track such as the artist and title for integration into statusline generators or other command-line tools.
 
 For more advanced users, Playerctl provides an [introspectable](https://wiki.gnome.org/action/show/Projects/GObjectIntrospection) library available in your favorite scripting language that allows more detailed control like the ability to subscribe to media player events or get metadata such as artist and title for the playing track.
 
 ## Using the CLI
 
 ```
-playerctl [--version] [--list-all] [--all-players] [--player=NAME] [--format=FORMAT] COMMAND
+playerctl [--version] [--list-all] [--all-players] [--player=NAME] [--ignore-player=IGNORE] [--format=FORMAT] COMMAND
 ```
-
-Pass the name of your player with the `--player` flag, or select all available players with the `--all-players` flag. You can find out what players are available to control with the `--list-all` switch. If no player is specified, it will use the first player it can find.
 
 Here is a list of available commands:
 
@@ -25,16 +23,45 @@ play-pause              Command the player to toggle between play/pause
 stop                    Command the player to stop
 next                    Command the player to skip to the next track
 previous                Command the player to skip to the previous track
-position [OFFSET][+/-]  Command the player to go to the position or seek forward/backward OFFSET in seconds
+position [OFFSET][+/-]  Command the player to go to the position or seek
+                        forward/backward OFFSET in seconds
 volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 to 1.0
 status                  Get the play status of the player
-metadata [KEY...]       Print metadata information for the current track. If KEY is passed,
-                        print only those values. KEY may be artist, title, album, or any key found in the metadata
-open [URI]              Command for the player to open given URI.
-                        URI can be either file path or remote URL.
+metadata [KEY...]       Print metadata information for the current track. If
+                        KEY is passed, print only those values. KEY may be
+                        artist, title, album, or any key found in the metadata
+open [URI]              Command for the player to open given URI.  URI can be
+                        either file path or remote URL.
 ```
 
-## Printing Properties and Metadata
+### Selecting Players to Control
+
+Without specifying any players to control, Playerctl will act on the first player it can find.
+
+You can list the names of players that are available to control that are running on the system with `playerctl --list-all`.
+
+If you'd only like to control certain players, you can pass the names of those players separated by commas with the `--player` flag. Playerctl will select the first instance of a player in that list that supports the command. To control all players in the list, you can use the `--all-players` flag.
+
+Similarly, you can ignore players by passing their names with the `--ignore-player` flag.
+
+Examples:
+
+```
+# Command the first instance of VLC to play
+playerctl --player=vlc play
+
+# Command all players to stop
+playerctl --all-players stop
+
+# Command VLC to go to the next track if it's running. If it's not, send the
+command to Spotify.
+playerctl --player=vlc,spotify next
+
+# Get the status of the first player that is not Gwenview.
+playerctl --ignore-player=Gwenview status
+```
+
+### Printing Properties and Metadata
 
 You can pass a format string with the `--format` argument to print properties in a specific format. Pass the variable you want to print in the format string between double braces like `{{ VARIABLE }}`. The variables available are either the name of the query command, or anything in the metadata map which can be viewed with `playerctl metadata`. You can use this to integrate playerctl into a statusline generator.
 
@@ -50,10 +77,13 @@ Included in the template language are some helper functions for common formattin
 ```bash
 playerctl metadata --format "Total length: {{ duration(mpris:length) }}"
 # prints 'Total length: 3:23'
+
 playerctl position --format "At position: {{ duration(position) }}"
 # prints 'At position: 1:16'
+
 playerctl metadata --format "Artist in lowercase: {{ lc(artist) }}"
 # prints 'Artist in lowercase: lana del rey'
+
 playerctl metadata status --format "STATUS: {{ uc(status) }}"
 # prints 'STATUS: PLAYING'
 ```

@@ -31,8 +31,10 @@
 
 G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
-/* The player being controlled. */
+/* A comma separated list of players to control. */
 static gchar *player_arg = NULL;
+/* A comma separated list of players to ignore. */
+static gchar *ignore_player_arg = NULL;
 /* If true, control all available media players */
 static gboolean select_all_players;
 /* If true, list all available players' names and exit. */
@@ -925,6 +927,8 @@ static const GOptionEntry entries[] = {
     {"all-players", 'a', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
      &select_all_players, "Select all available players to be controlled",
      NULL},
+    {"ignore-player", 'i', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &ignore_player_arg,
+     "A comma separated list of names of players to ignore.", "IGNORE"},
     {"format", 'f', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &format_string,
      "A format string for printing properties and metadata", NULL},
     {"list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
@@ -1034,7 +1038,19 @@ static int handle_list_all_flag() {
     return 0;
 }
 
-static GList *select_players(GList *players, GList *all_players) {
+static gint player_name_instance_compare(gchar *name, gchar *instance) {
+    gboolean exact_match = (g_strcmp0(name, instance) == 0);
+    gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
+            g_str_has_prefix(instance + strlen(name), ".instance"));
+
+    if (exact_match || instance_match) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+static GList *select_players(GList *players, GList *all_players, GList *ignored_players) {
     GList *result = NULL;
 
     int players_len = g_list_length(players);
@@ -1044,11 +1060,11 @@ static GList *select_players(GList *players, GList *all_players) {
         int len = g_list_length(all_players);
         for (int j = 0; j < len; ++j) {
             gchar *current_name = g_list_nth_data(all_players, j);
-            gboolean exact_match = (g_strcmp0(player_name, current_name) == 0);
-            gboolean instance_match = !exact_match && (g_str_has_prefix(current_name, player_name) &&
-                    g_str_has_prefix(current_name + strlen(player_name), ".instance"));
-            if (exact_match || instance_match) {
-                if (!g_list_find(result, current_name)) {
+            if (player_name_instance_compare(player_name, current_name) == 0) {
+                gboolean ignored =
+                    (g_list_find_custom(ignored_players, current_name,
+                                         (GCompareFunc)player_name_instance_compare) != NULL);
+                if (!ignored && !g_list_find(result, current_name)) {
                     result = g_list_append(result, current_name);
                 }
             }
@@ -1099,7 +1115,14 @@ int main(int argc, char *argv[]) {
         players = g_list_copy_deep(all_players, (GCopyFunc)g_strdup, NULL);
     }
 
-    GList *selected_players = select_players(players, all_players);
+    GList *ignored_players = parse_player_list(ignore_player_arg);
+
+    GList *selected_players = select_players(players, all_players, ignored_players);
+
+    if (selected_players == NULL) {
+        g_printerr("No players were found\n");
+        goto end;
+    }
 
     // count the extra arguments given
     while (command[num_commands] != NULL) {
@@ -1110,9 +1133,6 @@ int main(int argc, char *argv[]) {
     int status = 0;
     for (int i = 0; i < players_len; ++i) {
         gchar *player_name = g_list_nth_data(selected_players, i);
-        if (player_name == NULL) {
-            continue;
-        }
 
         player = playerctl_player_new(player_name, &error);
         if (error != NULL) {
@@ -1125,8 +1145,9 @@ int main(int argc, char *argv[]) {
         if (error != NULL) {
             g_printerr("Could not execute command: %s\n", error->message);
             g_clear_error(&error);
+            g_object_unref(player);
             status = 1;
-            goto end;
+            break;
         }
 
         g_object_unref(player);
@@ -1137,7 +1158,9 @@ int main(int argc, char *argv[]) {
     }
 
 end:
+    g_list_free(selected_players);
     g_list_free_full(all_players, g_free);
     g_list_free_full(players, g_free);
+    g_list_free_full(ignored_players, g_free);
     exit(status);
 }
