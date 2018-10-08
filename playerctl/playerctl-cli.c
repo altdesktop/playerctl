@@ -838,6 +838,14 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
                                    GError **error) {
     GError *tmp_error = NULL;
 
+    gboolean can_play = FALSE;
+    g_object_get(player, "can-play", &can_play, NULL);
+
+    if (!can_play) {
+        // skip if no current track
+        return FALSE;
+    }
+
     if (format_string != NULL) {
         gchar *data = get_metadata_formatted(player, format_string, &tmp_error);
         if (tmp_error) {
