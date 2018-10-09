@@ -26,6 +26,8 @@
 
 #include <stdint.h>
 
+#define MPRIS_PREFIX "org.mpris.MediaPlayer2."
+
 enum {
     PROP_0,
 
@@ -482,120 +484,6 @@ static void playerctl_player_init(PlayerctlPlayer *self) {
     self->priv = playerctl_player_get_instance_private(self);
 }
 
-static gchar *playerctl_player_get_bus_name(PlayerctlPlayer *self, GError **err,
-                                            GBusType busType) {
-    gchar *bus_name = NULL;
-    GError *tmp_error = NULL;
-
-    g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
-
-    if (self->priv->bus_name != NULL) {
-        return self->priv->bus_name;
-    }
-
-    if (self->priv->player_name != NULL) {
-        return g_strjoin(".", "org.mpris.MediaPlayer2", self->priv->player_name,
-                         NULL);
-    }
-
-    GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
-        busType, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
-        "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &tmp_error);
-
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        return NULL;
-    }
-
-    GVariant *reply = g_dbus_proxy_call_sync(
-        proxy, "ListNames", NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
-
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        g_object_unref(proxy);
-        return NULL;
-    }
-
-    GVariant *reply_child = g_variant_get_child_value(reply, 0);
-    gsize reply_count;
-    const gchar **names = g_variant_get_strv(reply_child, &reply_count);
-
-    for (int i = 0; i < reply_count; i += 1) {
-        if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2")) {
-            bus_name = g_strdup(names[i]);
-            break;
-        }
-    }
-
-    g_object_unref(proxy);
-    g_variant_unref(reply);
-    g_variant_unref(reply_child);
-    g_free(names);
-
-    if (bus_name == NULL) {
-        tmp_error =
-            g_error_new(playerctl_player_error_quark(), 1, "No players found");
-        g_propagate_error(err, tmp_error);
-        return NULL;
-    }
-
-    return bus_name;
-}
-
-static gboolean playerctl_player_initable_init(GInitable *initable,
-                                               GCancellable *cancellable,
-                                               GError **err) {
-    GError *tmp_error = NULL;
-    PlayerctlPlayer *player = PLAYERCTL_PLAYER(initable);
-    GBusType busType = G_BUS_TYPE_SESSION;
-
-    if (player->priv->initted) {
-        return TRUE;
-    }
-
-    g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
-
-    player->priv->bus_name =
-        playerctl_player_get_bus_name(player, &tmp_error, busType);
-    if (tmp_error) {
-        g_clear_error(&tmp_error);
-        busType = G_BUS_TYPE_SYSTEM;
-        player->priv->bus_name =
-            playerctl_player_get_bus_name(player, &tmp_error, busType);
-    }
-
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        return FALSE;
-    }
-
-    if (player->priv->player_name == NULL) {
-        /* org.mpris.MediaPlayer2.[NAME] */
-        size_t offset = strlen("org.mpris.MediaPlayer2.");
-        player->priv->player_name = g_strdup(player->priv->bus_name + offset);
-    }
-
-    player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
-        busType, G_DBUS_PROXY_FLAGS_NONE, player->priv->bus_name,
-        "/org/mpris/MediaPlayer2", NULL, &tmp_error);
-
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        return FALSE;
-    }
-
-    g_signal_connect(player->priv->proxy, "g-properties-changed",
-                     G_CALLBACK(playerctl_player_properties_changed_callback),
-                     player);
-
-    player->priv->initted = TRUE;
-    return TRUE;
-}
-
-static void playerctl_player_initable_iface_init(GInitableIface *iface) {
-    iface->init = playerctl_player_initable_init;
-}
-
 static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
     GError *tmp_error = NULL;
     GList *players = NULL;
@@ -637,6 +525,136 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
     return players;
 }
 
+static gint player_name_instance_compare(gchar *instance, gchar *name) {
+    gboolean exact_match = (g_strcmp0(name, instance) == 0);
+    gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
+            g_str_has_prefix(instance + strlen(name), ".instance"));
+
+    if (exact_match || instance_match) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+/*
+ * Get the matching bus name for this player name. Bus name will be like:
+ * "org.mpris.MediaPlayer2.{PLAYER_NAME}[.instance{NUM}]"
+ * Pass a NULL player_name to get the first name on the bus
+ * Returns NULL if no matching bus name is found on the bus.
+ * Returns an error if there was a problem listing the names on the bus.
+ */
+static gchar *bus_name_for_player_name(gchar *player_name, GBusType bus_type, GError **err) {
+    gchar *bus_name = NULL;
+    GError *tmp_error = NULL;
+
+    g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
+
+    GList *names = list_player_names_on_bus(bus_type, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return NULL;
+    }
+
+    if (names == NULL) {
+        return NULL;
+    }
+
+    if (player_name == NULL) {
+        gchar *name = names->data;
+        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
+        g_list_free_full(names, g_free);
+        return bus_name;
+    }
+
+    GList *exact_match =
+        g_list_find_custom(names, player_name, (GCompareFunc)g_strcmp0);
+    if (exact_match != NULL) {
+        gchar *name = exact_match->data;
+        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
+        g_list_free_full(names, g_free);
+        return bus_name;
+    }
+
+    GList *instance_match =
+        g_list_find_custom(names, player_name, (GCompareFunc)player_name_instance_compare);
+    if (instance_match != NULL) {
+        gchar *name = instance_match->data;
+        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
+        g_list_free_full(names, g_free);
+        return bus_name;
+    }
+
+    return NULL;
+}
+
+static gboolean playerctl_player_initable_init(GInitable *initable,
+                                               GCancellable *cancellable,
+                                               GError **err) {
+    GError *tmp_error = NULL;
+    PlayerctlPlayer *player = PLAYERCTL_PLAYER(initable);
+    GBusType bus_type = G_BUS_TYPE_SESSION;
+
+    if (player->priv->initted) {
+        return TRUE;
+    }
+
+    g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
+
+    player->priv->bus_name =
+        bus_name_for_player_name(player->priv->player_name, bus_type,
+                                 &tmp_error);
+    if (tmp_error) {
+        g_propagate_error(err, tmp_error);
+        return FALSE;
+    }
+
+    if (player->priv->bus_name == NULL) {
+        bus_type = G_BUS_TYPE_SYSTEM;
+        player->priv->bus_name =
+            bus_name_for_player_name(player->priv->player_name,
+                                     bus_type, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(err, tmp_error);
+            return FALSE;
+        }
+    }
+
+    if (player->priv->bus_name == NULL) {
+        g_set_error(err, playerctl_player_error_quark(), 1,
+                    "Player not found");
+        return FALSE;
+    }
+
+    if (player->priv->player_name == NULL) {
+        /* org.mpris.MediaPlayer2.{NAME}[.instance{NUM}] */
+        int offset = strlen(MPRIS_PREFIX);
+        gchar **split = g_strsplit(player->priv->bus_name + offset, ".instance", 1);
+        player->priv->player_name = g_strdup(split[0]);
+        g_strfreev(split);
+    }
+
+    player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
+        bus_type, G_DBUS_PROXY_FLAGS_NONE, player->priv->bus_name,
+        "/org/mpris/MediaPlayer2", NULL, &tmp_error);
+
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return FALSE;
+    }
+
+    g_signal_connect(player->priv->proxy, "g-properties-changed",
+                     G_CALLBACK(playerctl_player_properties_changed_callback),
+                     player);
+
+    player->priv->initted = TRUE;
+    return TRUE;
+}
+
+static void playerctl_player_initable_iface_init(GInitableIface *iface) {
+    iface->init = playerctl_player_initable_init;
+}
+
 /**
  * playerctl_list_players:
  * @err: The location of a GError or NULL
@@ -647,6 +665,8 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
  */
 GList *playerctl_list_players(GError **err) {
     GError *tmp_error = NULL;
+
+    g_return_val_if_fail(err == NULL || *err == NULL, NULL);
 
     GList *session_players = list_player_names_on_bus(G_BUS_TYPE_SESSION, &tmp_error);
     if (tmp_error != NULL) {
@@ -697,6 +717,7 @@ PlayerctlPlayer *playerctl_player_new(const gchar *name, GError **err) {
 
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
+        return NULL;
     }
 
     return player;
