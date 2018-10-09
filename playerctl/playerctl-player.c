@@ -596,6 +596,87 @@ static void playerctl_player_initable_iface_init(GInitableIface *iface) {
     iface->init = playerctl_player_initable_init;
 }
 
+static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
+    GError *tmp_error = NULL;
+    GList *players = NULL;
+
+    GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
+        bus_type, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
+        "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &tmp_error);
+
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return NULL;
+    }
+
+    GVariant *reply = g_dbus_proxy_call_sync(
+        proxy, "ListNames", NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
+
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        g_object_unref(proxy);
+        return NULL;
+    }
+
+    GVariant *reply_child = g_variant_get_child_value(reply, 0);
+    gsize reply_count;
+    const gchar **names = g_variant_get_strv(reply_child, &reply_count);
+
+    size_t offset = strlen("org.mpris.MediaPlayer2.");
+    for (int i = 0; i < reply_count; i += 1) {
+        if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2.")) {
+            players = g_list_append(players, g_strdup(names[i] + offset));
+        }
+    }
+
+    g_object_unref(proxy);
+    g_variant_unref(reply);
+    g_variant_unref(reply_child);
+    g_free(names);
+
+    return players;
+}
+
+/**
+ * playerctl_list_players:
+ * @err: The location of a GError or NULL
+ *
+ * Lists all the players that can be controlled by Playerctl.
+ *
+ * Returns:(transfer full) (element-type utf8): A list of player names.
+ */
+GList *playerctl_list_players(GError **err) {
+    GError *tmp_error = NULL;
+
+    GList *session_players = list_player_names_on_bus(G_BUS_TYPE_SESSION, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return NULL;
+    }
+
+    GList *system_players = list_player_names_on_bus(G_BUS_TYPE_SYSTEM, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return NULL;
+    }
+
+    if (system_players) {
+        GList *next = system_players;
+        while (next) {
+            gchar *player = next->data;
+            if (g_list_find_custom(session_players, player, (GCompareFunc)g_strcmp0)) {
+                g_free(player);
+            } else {
+                session_players = g_list_append(session_players, player);
+            }
+            next = next->next;
+        }
+        g_list_free(system_players);
+    }
+
+    return session_players;
+}
+
 /**
  * playerctl_player_new:
  * @name: (allow-none): The name to use to find the bus name of the player

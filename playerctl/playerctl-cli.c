@@ -46,68 +46,6 @@ static gchar **command = NULL;
 /* A format string for printing properties and metadata */
 static gchar *format_string = NULL;
 
-static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
-    GError *tmp_error = NULL;
-    GList *players = NULL;
-
-    GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
-        bus_type, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
-        "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &tmp_error);
-
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        return NULL;
-    }
-
-    GVariant *reply = g_dbus_proxy_call_sync(
-        proxy, "ListNames", NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
-
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        g_object_unref(proxy);
-        return NULL;
-    }
-
-    GVariant *reply_child = g_variant_get_child_value(reply, 0);
-    gsize reply_count;
-    const gchar **names = g_variant_get_strv(reply_child, &reply_count);
-
-    size_t offset = strlen("org.mpris.MediaPlayer2.");
-    for (int i = 0; i < reply_count; i += 1) {
-        if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2.")) {
-            players = g_list_append(players, g_strdup(names[i] + offset));
-        }
-    }
-
-    g_object_unref(proxy);
-    g_variant_unref(reply);
-    g_variant_unref(reply_child);
-    g_free(names);
-
-    return players;
-}
-
-static GList *list_player_names(GError **error) {
-    GError *tmp_error = NULL;
-    GList *players = NULL;
-
-    GList *session_players = list_player_names_on_bus(G_BUS_TYPE_SESSION, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(error, tmp_error);
-        return NULL;
-    }
-
-    GList *system_players = list_player_names_on_bus(G_BUS_TYPE_SYSTEM, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(error, tmp_error);
-        return NULL;
-    }
-
-    players = g_list_concat(session_players, system_players);
-    g_list_free(system_players);
-    return players;
-}
-
 static gchar *print_gvariant(GVariant *value) {
     GString *printed = g_string_new("");
     if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING_ARRAY)) {
@@ -1028,7 +966,7 @@ static int handle_version_flag() {
 
 static int handle_list_all_flag() {
     GError *tmp_error = NULL;
-    GList *player_names = list_player_names(&tmp_error);
+    GList *player_names = playerctl_list_players(&tmp_error);
 
     if (tmp_error != NULL) {
         g_printerr("%s\n", tmp_error->message);
@@ -1110,7 +1048,7 @@ int main(int argc, char *argv[]) {
         exit(result);
     }
 
-    GList *all_players = list_player_names(&error);
+    GList *all_players = playerctl_list_players(&error);
     if (error != NULL) {
         g_printerr("%s\n", error->message);
         g_clear_error(&error);

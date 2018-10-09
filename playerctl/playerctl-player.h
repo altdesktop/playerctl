@@ -66,6 +66,11 @@ GType playerctl_player_get_type(void);
 PlayerctlPlayer *playerctl_player_new(const gchar *name, GError **err);
 
 /*
+ * Static methods
+ */
+GList *playerctl_list_players(GError **err);
+
+/*
  * Method definitions.
  */
 
