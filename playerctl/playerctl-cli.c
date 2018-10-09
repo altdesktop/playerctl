@@ -314,9 +314,9 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
     }
 
     expanded = g_string_new("");
-    int tokens_len = g_list_length(tokens);
-    for (int i = 0; i < tokens_len; ++i) {
-        struct token *token = g_list_nth(tokens, i)->data;
+    GList *next = tokens;
+    while (next != NULL) {
+        struct token *token = next->data;
         switch (token->type) {
         case TOKEN_PASSTHROUGH:
             expanded = g_string_append(expanded, token->data);
@@ -373,7 +373,10 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
             break;
         }
         }
+
+        next = next->next;
     }
+
     token_list_destroy(tokens);
     return g_string_free(expanded, FALSE);
 }
@@ -978,10 +981,11 @@ static int handle_list_all_flag() {
         return 0;
     }
 
-    int len = g_list_length(player_names);
-    for (int i = 0; i < len; ++i) {
-        gchar *name = g_list_nth_data(player_names, i);
+    GList *next = player_names;
+    while (next != NULL) {
+        gchar *name = next->data;
         printf("%s\n", name);
+        next = next->next;
     }
 
     g_list_free_full(player_names, g_free);
@@ -1003,13 +1007,14 @@ static gint player_name_instance_compare(gchar *name, gchar *instance) {
 static GList *select_players(GList *players, GList *all_players, GList *ignored_players) {
     GList *result = NULL;
 
-    int players_len = g_list_length(players);
-    for (int i = 0; i < players_len; ++i) {
-        gchar *player_name = g_list_nth_data(players, i);
+    GList *players_next = players;
+    while (players_next) {
+        gchar *player_name = players_next->data;
 
-        int len = g_list_length(all_players);
-        for (int j = 0; j < len; ++j) {
-            gchar *current_name = g_list_nth_data(all_players, j);
+        GList *all_players_next = all_players;
+        while (all_players_next != NULL) {
+            gchar *current_name = all_players_next->data;
+
             if (player_name_instance_compare(player_name, current_name) == 0) {
                 gboolean ignored =
                     (g_list_find_custom(ignored_players, current_name,
@@ -1018,7 +1023,11 @@ static GList *select_players(GList *players, GList *all_players, GList *ignored_
                     result = g_list_append(result, current_name);
                 }
             }
+
+            all_players_next = all_players_next->next;
         }
+
+        players_next = players_next->next;
     }
 
     return result;
@@ -1079,10 +1088,10 @@ int main(int argc, char *argv[]) {
         ++num_commands;
     }
 
-    int players_len = g_list_length(selected_players);
     int status = 0;
-    for (int i = 0; i < players_len; ++i) {
-        gchar *player_name = g_list_nth_data(selected_players, i);
+    GList *next = selected_players;
+    while (next != NULL) {
+        gchar *player_name = next->data;
 
         player = playerctl_player_new(player_name, &error);
         if (error != NULL) {
@@ -1105,6 +1114,8 @@ int main(int argc, char *argv[]) {
         if (result && !select_all_players) {
             break;
         }
+
+        next = next->next;
     }
 
 end:
