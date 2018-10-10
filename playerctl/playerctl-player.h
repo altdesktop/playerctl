@@ -63,7 +63,7 @@ struct _PlayerctlPlayerClass {
 
 GType playerctl_player_get_type(void);
 
-PlayerctlPlayer *playerctl_player_new(const gchar *name, GError **err);
+PlayerctlPlayer *playerctl_player_new(const gchar *player_name, GError **err);
 
 /*
  * Static methods

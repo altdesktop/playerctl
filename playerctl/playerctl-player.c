@@ -731,21 +731,21 @@ GList *playerctl_list_players(GError **err) {
 
 /**
  * playerctl_player_new:
- * @name: (allow-none): The name to use to find the bus name of the player
+ * @player_name: (allow-none): The name to use to find the bus name of the player
  * @err: The location of a GError or NULL
  *
  * Allocates a new #PlayerctlPlayer and tries to connect to the bus name
  * "org.mpris.MediaPlayer2.[name]"
  *
- * Returns:(transfer full): A new #PlayerctlPlayer connected to the bus name or
- * NULL if an error occurred
+ * Returns:(transfer full): A new #PlayerctlPlayer connected to an instance of
+ * the player or NULL if an error occurred
  */
-PlayerctlPlayer *playerctl_player_new(const gchar *name, GError **err) {
+PlayerctlPlayer *playerctl_player_new(const gchar *player_name, GError **err) {
     GError *tmp_error = NULL;
     PlayerctlPlayer *player;
 
     player = g_initable_new(PLAYERCTL_TYPE_PLAYER, NULL, &tmp_error,
-                            "player-name", name, NULL);
+                            "player-name", player_name, NULL);
 
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
