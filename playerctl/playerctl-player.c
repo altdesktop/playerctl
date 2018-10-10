@@ -106,13 +106,6 @@ static void playerctl_player_properties_changed_callback(
             g_signal_emit(self, connection_signals[STOP], 0);
         }
     }
-
-    for (int i = 0; invalidated_properties[i] != NULL; i += 1) {
-        if (g_strcmp0(invalidated_properties[i], "PlaybackStatus") == 0) {
-            g_signal_emit(self, connection_signals[EXIT], 0);
-            break;
-        }
-    }
 }
 
 static void playerctl_player_initable_iface_init(GInitableIface *iface);
@@ -610,6 +603,20 @@ static gchar *bus_name_for_player_name(gchar *player_name, GBusType bus_type, GE
     return NULL;
 }
 
+static void playerctl_player_name_owner_changed_callback(GObject *object,
+                                                         GParamSpec *pspec,
+                                                         gpointer *user_data) {
+    PlayerctlPlayer *player = PLAYERCTL_PLAYER(user_data);
+    GDBusProxy *proxy = G_DBUS_PROXY (object);
+    char *name_owner = g_dbus_proxy_get_name_owner(proxy);
+
+    if (name_owner == NULL) {
+        g_signal_emit(player, connection_signals[EXIT], 0);
+    }
+
+    g_free(name_owner);
+}
+
 static gboolean playerctl_player_initable_init(GInitable *initable,
                                                GCancellable *cancellable,
                                                GError **err) {
@@ -668,6 +675,9 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
     g_signal_connect(player->priv->proxy, "g-properties-changed",
                      G_CALLBACK(playerctl_player_properties_changed_callback),
                      player);
+
+    g_signal_connect(player->priv->proxy, "notify::g-name-owner",
+                     G_CALLBACK(playerctl_player_name_owner_changed_callback), player);
 
     player->priv->initted = TRUE;
     return TRUE;
