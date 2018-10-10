@@ -762,19 +762,17 @@ PlayerctlPlayer *playerctl_player_new(const gchar *name, GError **err) {
  * @callback: the callback to run on the event
  *
  * A convenience function for bindings to subscribe to an event with a callback
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
-PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event,
+void playerctl_player_on(PlayerctlPlayer *self, const gchar *event,
                                      GClosure *callback, GError **err) {
-    g_return_val_if_fail(self != NULL, NULL);
-    g_return_val_if_fail(event != NULL, NULL);
-    g_return_val_if_fail(callback != NULL, NULL);
-    g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+    g_return_if_fail(self != NULL);
+    g_return_if_fail(event != NULL);
+    g_return_if_fail(callback != NULL);
+    g_return_if_fail(err == NULL || *err == NULL);
 
     if (self->priv->init_error != NULL) {
         g_propagate_error(err, g_error_copy(self->priv->init_error));
-        return self;
+        return;
     }
 
     g_closure_ref(callback);
@@ -782,18 +780,18 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event,
 
     g_signal_connect_closure(self, event, callback, TRUE);
 
-    return self;
+    return;
 }
 
 #define PLAYER_COMMAND_FUNC(COMMAND)                                        \
     GError *tmp_error = NULL;                                               \
                                                                             \
-    g_return_val_if_fail(self != NULL, NULL);                               \
-    g_return_val_if_fail(err == NULL || *err == NULL, NULL);                \
+    g_return_if_fail(self != NULL);                                         \
+    g_return_if_fail(err == NULL || *err == NULL);                          \
                                                                             \
     if (self->priv->init_error != NULL) {                                   \
         g_propagate_error(err, g_error_copy(self->priv->init_error));       \
-        return self;                                                        \
+        return;                                                             \
     }                                                                       \
                                                                             \
     org_mpris_media_player2_player_call_##COMMAND##_sync(self->priv->proxy, \
@@ -801,9 +799,7 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event,
                                                                             \
     if (tmp_error != NULL) {                                                \
         g_propagate_error(err, tmp_error);                                  \
-    }                                                                       \
-                                                                            \
-    return self;
+    }
 
 /**
  * playerctl_player_play_pause:
@@ -811,10 +807,8 @@ PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event,
  * @err (allow-none): the location of a GError or NULL
  *
  * Command the player to play if it is paused or pause if it is playing
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
-PlayerctlPlayer *playerctl_player_play_pause(PlayerctlPlayer *self,
+void playerctl_player_play_pause(PlayerctlPlayer *self,
                                              GError **err) {
     PLAYER_COMMAND_FUNC(play_pause);
 }
@@ -825,29 +819,27 @@ PlayerctlPlayer *playerctl_player_play_pause(PlayerctlPlayer *self,
  * @err (allow-none): the location of a GError or NULL
  *
  * Command the player to open given URI
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
-PlayerctlPlayer *playerctl_player_open(PlayerctlPlayer *self, gchar *uri,
+void playerctl_player_open(PlayerctlPlayer *self, gchar *uri,
                                        GError **err) {
     GError *tmp_error = NULL;
 
-    g_return_val_if_fail(self != NULL, NULL);
-    g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+    g_return_if_fail(self != NULL);
+    g_return_if_fail(err == NULL || *err == NULL);
 
     if (self->priv->init_error != NULL) {
         g_propagate_error(err, g_error_copy(self->priv->init_error));
-        return self;
+        return;
     }
     org_mpris_media_player2_player_call_open_uri_sync(self->priv->proxy, uri,
                                                       NULL, &tmp_error);
 
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
-        return self;
+        return;
     }
 
-    return self;
+    return;
 }
 
 /**
@@ -856,10 +848,8 @@ PlayerctlPlayer *playerctl_player_open(PlayerctlPlayer *self, gchar *uri,
  * @err (allow-none): the location of a GError or NULL
  *
  * Command the player to play
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
-PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err) {
+void playerctl_player_play(PlayerctlPlayer *self, GError **err) {
     PLAYER_COMMAND_FUNC(play);
 }
 
@@ -869,10 +859,8 @@ PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err) {
  * @err (allow-none): the location of a GError or NULL
  *
  * Command the player to pause
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
-PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err) {
+void playerctl_player_pause(PlayerctlPlayer *self, GError **err) {
     PLAYER_COMMAND_FUNC(pause);
 }
 
@@ -882,10 +870,8 @@ PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err) {
  * @err (allow-none): the location of a GError or NULL
  *
  * Command the player to stop
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
-PlayerctlPlayer *playerctl_player_stop(PlayerctlPlayer *self, GError **err) {
+void playerctl_player_stop(PlayerctlPlayer *self, GError **err) {
     PLAYER_COMMAND_FUNC(stop);
 }
 
@@ -894,20 +880,18 @@ PlayerctlPlayer *playerctl_player_stop(PlayerctlPlayer *self, GError **err) {
  * @self: a #PlayerctlPlayer
  * @err (allow-none): the location of a GError or NULL
  *
- * Command the player to seek
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
+ * Command the player to seek to the position given in microseconds.
  */
-PlayerctlPlayer *playerctl_player_seek(PlayerctlPlayer *self, gint64 offset,
-                                       GError **err) {
+void playerctl_player_seek(PlayerctlPlayer *self, gint64 offset,
+                           GError **err) {
     GError *tmp_error = NULL;
 
-    g_return_val_if_fail(self != NULL, NULL);
-    g_return_val_if_fail(err == NULL || *err == NULL, NULL);
+    g_return_if_fail(self != NULL);
+    g_return_if_fail(err == NULL || *err == NULL);
 
     if (self->priv->init_error != NULL) {
         g_propagate_error(err, g_error_copy(self->priv->init_error));
-        return self;
+        return;
     }
 
     org_mpris_media_player2_player_call_seek_sync(self->priv->proxy, offset, NULL,
@@ -915,10 +899,10 @@ PlayerctlPlayer *playerctl_player_seek(PlayerctlPlayer *self, gint64 offset,
 
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
-        return self;
+        return;
     }
 
-    return self;
+    return;
 }
 
 /**
@@ -927,10 +911,8 @@ PlayerctlPlayer *playerctl_player_seek(PlayerctlPlayer *self, gint64 offset,
  * @err: (allow-none): the location of a GError or NULL
  *
  * Command the player to go to the next track
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
-PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err) {
+void playerctl_player_next(PlayerctlPlayer *self, GError **err) {
     PLAYER_COMMAND_FUNC(next);
 }
 
@@ -940,10 +922,8 @@ PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err) {
  * @err: (allow-none): the location of a GError or NULL
  *
  * Command the player to go to the previous track
- *
- * Returns: (transfer none): the #PlayerctlPlayer for chaining
  */
-PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self,
+void playerctl_player_previous(PlayerctlPlayer *self,
                                            GError **err) {
     PLAYER_COMMAND_FUNC(previous);
 }

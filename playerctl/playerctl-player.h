@@ -74,27 +74,27 @@ GList *playerctl_list_players(GError **err);
  * Method definitions.
  */
 
-PlayerctlPlayer *playerctl_player_on(PlayerctlPlayer *self, const gchar *event,
-                                     GClosure *callback, GError **err);
+void playerctl_player_on(PlayerctlPlayer *self, const gchar *event,
+                         GClosure *callback, GError **err);
 
-PlayerctlPlayer *playerctl_player_open(PlayerctlPlayer *self, gchar *uri,
-                                       GError **err);
+void playerctl_player_open(PlayerctlPlayer *self, gchar *uri,
+                           GError **err);
 
-PlayerctlPlayer *playerctl_player_play_pause(PlayerctlPlayer *self,
-                                             GError **err);
+void playerctl_player_play_pause(PlayerctlPlayer *self,
+                                 GError **err);
 
-PlayerctlPlayer *playerctl_player_play(PlayerctlPlayer *self, GError **err);
+void playerctl_player_play(PlayerctlPlayer *self, GError **err);
 
-PlayerctlPlayer *playerctl_player_stop(PlayerctlPlayer *self, GError **err);
+void playerctl_player_stop(PlayerctlPlayer *self, GError **err);
 
-PlayerctlPlayer *playerctl_player_seek(PlayerctlPlayer *self, gint64 offset,
-                                       GError **err);
+void playerctl_player_seek(PlayerctlPlayer *self, gint64 offset,
+                           GError **err);
 
-PlayerctlPlayer *playerctl_player_pause(PlayerctlPlayer *self, GError **err);
+void playerctl_player_pause(PlayerctlPlayer *self, GError **err);
 
-PlayerctlPlayer *playerctl_player_next(PlayerctlPlayer *self, GError **err);
+void playerctl_player_next(PlayerctlPlayer *self, GError **err);
 
-PlayerctlPlayer *playerctl_player_previous(PlayerctlPlayer *self, GError **err);
+void playerctl_player_previous(PlayerctlPlayer *self, GError **err);
 
 gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self,
                                             const gchar *property,
