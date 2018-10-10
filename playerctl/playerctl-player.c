@@ -32,6 +32,7 @@ enum {
     PROP_0,
 
     PROP_PLAYER_NAME,
+    PROP_PLAYER_ID,
     PROP_STATUS,
     PROP_VOLUME,
     PROP_METADATA,
@@ -56,6 +57,14 @@ enum {
     EXIT,
     LAST_SIGNAL
 };
+
+static gboolean bus_name_is_valid(gchar *bus_name) {
+    if (bus_name == NULL) {
+        return FALSE;
+    }
+
+    return g_str_has_prefix(bus_name, MPRIS_PREFIX);
+}
 
 static GParamSpec *obj_properties[N_PROPERTIES] = {
     NULL,
@@ -176,6 +185,14 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
     switch (property_id) {
     case PROP_PLAYER_NAME:
         g_value_set_string(value, self->priv->player_name);
+        break;
+
+    case PROP_PLAYER_ID:
+        if (!bus_name_is_valid(self->priv->bus_name)) {
+            return;
+        }
+
+        g_value_set_string(value, self->priv->bus_name + strlen(MPRIS_PREFIX));
         break;
 
     case PROP_STATUS:
@@ -360,6 +377,11 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
         NULL, /* default */
         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
+    obj_properties[PROP_PLAYER_ID] = g_param_spec_string(
+        "player-id", "Player ID", "An ID that identifies this player on the bus",
+        NULL, /* default */
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
     obj_properties[PROP_STATUS] =
         g_param_spec_string("status", "Player status",
                             "The play status of the player", NULL, /* default */
@@ -510,9 +532,9 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
     gsize reply_count;
     const gchar **names = g_variant_get_strv(reply_child, &reply_count);
 
-    size_t offset = strlen("org.mpris.MediaPlayer2.");
+    size_t offset = strlen(MPRIS_PREFIX);
     for (int i = 0; i < reply_count; i += 1) {
-        if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2.")) {
+        if (g_str_has_prefix(names[i], MPRIS_PREFIX)) {
             players = g_list_append(players, g_strdup(names[i] + offset));
         }
     }
