@@ -1168,7 +1168,7 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position,
 
     g_variant_unref(metadata);
     if (track_id_variant == NULL) {
-        tmp_error = g_error_new(playerctl_player_error_quark(), 1,
+        tmp_error = g_error_new(playerctl_player_error_quark(), 2,
                                 "Could not get track id to set position");
         g_propagate_error(err, tmp_error);
         return;
