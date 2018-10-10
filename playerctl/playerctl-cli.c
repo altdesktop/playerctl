@@ -430,12 +430,6 @@ static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
                                GError **error) {
     GError *tmp_error = NULL;
 
-    if (format_string != NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-        return FALSE;
-    }
-
     gboolean can_play = FALSE;
     g_object_get(player, "can-play", &can_play, NULL);
 
@@ -454,12 +448,6 @@ static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
 static gboolean playercmd_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
                                 GError **error) {
     GError *tmp_error = NULL;
-
-    if (format_string != NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-        return FALSE;
-    }
 
     gboolean can_pause = FALSE;
     g_object_get(player, "can-pause", &can_pause, NULL);
@@ -480,12 +468,6 @@ static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint
                                      GError **error) {
     GError *tmp_error = NULL;
 
-    if (format_string != NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-        return FALSE;
-    }
-
     gboolean can_play = FALSE;
     g_object_get(player, "can-play", &can_play, NULL);
 
@@ -504,12 +486,6 @@ static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint
 static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
                                GError **error) {
     GError *tmp_error = NULL;
-
-    if (format_string != NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-        return FALSE;
-    }
 
     // XXX there is no CanStop propery on the mpris player. CanPlay is supposed
     // to indicate whether there is a current track. If there is no current
@@ -534,12 +510,6 @@ static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc,
                                GError **error) {
     GError *tmp_error = NULL;
 
-    if (format_string != NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-        return FALSE;
-    }
-
     gboolean can_go_next = FALSE;
     g_object_get(player, "can-go-next", &can_go_next, NULL);
 
@@ -558,12 +528,6 @@ static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc,
 static gboolean playercmd_previous(PlayerctlPlayer *player, gchar **argv, gint argc,
                                    GError **error) {
     GError *tmp_error = NULL;
-
-    if (format_string != NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-        return FALSE;
-    }
 
     gboolean can_go_previous = FALSE;
     g_object_get(player, "can-go-previous", &can_go_previous, NULL);
@@ -585,12 +549,6 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
                                GError **error) {
     const gchar *uri = *argv;
     GError *tmp_error = NULL;
-
-    if (format_string != NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "format strings are not supported on command functions.");
-        return FALSE;
-    }
 
     if (uri) {
         playerctl_player_open(player,
@@ -839,21 +797,27 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
     return TRUE;
 }
 
+enum player_command_flags {
+    CMD_NO_FLAGS = 0,
+    CMD_SUPPORTS_FORMAT = 1,
+};
+
 struct PlayerCommand {
     const gchar *name;
     gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, GError **error);
+    enum player_command_flags command_flags;
 } commands[] = {
-    {"open", &playercmd_open},
-    {"play", &playercmd_play},
-    {"pause", &playercmd_pause},
-    {"play-pause", &playercmd_play_pause},
-    {"stop", &playercmd_stop},
-    {"next", &playercmd_next},
-    {"previous", &playercmd_previous},
-    {"position", &playercmd_position},
-    {"volume", &playercmd_volume},
-    {"status", &playercmd_status},
-    {"metadata", &playercmd_metadata},
+    {"open", &playercmd_open, 0},
+    {"play", &playercmd_play, 0},
+    {"pause", &playercmd_pause, 0},
+    {"play-pause", &playercmd_play_pause, 0},
+    {"stop", &playercmd_stop, 0},
+    {"next", &playercmd_next, 0},
+    {"previous", &playercmd_previous, 0},
+    {"position", &playercmd_position, CMD_SUPPORTS_FORMAT},
+    {"volume", &playercmd_volume, CMD_SUPPORTS_FORMAT},
+    {"status", &playercmd_status, CMD_SUPPORTS_FORMAT},
+    {"metadata", &playercmd_metadata, CMD_SUPPORTS_FORMAT},
 };
 
 static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
@@ -864,7 +828,13 @@ static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
 
     for (int i = 0; i < LENGTH(commands); ++i) {
         if (g_strcmp0(commands[i].name, command[0]) == 0) {
-            // Do not pass the command's name to the function that processes it.
+            if (format_string != NULL &&
+                    !(commands[i].command_flags & CMD_SUPPORTS_FORMAT)) {
+				g_set_error(error, playerctl_cli_error_quark(), 1,
+							"format strings are not supported on command: %s", command[0]);
+				return FALSE;
+            }
+
             return commands[i].func(player, command + 1, num_commands - 1, error);
         }
     }
