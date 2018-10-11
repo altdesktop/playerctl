@@ -45,6 +45,10 @@ static gboolean print_version_and_exit;
 static gchar **command = NULL;
 /* A format string for printing properties and metadata */
 static gchar *format_string = NULL;
+/* Block and follow the command */
+static gboolean follow = FALSE;
+
+static GMainLoop *main_loop = NULL;
 
 static gchar *print_gvariant(GVariant *value) {
     GString *printed = g_string_new("");
@@ -564,7 +568,7 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
 
 static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint argc,
                                    GError **error) {
-    const gchar *position = *argv;
+    const gchar *position = argv[1];
     gint64 offset;
     GError *tmp_error = NULL;
 
@@ -636,7 +640,7 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
 
 static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint argc,
                                  GError **error) {
-    const gchar *volume = *argv;
+    const gchar *volume = argv[1];
     gdouble level;
 
     if (volume) {
@@ -733,6 +737,32 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
     return TRUE;
 }
 
+struct playercmd_user_data {
+    gchar **argv;
+    gint argc;
+};
+
+static struct playercmd_user_data *playercmd_user_data_create(gchar **argv, gint argc) {
+    struct playercmd_user_data *user_data = calloc(1, sizeof(struct playercmd_user_data));
+    user_data->argc = argc;
+    user_data->argv = g_strdupv(argv);
+    return user_data;
+}
+
+static void playercmd_user_data_destroy(struct playercmd_user_data *data) {
+    if (data == NULL) {
+        return;
+    }
+
+    g_strfreev(data->argv);
+    free(data);
+
+    return;
+}
+
+static void on_metadata_change(PlayerctlPlayer *player, GVariant *metadata,
+                               struct playercmd_user_data *data);
+
 static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
                                    GError **error) {
     GError *tmp_error = NULL;
@@ -753,10 +783,7 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
         }
         printf("%s\n", data);
         g_free(data);
-        return TRUE;
-    }
-
-    if (argc == 0) {
+    } if (argc == 0) {
         gchar *data = playerctl_player_print_metadata_prop(player, NULL, &tmp_error);
         if (tmp_error) {
             g_propagate_error(error, tmp_error);
@@ -768,7 +795,7 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
             g_free(data);
         }
     } else {
-        for (int i = 0; i < argc; ++i) {
+        for (int i = 1; i < argc; ++i) {
             const gchar *type = argv[i];
             gchar *data;
 
@@ -794,18 +821,36 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
         }
     }
 
+    if (follow) {
+        struct playercmd_user_data *user_data = playercmd_user_data_create(argv, argc);
+        g_signal_connect(player, "metadata", G_CALLBACK(on_metadata_change), user_data);
+    }
+
     return TRUE;
 }
 
-enum player_command_flags {
+static void on_metadata_change(PlayerctlPlayer *player, GVariant *metadata,
+                               struct playercmd_user_data *data) {
+    GError *tmp_error = NULL;
+    playercmd_metadata(player, data->argv, data->argc, &tmp_error);
+    if (tmp_error != NULL) {
+        g_printerr("Error while printing metadata: %s\n", tmp_error->message);
+        g_clear_error(&tmp_error);
+        playercmd_user_data_destroy(data);
+        g_main_loop_quit(main_loop);
+    }
+}
+
+enum playercmd_command_flags {
     CMD_NO_FLAGS = 0,
     CMD_SUPPORTS_FORMAT = 1,
+    CMD_SUPPORTS_FOLLOW = 2,
 };
 
 struct PlayerCommand {
     const gchar *name;
     gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, GError **error);
-    enum player_command_flags command_flags;
+    enum playercmd_command_flags command_flags;
 } commands[] = {
     {"open", &playercmd_open, 0},
     {"play", &playercmd_play, 0},
@@ -817,7 +862,7 @@ struct PlayerCommand {
     {"position", &playercmd_position, CMD_SUPPORTS_FORMAT},
     {"volume", &playercmd_volume, CMD_SUPPORTS_FORMAT},
     {"status", &playercmd_status, CMD_SUPPORTS_FORMAT},
-    {"metadata", &playercmd_metadata, CMD_SUPPORTS_FORMAT},
+    {"metadata", &playercmd_metadata, CMD_SUPPORTS_FORMAT | CMD_SUPPORTS_FOLLOW},
 };
 
 static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
@@ -830,12 +875,19 @@ static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
         if (g_strcmp0(commands[i].name, command[0]) == 0) {
             if (format_string != NULL &&
                     !(commands[i].command_flags & CMD_SUPPORTS_FORMAT)) {
-				g_set_error(error, playerctl_cli_error_quark(), 1,
-							"format strings are not supported on command: %s", command[0]);
-				return FALSE;
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            "format strings are not supported on command: %s", command[0]);
+                return FALSE;
             }
 
-            return commands[i].func(player, command + 1, num_commands - 1, error);
+            if (follow &&
+                    !(commands[i].command_flags & CMD_SUPPORTS_FOLLOW)) {
+                g_set_error(error, playerctl_cli_error_quark(), 1,
+                            "follow is not supported on command: %s", command[0]);
+                return FALSE;
+            }
+
+            return commands[i].func(player, command, num_commands, error);
         }
     }
     g_set_error(error, playerctl_cli_error_quark(), 1,
@@ -855,6 +907,9 @@ static const GOptionEntry entries[] = {
      "A comma separated list of names of players to ignore.", "IGNORE"},
     {"format", 'f', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &format_string,
      "A format string for printing properties and metadata", NULL},
+    {"follow", 'F', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &follow,
+     "Block and append the query to output when it changes. Exit when the players exit.",
+     NULL},
     {"list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
      &list_all_players_and_exit,
      "List the names of running players that can be controlled", NULL},
@@ -1007,7 +1062,7 @@ static GList *select_players(GList *players, GList *all_players, GList *ignored_
 int main(int argc, char *argv[]) {
     PlayerctlPlayer *player;
     GError *error = NULL;
-    gint num_commands = 0;
+    guint num_commands = 0;
 
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
@@ -1027,6 +1082,8 @@ int main(int argc, char *argv[]) {
         int result = handle_list_all_flag();
         exit(result);
     }
+
+    num_commands = g_strv_length(command);
 
     GList *all_players = playerctl_list_players(&error);
     if (error != NULL) {
@@ -1054,13 +1111,9 @@ int main(int argc, char *argv[]) {
         goto end;
     }
 
-    // count the extra arguments given
-    while (command[num_commands] != NULL) {
-        ++num_commands;
-    }
-
     int status = 0;
     GList *next = selected_players;
+    GList *player_objects = NULL;
     while (next != NULL) {
         gchar *player_name = next->data;
 
@@ -1080,7 +1133,7 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        g_object_unref(player);
+        player_objects = g_list_append(player_objects, player);
 
         if (result && !select_all_players) {
             break;
@@ -1094,5 +1147,15 @@ end:
     g_list_free_full(all_players, g_free);
     g_list_free_full(players, g_free);
     g_list_free_full(ignored_players, g_free);
+
+    if (status == 0 && follow) {
+        follow = FALSE;
+        main_loop = g_main_loop_new(NULL, FALSE);
+        g_main_loop_run(main_loop);
+        g_main_loop_unref(main_loop);
+    }
+
+    g_list_free_full(player_objects, g_object_unref);
+
     exit(status);
 }
