@@ -29,6 +29,8 @@
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
+#define MPRIS_PREFIX "org.mpris.MediaPlayer2."
+
 G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
 /* A comma separated list of players to control. */
@@ -48,7 +50,37 @@ static gchar *format_string = NULL;
 /* Block and follow the command */
 static gboolean follow = FALSE;
 
+/* The main loop for the follow command */
 static GMainLoop *main_loop = NULL;
+
+/* The player currently being followed */
+PlayerctlPlayer *followed_player = NULL;
+
+struct playercmd_args {
+    gchar **argv;
+    gint argc;
+};
+
+/* Arguments given to the player for the follow command */
+static struct playercmd_args *playercmd_args = NULL;
+
+static struct playercmd_args *playercmd_args_create(gchar **argv, gint argc) {
+    struct playercmd_args *user_data = calloc(1, sizeof(struct playercmd_args));
+    user_data->argc = argc;
+    user_data->argv = g_strdupv(argv);
+    return user_data;
+}
+
+static void playercmd_args_destroy(struct playercmd_args *data) {
+    if (data == NULL) {
+        return;
+    }
+
+    g_strfreev(data->argv);
+    free(data);
+
+    return;
+}
 
 static gchar *print_gvariant(GVariant *value) {
     GString *printed = g_string_new("");
@@ -737,32 +769,6 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
     return TRUE;
 }
 
-struct playercmd_user_data {
-    gchar **argv;
-    gint argc;
-};
-
-static struct playercmd_user_data *playercmd_user_data_create(gchar **argv, gint argc) {
-    struct playercmd_user_data *user_data = calloc(1, sizeof(struct playercmd_user_data));
-    user_data->argc = argc;
-    user_data->argv = g_strdupv(argv);
-    return user_data;
-}
-
-static void playercmd_user_data_destroy(struct playercmd_user_data *data) {
-    if (data == NULL) {
-        return;
-    }
-
-    g_strfreev(data->argv);
-    free(data);
-
-    return;
-}
-
-static void on_metadata_change(PlayerctlPlayer *player, GVariant *metadata,
-                               struct playercmd_user_data *data);
-
 static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
                                    GError **error) {
     GError *tmp_error = NULL;
@@ -783,7 +789,7 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
         }
         printf("%s\n", data);
         g_free(data);
-    } if (argc == 0) {
+    } else if (argc == 1) {
         gchar *data = playerctl_player_print_metadata_prop(player, NULL, &tmp_error);
         if (tmp_error) {
             g_propagate_error(error, tmp_error);
@@ -821,78 +827,72 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
         }
     }
 
-    if (follow) {
-        struct playercmd_user_data *user_data = playercmd_user_data_create(argv, argc);
-        g_signal_connect(player, "metadata", G_CALLBACK(on_metadata_change), user_data);
-    }
-
     return TRUE;
 }
 
 static void on_metadata_change(PlayerctlPlayer *player, GVariant *metadata,
-                               struct playercmd_user_data *data) {
+                               struct playercmd_args *args) {
     GError *tmp_error = NULL;
-    playercmd_metadata(player, data->argv, data->argc, &tmp_error);
+    gboolean cmd_result = playercmd_metadata(player, args->argv, args->argc, &tmp_error);
     if (tmp_error != NULL) {
         g_printerr("Error while printing metadata: %s\n", tmp_error->message);
         g_clear_error(&tmp_error);
-        playercmd_user_data_destroy(data);
         g_main_loop_quit(main_loop);
+    }
+
+    if (!cmd_result) {
+        // metadata is empty
+        printf("\n");
     }
 }
 
-enum playercmd_command_flags {
-    CMD_NO_FLAGS = 0,
-    CMD_SUPPORTS_FORMAT = 1,
-    CMD_SUPPORTS_FOLLOW = 2,
-};
+static void playercmd_follow_metadata(PlayerctlPlayer *player,
+                                      struct playercmd_args *args) {
+    g_signal_connect(G_OBJECT(player), "metadata",
+                     G_CALLBACK(on_metadata_change), args);
+}
 
 struct PlayerCommand {
     const gchar *name;
     gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, GError **error);
-    enum playercmd_command_flags command_flags;
+    gboolean supports_format;
+    void (*follow_func)(PlayerctlPlayer *player, struct playercmd_args *args);
 } commands[] = {
-    {"open", &playercmd_open, 0},
-    {"play", &playercmd_play, 0},
-    {"pause", &playercmd_pause, 0},
-    {"play-pause", &playercmd_play_pause, 0},
-    {"stop", &playercmd_stop, 0},
-    {"next", &playercmd_next, 0},
-    {"previous", &playercmd_previous, 0},
-    {"position", &playercmd_position, CMD_SUPPORTS_FORMAT},
-    {"volume", &playercmd_volume, CMD_SUPPORTS_FORMAT},
-    {"status", &playercmd_status, CMD_SUPPORTS_FORMAT},
-    {"metadata", &playercmd_metadata, CMD_SUPPORTS_FORMAT | CMD_SUPPORTS_FOLLOW},
+    {"open", &playercmd_open, FALSE, NULL},
+    {"play", &playercmd_play, FALSE, NULL},
+    {"pause", &playercmd_pause, FALSE, NULL},
+    {"play-pause", &playercmd_play_pause, FALSE, NULL},
+    {"stop", &playercmd_stop, FALSE, NULL},
+    {"next", &playercmd_next, FALSE, NULL},
+    {"previous", &playercmd_previous, FALSE, NULL},
+    {"position", &playercmd_position, TRUE, NULL},
+    {"volume", &playercmd_volume, TRUE, NULL},
+    {"status", &playercmd_status, TRUE, NULL},
+    {"metadata", &playercmd_metadata, TRUE, &playercmd_follow_metadata},
 };
 
-static gboolean handle_player_command(PlayerctlPlayer *player, gchar **command,
-                                      gint num_commands, GError **error) {
-    if (num_commands < 1) {
-        return FALSE;
-    }
-
+static const struct PlayerCommand *get_player_command(gchar **argv, gint argc, GError **error) {
     for (int i = 0; i < LENGTH(commands); ++i) {
-        if (g_strcmp0(commands[i].name, command[0]) == 0) {
-            if (format_string != NULL &&
-                    !(commands[i].command_flags & CMD_SUPPORTS_FORMAT)) {
+        if (g_strcmp0(commands[i].name, argv[0]) == 0) {
+            if (format_string != NULL && !commands[i].supports_format) {
                 g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "format strings are not supported on command: %s", command[0]);
-                return FALSE;
+                            "format strings are not supported on command: %s", argv[0]);
+                return NULL;
             }
 
-            if (follow &&
-                    !(commands[i].command_flags & CMD_SUPPORTS_FOLLOW)) {
+            if (follow && (commands[i].follow_func == NULL)) {
                 g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "follow is not supported on command: %s", command[0]);
-                return FALSE;
+                            "follow is not supported on command: %s", argv[0]);
+                return NULL;
             }
 
-            return commands[i].func(player, command, num_commands, error);
+            return &commands[i];
         }
     }
+
     g_set_error(error, playerctl_cli_error_quark(), 1,
-                "Command not recognized: %s", command[0]);
-    return FALSE;
+                "Command not recognized: %s", argv[0]);
+    return NULL;
 }
 
 static const GOptionEntry entries[] = {
@@ -1033,6 +1033,25 @@ static gint player_name_instance_compare(gchar *name, gchar *instance) {
 static GList *select_players(GList *players, GList *all_players, GList *ignored_players) {
     GList *result = NULL;
 
+    if (players == NULL) {
+        // select the players that are not ignored
+        GList *all_players_next = all_players;
+        while (all_players_next != NULL) {
+            gchar *current_name = all_players_next->data;
+            gboolean ignored =
+                (g_list_find_custom(ignored_players, current_name,
+                                    (GCompareFunc)player_name_instance_compare) != NULL);
+
+            if (!ignored && !g_list_find(result, current_name)) {
+                result = g_list_append(result, current_name);
+            }
+
+            all_players_next = all_players_next->next;
+        }
+
+        return result;
+    }
+
     GList *players_next = players;
     while (players_next) {
         gchar *player_name = players_next->data;
@@ -1059,10 +1078,227 @@ static GList *select_players(GList *players, GList *all_players, GList *ignored_
     return result;
 }
 
+static gchar *player_id_from_bus_name(const gchar *bus_name) {
+    const size_t prefix_len = strlen(MPRIS_PREFIX);
+
+    if (bus_name == NULL ||
+            !g_str_has_prefix(bus_name, MPRIS_PREFIX) ||
+            strlen(bus_name) <= prefix_len) {
+        return NULL;
+    }
+
+    return g_strdup(bus_name + prefix_len);
+}
+
+struct owner_changed_user_data {
+    GList *all_players;
+    GList *players;
+    GList *ignored_players;
+};
+
+static void set_followed_player(PlayerctlPlayer *player, GError **error) {
+    GError *tmp_error = NULL;
+
+    if (followed_player != NULL) {
+        g_object_unref(followed_player);
+        followed_player = NULL;
+    }
+    gboolean playercmd_result = FALSE;
+
+    if (player != NULL) {
+        followed_player = player;
+        const struct PlayerCommand *player_cmd =
+            get_player_command(playercmd_args->argv, playercmd_args->argc,
+                               &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return;
+        }
+
+        playercmd_result = player_cmd->func(followed_player, playercmd_args->argv, playercmd_args->argc, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return;
+        }
+
+        player_cmd->follow_func(followed_player, playercmd_args);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return;
+        }
+    }
+
+    if (!playercmd_result) {
+        printf("\n");
+    }
+}
+
+static void set_followed_player_by_name(gchar *player_name, GError **error) {
+    GError *tmp_error = NULL;
+    PlayerctlPlayer *player = NULL;
+
+    if (player_name != NULL) {
+        player = playerctl_player_new(player_name, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return;
+        }
+    }
+
+    set_followed_player(player, &tmp_error);
+    if (tmp_error != NULL) {
+        g_object_unref(player);
+        g_propagate_error(error, tmp_error);
+    }
+}
+
+static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_name,
+                                      gchar *signal_name, GVariant *parameters,
+                                      gpointer _data) {
+    struct owner_changed_user_data *data = _data;
+    GList *selected_players = NULL;
+    GError *error = NULL;
+
+    if (g_strcmp0(signal_name, "NameOwnerChanged") != 0) {
+        return;
+    }
+
+    if (!g_variant_is_of_type(parameters, G_VARIANT_TYPE("(sss)"))) {
+        g_warning("Got unknown parameters on org.freedesktop.DBus "
+                  "NameOwnerChange signal: %s",
+                  g_variant_get_type_string(parameters));
+        return;
+    }
+
+    GVariant *name_variant = g_variant_get_child_value(parameters, 0);
+    const gchar *name = g_variant_get_string(name_variant, NULL);
+
+    gchar *player_id = player_id_from_bus_name(name);
+
+    if (player_id == NULL) {
+        g_variant_unref(name_variant);
+        return;
+    }
+
+    GVariant *previous_owner_variant = g_variant_get_child_value(parameters, 1);
+    const gchar *previous_owner = g_variant_get_string(previous_owner_variant, NULL);
+
+    GVariant *new_owner_variant = g_variant_get_child_value(parameters, 2);
+    const gchar *new_owner = g_variant_get_string(new_owner_variant, NULL);
+
+    GList *player_entry = NULL;
+    if (strlen(new_owner) == 0 && strlen(previous_owner) != 0) {
+        // the name has vanished
+        player_entry =
+            g_list_find_custom(data->all_players, name + strlen(MPRIS_PREFIX), (GCompareFunc)g_strcmp0);
+
+        if (player_entry != NULL) {
+            data->all_players = g_list_remove_link(data->all_players, player_entry);
+            g_list_free_full(player_entry, g_free);
+        }
+
+        if (followed_player != NULL) {
+            gchar *followed_player_id = NULL;
+            g_object_get(followed_player, "player-id", &followed_player_id, NULL);
+
+            if (g_strcmp0(followed_player_id, player_id) == 0) {
+                set_followed_player(NULL, NULL);
+            }
+
+            g_free(followed_player_id);
+        }
+    } else if (strlen(previous_owner) == 0 && strlen(new_owner) != 0) {
+        // the name has appeared
+        player_entry =
+            g_list_find_custom(data->all_players, name + strlen(MPRIS_PREFIX), (GCompareFunc)g_strcmp0);
+        if (player_entry == NULL) {
+            data->all_players =
+                g_list_prepend(data->all_players, g_strdup(name + strlen(MPRIS_PREFIX)));
+        }
+    }
+
+    selected_players = select_players(data->players, data->all_players, data->ignored_players);
+    if (selected_players != NULL) {
+        // there is a new candidate for player selection
+        gchar *first_selected = selected_players->data;
+
+        if (followed_player == NULL) {
+            // not following a player, follow this one
+            set_followed_player_by_name(first_selected, &error);
+            if (error != NULL) {
+                goto out;
+            }
+        } else {
+            gchar *followed_player_id = NULL;
+            g_object_get(followed_player, "player-id", &followed_player_id, NULL);
+
+            if (data->players == NULL) {
+                // if no player arguments were passed, always follow the most
+                // recently opened player.
+                if (g_strcmp0(followed_player_id, first_selected) != 0) {
+                    set_followed_player_by_name(first_selected, &error);
+                    if (error != NULL) {
+                        g_free(followed_player_id);
+                        goto out;
+                    }
+                }
+            } else {
+                // if player arguments were passed, follow the most recently
+                // opened player in the order they were passed on the command
+                // line.
+                GList *next = data->players;
+                while (next != NULL) {
+                    gchar *name = next->data;
+
+                    GList *match =
+                        g_list_find_custom(data->all_players, name,
+                                          (GCompareFunc)player_name_instance_compare);
+
+                    if (match != NULL) {
+                        gchar *match_name = match->data;
+                        if (g_strcmp0(followed_player_id, match_name) != 0) {
+                            set_followed_player_by_name(match_name, &error);
+                            if (error != NULL) {
+                                g_free(followed_player_id);
+                                goto out;
+                            }
+                        }
+                        break;
+                    }
+
+                    next = next->next;
+                }
+            }
+        }
+    }
+
+out:
+
+    if (error != NULL) {
+        g_printerr("Could not connect to player: %s\n", error->message);
+        g_clear_error(&error);
+        g_main_loop_quit(main_loop);
+    }
+    g_list_free(selected_players);
+    g_variant_unref(name_variant);
+    g_variant_unref(previous_owner_variant);
+    g_variant_unref(new_owner_variant);
+}
+
+
 int main(int argc, char *argv[]) {
     PlayerctlPlayer *player;
     GError *error = NULL;
     guint num_commands = 0;
+
+    GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
+            G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
+            "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &error);
+    if (error != NULL) {
+        g_printerr("%s\n", error->message);
+        g_clear_error(&error);
+        exit(1);
+    }
 
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
@@ -1092,21 +1328,25 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    if (all_players == NULL) {
+    const struct PlayerCommand *player_cmd = get_player_command(command, num_commands, &error);
+    if (error != NULL) {
+        g_printerr("Could not execute command: %s\n", error->message);
+        g_clear_error(&error);
+        exit(1);
+    }
+
+    if (all_players == NULL && !follow) {
         g_printerr("No players were found\n");
         exit(0);
     }
 
     GList *players = parse_player_list(player_arg);
-    if (players == NULL) {
-        players = g_list_copy_deep(all_players, (GCopyFunc)g_strdup, NULL);
-    }
 
     GList *ignored_players = parse_player_list(ignore_player_arg);
 
     GList *selected_players = select_players(players, all_players, ignored_players);
 
-    if (selected_players == NULL) {
+    if (selected_players == NULL && !follow) {
         g_printerr("No players were found\n");
         goto end;
     }
@@ -1114,6 +1354,7 @@ int main(int argc, char *argv[]) {
     int status = 0;
     GList *next = selected_players;
     GList *player_objects = NULL;
+    playercmd_args = playercmd_args_create(command, num_commands);
     while (next != NULL) {
         gchar *player_name = next->data;
 
@@ -1124,7 +1365,7 @@ int main(int argc, char *argv[]) {
             goto end;
         }
 
-        gboolean result = handle_player_command(player, command, num_commands, &error);
+        gboolean result = player_cmd->func(player, command, num_commands, &error);
         if (error != NULL) {
             g_printerr("Could not execute command: %s\n", error->message);
             g_clear_error(&error);
@@ -1133,7 +1374,13 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        player_objects = g_list_append(player_objects, player);
+        if (follow && player_cmd->follow_func) {
+            player_cmd->follow_func(player, playercmd_args);
+            followed_player = player;
+            break;
+        }
+
+        g_object_unref(player);
 
         if (result && !select_all_players) {
             break;
@@ -1144,16 +1391,27 @@ int main(int argc, char *argv[]) {
 
 end:
     g_list_free(selected_players);
+
+    if (status == 0 && follow) {
+        struct owner_changed_user_data *data =
+            calloc(1, sizeof(struct owner_changed_user_data));
+        data->players = players;
+        data->all_players = all_players;
+        data->ignored_players = ignored_players;
+
+        g_signal_connect(G_DBUS_PROXY(proxy), "g-signal",
+                         G_CALLBACK(dbus_name_owner_changed_callback),
+                         data);
+        main_loop = g_main_loop_new(NULL, FALSE);
+        g_main_loop_run(main_loop);
+        free(data);
+        playercmd_args_destroy(playercmd_args);
+        g_main_loop_unref(main_loop);
+    }
+
     g_list_free_full(all_players, g_free);
     g_list_free_full(players, g_free);
     g_list_free_full(ignored_players, g_free);
-
-    if (status == 0 && follow) {
-        follow = FALSE;
-        main_loop = g_main_loop_new(NULL, FALSE);
-        g_main_loop_run(main_loop);
-        g_main_loop_unref(main_loop);
-    }
 
     g_list_free_full(player_objects, g_object_unref);
 
