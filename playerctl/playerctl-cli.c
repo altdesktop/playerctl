@@ -330,7 +330,7 @@ static gchar *helperfn_duration(GVariant *arg) {
     return g_string_free(formatted, FALSE);
 }
 
-struct TemplateHelper {
+struct template_helper {
     const gchar *name;
     gchar *(*func)(GVariant *arg);
 } helpers[] = {
@@ -852,12 +852,12 @@ static void playercmd_follow_metadata(PlayerctlPlayer *player,
                      G_CALLBACK(on_metadata_change), args);
 }
 
-struct PlayerCommand {
+struct player_command {
     const gchar *name;
     gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, GError **error);
     gboolean supports_format;
     void (*follow_func)(PlayerctlPlayer *player, struct playercmd_args *args);
-} commands[] = {
+} player_commands[] = {
     {"open", &playercmd_open, FALSE, NULL},
     {"play", &playercmd_play, FALSE, NULL},
     {"pause", &playercmd_pause, FALSE, NULL},
@@ -871,27 +871,29 @@ struct PlayerCommand {
     {"metadata", &playercmd_metadata, TRUE, &playercmd_follow_metadata},
 };
 
-static const struct PlayerCommand *get_player_command(gchar **argv, gint argc, GError **error) {
-    for (int i = 0; i < LENGTH(commands); ++i) {
-        if (g_strcmp0(commands[i].name, argv[0]) == 0) {
-            if (format_string != NULL && !commands[i].supports_format) {
+static const struct player_command *get_player_command(gchar **argv, gint argc, GError **error) {
+    for (int i = 0; i < LENGTH(player_commands); ++i) {
+        const struct player_command command = player_commands[i];
+        if (g_strcmp0(command.name, argv[0]) == 0) {
+            if (format_string != NULL && !command.supports_format) {
                 g_set_error(error, playerctl_cli_error_quark(), 1,
                             "format strings are not supported on command: %s", argv[0]);
                 return NULL;
             }
 
-            if (follow && (commands[i].follow_func == NULL)) {
+            if (follow && (command.follow_func == NULL)) {
                 g_set_error(error, playerctl_cli_error_quark(), 1,
                             "follow is not supported on command: %s", argv[0]);
                 return NULL;
             }
 
-            return &commands[i];
+            return &player_commands[i];
         }
     }
 
     g_set_error(error, playerctl_cli_error_quark(), 1,
                 "Command not recognized: %s", argv[0]);
+
     return NULL;
 }
 
@@ -1090,12 +1092,6 @@ static gchar *player_id_from_bus_name(const gchar *bus_name) {
     return g_strdup(bus_name + prefix_len);
 }
 
-struct owner_changed_user_data {
-    GList *all_players;
-    GList *players;
-    GList *ignored_players;
-};
-
 static void set_followed_player(PlayerctlPlayer *player, GError **error) {
     GError *tmp_error = NULL;
 
@@ -1107,7 +1103,7 @@ static void set_followed_player(PlayerctlPlayer *player, GError **error) {
 
     if (player != NULL) {
         followed_player = player;
-        const struct PlayerCommand *player_cmd =
+        const struct player_command *player_cmd =
             get_player_command(playercmd_args->argv, playercmd_args->argc,
                                &tmp_error);
         if (tmp_error != NULL) {
@@ -1115,12 +1111,14 @@ static void set_followed_player(PlayerctlPlayer *player, GError **error) {
             return;
         }
 
+        assert(player_cmd->func != NULL);
         playercmd_result = player_cmd->func(followed_player, playercmd_args->argv, playercmd_args->argc, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
             return;
         }
 
+        assert(player_cmd->follow_func != NULL);
         player_cmd->follow_func(followed_player, playercmd_args);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
@@ -1138,6 +1136,17 @@ static void set_followed_player_by_name(gchar *player_name, GError **error) {
     PlayerctlPlayer *player = NULL;
 
     if (player_name != NULL) {
+        if (followed_player != NULL) {
+            // check and see if this is already the followed player
+            gchar *followed_player_id = NULL;
+            g_object_get(followed_player, "player-id", &followed_player_id, NULL);
+            gboolean match = (g_strcmp0(followed_player_id, player_name) == 0);
+            g_free(followed_player_id);
+            if (match) {
+                return;
+            }
+        }
+
         player = playerctl_player_new(player_name, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
@@ -1151,6 +1160,12 @@ static void set_followed_player_by_name(gchar *player_name, GError **error) {
         g_propagate_error(error, tmp_error);
     }
 }
+
+struct owner_changed_user_data {
+    GList *all_players;
+    GList *players;
+    GList *ignored_players;
+};
 
 static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_name,
                                       gchar *signal_name, GVariant *parameters,
@@ -1186,6 +1201,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
     GVariant *new_owner_variant = g_variant_get_child_value(parameters, 2);
     const gchar *new_owner = g_variant_get_string(new_owner_variant, NULL);
 
+    // update the list of all players
     GList *player_entry = NULL;
     if (strlen(new_owner) == 0 && strlen(previous_owner) != 0) {
         // the name has vanished
@@ -1202,6 +1218,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
             g_object_get(followed_player, "player-id", &followed_player_id, NULL);
 
             if (g_strcmp0(followed_player_id, player_id) == 0) {
+                // the followed player has exited
                 set_followed_player(NULL, NULL);
             }
 
@@ -1217,9 +1234,10 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
         }
     }
 
+    // update the followed player
     selected_players = select_players(data->players, data->all_players, data->ignored_players);
     if (selected_players != NULL) {
-        // there is a new candidate for player selection
+        // there is a new candidate for following
         gchar *first_selected = selected_players->data;
 
         if (followed_player == NULL) {
@@ -1229,18 +1247,12 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
                 goto out;
             }
         } else {
-            gchar *followed_player_id = NULL;
-            g_object_get(followed_player, "player-id", &followed_player_id, NULL);
-
             if (data->players == NULL) {
                 // if no player arguments were passed, always follow the most
                 // recently opened player.
-                if (g_strcmp0(followed_player_id, first_selected) != 0) {
-                    set_followed_player_by_name(first_selected, &error);
-                    if (error != NULL) {
-                        g_free(followed_player_id);
-                        goto out;
-                    }
+                set_followed_player_by_name(first_selected, &error);
+                if (error != NULL) {
+                    goto out;
                 }
             } else {
                 // if player arguments were passed, follow the most recently
@@ -1251,17 +1263,14 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
                     gchar *name = next->data;
 
                     GList *match =
-                        g_list_find_custom(data->all_players, name,
-                                          (GCompareFunc)player_name_instance_compare);
+                        g_list_find_custom(selected_players, name,
+                                           (GCompareFunc)player_name_instance_compare);
 
                     if (match != NULL) {
                         gchar *match_name = match->data;
-                        if (g_strcmp0(followed_player_id, match_name) != 0) {
-                            set_followed_player_by_name(match_name, &error);
-                            if (error != NULL) {
-                                g_free(followed_player_id);
-                                goto out;
-                            }
+                        set_followed_player_by_name(match_name, &error);
+                        if (error != NULL) {
+                            goto out;
                         }
                         break;
                     }
@@ -1273,7 +1282,6 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
     }
 
 out:
-
     if (error != NULL) {
         g_printerr("Could not connect to player: %s\n", error->message);
         g_clear_error(&error);
@@ -1285,20 +1293,10 @@ out:
     g_variant_unref(new_owner_variant);
 }
 
-
 int main(int argc, char *argv[]) {
     PlayerctlPlayer *player;
     GError *error = NULL;
     guint num_commands = 0;
-
-    GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
-            G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
-            "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &error);
-    if (error != NULL) {
-        g_printerr("%s\n", error->message);
-        g_clear_error(&error);
-        exit(1);
-    }
 
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
@@ -1307,6 +1305,11 @@ int main(int argc, char *argv[]) {
         g_printerr("%s\n", error->message);
         g_clear_error(&error);
         exit(0);
+    }
+
+    if (follow && select_all_players) {
+        g_printerr("%s\n", "You can only follow one player at a time.\n");
+        exit(1);
     }
 
     if (print_version_and_exit) {
@@ -1328,7 +1331,7 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
-    const struct PlayerCommand *player_cmd = get_player_command(command, num_commands, &error);
+    const struct player_command *player_cmd = get_player_command(command, num_commands, &error);
     if (error != NULL) {
         g_printerr("Could not execute command: %s\n", error->message);
         g_clear_error(&error);
@@ -1341,9 +1344,7 @@ int main(int argc, char *argv[]) {
     }
 
     GList *players = parse_player_list(player_arg);
-
     GList *ignored_players = parse_player_list(ignore_player_arg);
-
     GList *selected_players = select_players(players, all_players, ignored_players);
 
     if (selected_players == NULL && !follow) {
@@ -1352,11 +1353,20 @@ int main(int argc, char *argv[]) {
     }
 
     int status = 0;
-    GList *next = selected_players;
-    GList *player_objects = NULL;
     playercmd_args = playercmd_args_create(command, num_commands);
+    GList *next = selected_players;
     while (next != NULL) {
         gchar *player_name = next->data;
+
+        if (follow) {
+            set_followed_player_by_name(player_name, &error);
+            if (error != NULL) {
+                g_printerr("Connection to player failed: %s\n", error->message);
+                status = 1;
+                goto end;
+            }
+            break;
+        }
 
         player = playerctl_player_new(player_name, &error);
         if (error != NULL) {
@@ -1371,12 +1381,6 @@ int main(int argc, char *argv[]) {
             g_clear_error(&error);
             g_object_unref(player);
             status = 1;
-            break;
-        }
-
-        if (follow && player_cmd->follow_func) {
-            player_cmd->follow_func(player, playercmd_args);
-            followed_player = player;
             break;
         }
 
@@ -1399,21 +1403,31 @@ end:
         data->all_players = all_players;
         data->ignored_players = ignored_players;
 
+        GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
+                G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
+                "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &error);
+        if (error != NULL) {
+            g_printerr("%s\n", error->message);
+            g_clear_error(&error);
+            status = 1;
+            goto proxy_err_out;
+        }
+
         g_signal_connect(G_DBUS_PROXY(proxy), "g-signal",
                          G_CALLBACK(dbus_name_owner_changed_callback),
                          data);
         main_loop = g_main_loop_new(NULL, FALSE);
         g_main_loop_run(main_loop);
+        g_main_loop_unref(main_loop);
+
+proxy_err_out:
         free(data);
         playercmd_args_destroy(playercmd_args);
-        g_main_loop_unref(main_loop);
     }
 
     g_list_free_full(all_players, g_free);
     g_list_free_full(players, g_free);
     g_list_free_full(ignored_players, g_free);
-
-    g_list_free_full(player_objects, g_object_unref);
 
     exit(status);
 }
