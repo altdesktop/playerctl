@@ -53,8 +53,8 @@ static gboolean follow = FALSE;
 /* The main loop for the follow command */
 static GMainLoop *main_loop = NULL;
 
-/* The player currently being followed */
-PlayerctlPlayer *followed_player = NULL;
+/* A list of the players currently being followed */
+GList *followed_players = NULL;
 
 struct playercmd_args {
     gchar **argv;
@@ -1092,73 +1092,97 @@ static gchar *player_id_from_bus_name(const gchar *bus_name) {
     return g_strdup(bus_name + prefix_len);
 }
 
-static void set_followed_player(PlayerctlPlayer *player, GError **error) {
+static void add_followed_player(PlayerctlPlayer *player, GError **error) {
     GError *tmp_error = NULL;
-
-    if (followed_player != NULL) {
-        g_object_unref(followed_player);
-        followed_player = NULL;
-    }
     gboolean playercmd_result = FALSE;
 
-    if (player != NULL) {
-        followed_player = player;
-        const struct player_command *player_cmd =
-            get_player_command(playercmd_args->argv, playercmd_args->argc,
-                               &tmp_error);
-        if (tmp_error != NULL) {
-            g_propagate_error(error, tmp_error);
-            return;
-        }
+    if (player == NULL) {
+        return;
+    }
+    const struct player_command *player_cmd =
+        get_player_command(playercmd_args->argv, playercmd_args->argc,
+                           &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return;
+    }
+    assert(player_cmd->func != NULL);
+    playercmd_result = player_cmd->func(player, playercmd_args->argv, playercmd_args->argc, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return;
+    }
 
-        assert(player_cmd->func != NULL);
-        playercmd_result = player_cmd->func(followed_player, playercmd_args->argv, playercmd_args->argc, &tmp_error);
-        if (tmp_error != NULL) {
-            g_propagate_error(error, tmp_error);
-            return;
-        }
-
-        assert(player_cmd->follow_func != NULL);
-        player_cmd->follow_func(followed_player, playercmd_args);
-        if (tmp_error != NULL) {
-            g_propagate_error(error, tmp_error);
-            return;
-        }
+    assert(player_cmd->follow_func != NULL);
+    player_cmd->follow_func(player, playercmd_args);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return;
     }
 
     if (!playercmd_result) {
         printf("\n");
     }
+
+    followed_players = g_list_prepend(followed_players, player);
 }
 
-static void set_followed_player_by_name(gchar *player_name, GError **error) {
+static void add_followed_player_by_name(gchar *player_name, GError **error) {
+    // check and see if it's in the list
     GError *tmp_error = NULL;
     PlayerctlPlayer *player = NULL;
 
-    if (player_name != NULL) {
-        if (followed_player != NULL) {
-            // check and see if this is already the followed player
-            gchar *followed_player_id = NULL;
-            g_object_get(followed_player, "player-id", &followed_player_id, NULL);
-            gboolean match = (g_strcmp0(followed_player_id, player_name) == 0);
-            g_free(followed_player_id);
-            if (match) {
-                return;
-            }
-        }
+    if (player_name == NULL) {
+        return;
+    }
 
-        player = playerctl_player_new(player_name, &tmp_error);
-        if (tmp_error != NULL) {
-            g_propagate_error(error, tmp_error);
+    GList *next = followed_players;
+    while (next != NULL) {
+        player = PLAYERCTL_PLAYER(next->data);
+        gchar *player_id = NULL;
+        g_object_get(player, "player-id", &player_id, NULL);
+        if (g_strcmp0(player_id, player_name) == 0) {
+            g_free(player_id);
             return;
         }
+
+        g_free(player_id);
+        next = next->next;
     }
 
-    set_followed_player(player, &tmp_error);
+    player = playerctl_player_new(player_name, &tmp_error);
     if (tmp_error != NULL) {
-        g_object_unref(player);
         g_propagate_error(error, tmp_error);
+        return;
     }
+
+    add_followed_player(player, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return;
+    }
+}
+
+static void remove_followed_player_by_name(gchar *player_name) {
+    GList *next = followed_players;
+    while (next != NULL) {
+        PlayerctlPlayer *player = PLAYERCTL_PLAYER(next->data);
+        gchar *player_id = NULL;
+        g_object_get(player, "player-id", &player_id, NULL);
+        if (g_strcmp0(player_id, player_name) == 0) {
+            followed_players = g_list_remove_link(followed_players, next);
+            g_list_free_full(next, g_object_unref);
+            g_free(player_id);
+            break;
+        }
+        g_free(player_id);
+        next = next->next;
+    }
+}
+
+static void clear_followed_players() {
+    g_list_free_full(followed_players, g_object_unref);
+    followed_players = NULL;
 }
 
 struct owner_changed_user_data {
@@ -1168,8 +1192,8 @@ struct owner_changed_user_data {
 };
 
 static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_name,
-                                      gchar *signal_name, GVariant *parameters,
-                                      gpointer _data) {
+                                             gchar *signal_name, GVariant *parameters,
+                                             gpointer _data) {
     struct owner_changed_user_data *data = _data;
     GList *selected_players = NULL;
     GError *error = NULL;
@@ -1213,17 +1237,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
             g_list_free_full(player_entry, g_free);
         }
 
-        if (followed_player != NULL) {
-            gchar *followed_player_id = NULL;
-            g_object_get(followed_player, "player-id", &followed_player_id, NULL);
-
-            if (g_strcmp0(followed_player_id, player_id) == 0) {
-                // the followed player has exited
-                set_followed_player(NULL, NULL);
-            }
-
-            g_free(followed_player_id);
-        }
+        remove_followed_player_by_name(player_id);
     } else if (strlen(previous_owner) == 0 && strlen(new_owner) != 0) {
         // the name has appeared
         player_entry =
@@ -1239,10 +1253,12 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
     if (selected_players != NULL) {
         // there is a new candidate for following
         gchar *first_selected = selected_players->data;
+        guint followed_len = g_list_length(followed_players);
 
-        if (followed_player == NULL) {
+        if (followed_len == 0) {
             // not following a player, follow this one
-            set_followed_player_by_name(first_selected, &error);
+            clear_followed_players();
+            add_followed_player_by_name(first_selected, &error);
             if (error != NULL) {
                 goto out;
             }
@@ -1250,7 +1266,8 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
             if (data->players == NULL) {
                 // if no player arguments were passed, always follow the most
                 // recently opened player.
-                set_followed_player_by_name(first_selected, &error);
+                clear_followed_players();
+                add_followed_player_by_name(first_selected, &error);
                 if (error != NULL) {
                     goto out;
                 }
@@ -1268,7 +1285,8 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
 
                     if (match != NULL) {
                         gchar *match_name = match->data;
-                        set_followed_player_by_name(match_name, &error);
+                        clear_followed_players();
+                        add_followed_player_by_name(match_name, &error);
                         if (error != NULL) {
                             goto out;
                         }
@@ -1359,7 +1377,7 @@ int main(int argc, char *argv[]) {
         gchar *player_name = next->data;
 
         if (follow) {
-            set_followed_player_by_name(player_name, &error);
+            add_followed_player_by_name(player_name, &error);
             if (error != NULL) {
                 g_printerr("Connection to player failed: %s\n", error->message);
                 status = 1;
