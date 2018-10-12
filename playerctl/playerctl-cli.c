@@ -59,6 +59,9 @@ GList *followed_players = NULL;
 /* The last output printed by the cli */
 static gchar *last_output = NULL;
 
+/* forward definitions */
+static void followed_players_execute_command(GError **error);
+
 /*
  * Sometimes players may notify metadata when nothing we care about has
  * changed, so we have this to avoid printing duplicate lines in follow
@@ -451,8 +454,11 @@ static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *forma
     GVariant *metadata = NULL;
     g_object_get(player, "metadata", &metadata, NULL);
     if (metadata == NULL) {
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "Could not get metadata for player");
+        return NULL;
+    }
+
+    if (g_variant_n_children(metadata) == 0) {
+        g_variant_unref(metadata);
         return NULL;
     }
 
@@ -867,32 +873,30 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
     return TRUE;
 }
 
-static void on_metadata_change(PlayerctlPlayer *player, GVariant *metadata,
-                               struct playercmd_args *args) {
+static void playercmd_follow_callback(PlayerctlPlayer *player, struct playercmd_args *args) {
+    if (select_all_players) {
+        GList *match = g_list_find(followed_players, player);
+        if (match == NULL) {
+            return;
+        }
+        followed_players = g_list_remove_link(followed_players, match);
+        followed_players = g_list_prepend(followed_players, player);
+    }
+
     GError *tmp_error = NULL;
-    gchar *output = NULL;
-    playercmd_metadata(player, args->argv, args->argc, &output,
-                       &tmp_error);
+    followed_players_execute_command(&tmp_error);
     if (tmp_error != NULL) {
-        g_printerr("Error while printing metadata: %s\n", tmp_error->message);
+        g_printerr("Error while executing command: %s\n", tmp_error->message);
         g_clear_error(&tmp_error);
         g_main_loop_quit(main_loop);
     }
-
-    cli_print_output(output);
-}
-
-static void playercmd_follow_metadata(PlayerctlPlayer *player,
-                                      struct playercmd_args *args) {
-    g_signal_connect(G_OBJECT(player), "metadata",
-                     G_CALLBACK(on_metadata_change), args);
 }
 
 struct player_command {
     const gchar *name;
     gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output, GError **error);
     gboolean supports_format;
-    void (*follow_func)(PlayerctlPlayer *player, struct playercmd_args *args);
+    const gchar *follow_signal;
 } player_commands[] = {
     {"open", &playercmd_open, FALSE, NULL},
     {"play", &playercmd_play, FALSE, NULL},
@@ -904,7 +908,7 @@ struct player_command {
     {"position", &playercmd_position, TRUE, NULL},
     {"volume", &playercmd_volume, TRUE, NULL},
     {"status", &playercmd_status, TRUE, NULL},
-    {"metadata", &playercmd_metadata, TRUE, &playercmd_follow_metadata},
+    {"metadata", &playercmd_metadata, TRUE, "metadata"},
 };
 
 static const struct player_command *get_player_command(gchar **argv, gint argc, GError **error) {
@@ -917,7 +921,7 @@ static const struct player_command *get_player_command(gchar **argv, gint argc, 
                 return NULL;
             }
 
-            if (follow && (command.follow_func == NULL)) {
+            if (follow && (command.follow_signal == NULL)) {
                 g_set_error(error, playerctl_cli_error_quark(), 1,
                             "follow is not supported on command: %s", argv[0]);
                 return NULL;
@@ -1142,12 +1146,10 @@ static void add_followed_player(PlayerctlPlayer *player, GError **error) {
         return;
     }
 
-    assert(player_cmd->follow_func != NULL);
-    player_cmd->follow_func(player, playercmd_args);
-    if (tmp_error != NULL) {
-        g_propagate_error(error, tmp_error);
-        return;
-    }
+    assert(player_cmd->follow_signal != NULL);
+    g_signal_connect(G_OBJECT(player), player_cmd->follow_signal,
+                     G_CALLBACK(playercmd_follow_callback),
+                     playercmd_args);
 
     followed_players = g_list_prepend(followed_players, player);
 }
@@ -1245,6 +1247,8 @@ static void followed_players_execute_command(GError **error) {
         if (result || !select_all_players) {
             break;
         }
+
+        next = next->next;
     }
 
     if (!did_command) {
@@ -1324,7 +1328,6 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
 
         if (followed_len == 0) {
             // not following a player, follow this one
-            clear_followed_players();
             add_followed_player_by_name(first_selected, &error);
             if (error != NULL) {
                 goto out;
@@ -1333,7 +1336,9 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
             if (data->players == NULL) {
                 // if no player arguments were passed, always follow the most
                 // recently opened player.
-                clear_followed_players();
+                if (!select_all_players) {
+                    clear_followed_players();
+                }
                 add_followed_player_by_name(first_selected, &error);
                 if (error != NULL) {
                     goto out;
@@ -1352,7 +1357,9 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
 
                     if (match != NULL) {
                         gchar *match_name = match->data;
-                        clear_followed_players();
+                        if (!select_all_players) {
+                            clear_followed_players();
+                        }
                         add_followed_player_by_name(match_name, &error);
                         if (error != NULL) {
                             goto out;
@@ -1393,11 +1400,6 @@ int main(int argc, char *argv[]) {
         g_printerr("%s\n", error->message);
         g_clear_error(&error);
         exit(0);
-    }
-
-    if (follow && select_all_players) {
-        g_printerr("%s\n", "You can only follow one player at a time.\n");
-        exit(1);
     }
 
     if (print_version_and_exit) {
@@ -1448,6 +1450,12 @@ int main(int argc, char *argv[]) {
 
         if (follow) {
             add_followed_player_by_name(player_name, &error);
+            if (error != NULL) {
+                g_printerr("Connection to player failed: %s\n", error->message);
+                status = 1;
+                goto end;
+            }
+            followed_players_execute_command(&error);
             if (error != NULL) {
                 g_printerr("Connection to player failed: %s\n", error->message);
                 status = 1;
