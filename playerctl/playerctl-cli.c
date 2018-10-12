@@ -56,6 +56,35 @@ static GMainLoop *main_loop = NULL;
 /* A list of the players currently being followed */
 GList *followed_players = NULL;
 
+/* The last output printed by the cli */
+static gchar *last_output = NULL;
+
+/*
+ * Sometimes players may notify metadata when nothing we care about has
+ * changed, so we have this to avoid printing duplicate lines in follow
+ * mode. Prints a newline if output is NULL which denotes that the property has
+ * been cleared. Only use this in follow mode.
+ *
+ * This consumes the output string.
+ */
+static void cli_print_output(gchar *output) {
+    if (output == NULL && last_output == NULL) {
+        return;
+    }
+
+    if (output == NULL) {
+        output = g_strdup("\n");
+    }
+
+    if (g_strcmp0(output, last_output) == 0) {
+        g_free(output);
+        return;
+    }
+
+    printf("%s", output);
+    last_output = output;
+}
+
 struct playercmd_args {
     gchar **argv;
     gint argc;
@@ -463,7 +492,7 @@ static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *forma
 }
 
 static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
-                               GError **error) {
+                               gchar **output, GError **error) {
     GError *tmp_error = NULL;
 
     gboolean can_play = FALSE;
@@ -482,7 +511,7 @@ static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
 }
 
 static gboolean playercmd_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
-                                GError **error) {
+                                gchar **output, GError **error) {
     GError *tmp_error = NULL;
 
     gboolean can_pause = FALSE;
@@ -501,7 +530,7 @@ static gboolean playercmd_pause(PlayerctlPlayer *player, gchar **argv, gint argc
 }
 
 static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
-                                     GError **error) {
+                                     gchar **output, GError **error) {
     GError *tmp_error = NULL;
 
     gboolean can_play = FALSE;
@@ -520,7 +549,7 @@ static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint
 }
 
 static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
-                               GError **error) {
+                               gchar **output, GError **error) {
     GError *tmp_error = NULL;
 
     // XXX there is no CanStop propery on the mpris player. CanPlay is supposed
@@ -543,7 +572,7 @@ static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
 }
 
 static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc,
-                               GError **error) {
+                               gchar **output, GError **error) {
     GError *tmp_error = NULL;
 
     gboolean can_go_next = FALSE;
@@ -562,7 +591,7 @@ static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc,
 }
 
 static gboolean playercmd_previous(PlayerctlPlayer *player, gchar **argv, gint argc,
-                                   GError **error) {
+                                   gchar **output, GError **error) {
     GError *tmp_error = NULL;
 
     gboolean can_go_previous = FALSE;
@@ -582,7 +611,7 @@ static gboolean playercmd_previous(PlayerctlPlayer *player, gchar **argv, gint a
 }
 
 static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
-                               GError **error) {
+                               gchar **output, GError **error) {
     const gchar *uri = *argv;
     GError *tmp_error = NULL;
 
@@ -599,7 +628,7 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
 }
 
 static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint argc,
-                                   GError **error) {
+                                   gchar **output, GError **error) {
     const gchar *position = argv[1];
     gint64 offset;
     GError *tmp_error = NULL;
@@ -658,12 +687,12 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
                 return FALSE;
             }
 
-            printf("%s\n", formatted);
+            *output = g_strdup_printf("%s\n", formatted);
 
             g_free(formatted);
             g_variant_dict_unref(context);
         } else {
-            printf("%f\n", (double)offset / 1000000.0);
+            *output = g_strdup_printf("%f\n", (double)offset / 1000000.0);
         }
     }
 
@@ -671,7 +700,7 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
 }
 
 static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint argc,
-                                 GError **error) {
+                                 gchar **output, GError **error) {
     const gchar *volume = argv[1];
     gdouble level;
 
@@ -730,9 +759,9 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
                 g_variant_dict_unref(context);
                 return FALSE;
             }
-            printf("%s\n", formatted);
+            *output = g_strdup_printf("%s\n", formatted);
         } else {
-            g_print("%f\n", level);
+            *output = g_strdup_printf("%f\n", level);
         }
     }
 
@@ -740,7 +769,7 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
 }
 
 static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint argc,
-                                 GError **error) {
+                                 gchar **output, GError **error) {
     GError *tmp_error = NULL;
     gchar *state = NULL;
     g_object_get(player, "status", &state, NULL);
@@ -756,12 +785,12 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
             return FALSE;
         }
 
-        printf("%s\n", formatted);
+        *output = g_strdup_printf("%s\n", formatted);
 
         g_variant_dict_unref(context);
         g_free(formatted);
     } else {
-        printf("%s\n", state ? state : "Not available");
+        *output = g_strdup_printf("%s\n", state ? state : "Not available");
     }
 
     g_free(state);
@@ -770,7 +799,7 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
 }
 
 static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint argc,
-                                   GError **error) {
+                                   gchar **output, GError **error) {
     GError *tmp_error = NULL;
 
     gboolean can_play = FALSE;
@@ -787,8 +816,12 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
             g_propagate_error(error, tmp_error);
             return FALSE;
         }
-        printf("%s\n", data);
-        g_free(data);
+        if (data != NULL) {
+            *output = g_strdup_printf("%s\n", data);
+            g_free(data);
+        } else {
+            return FALSE;
+        }
     } else if (argc == 1) {
         gchar *data = playerctl_player_print_metadata_prop(player, NULL, &tmp_error);
         if (tmp_error) {
@@ -797,8 +830,10 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
         }
 
         if (data != NULL) {
-            printf("%s\n", data);
+            *output = g_strdup_printf("%s\n", data);
             g_free(data);
+        } else {
+            return FALSE;
         }
     } else {
         for (int i = 1; i < argc; ++i) {
@@ -821,8 +856,10 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
             }
 
             if (data != NULL) {
-                printf("%s\n", data);
+                *output = g_strdup_printf("%s\n", data);
                 g_free(data);
+            } else {
+                return FALSE;
             }
         }
     }
@@ -833,17 +870,16 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
 static void on_metadata_change(PlayerctlPlayer *player, GVariant *metadata,
                                struct playercmd_args *args) {
     GError *tmp_error = NULL;
-    gboolean cmd_result = playercmd_metadata(player, args->argv, args->argc, &tmp_error);
+    gchar *output = NULL;
+    playercmd_metadata(player, args->argv, args->argc, &output,
+                       &tmp_error);
     if (tmp_error != NULL) {
         g_printerr("Error while printing metadata: %s\n", tmp_error->message);
         g_clear_error(&tmp_error);
         g_main_loop_quit(main_loop);
     }
 
-    if (!cmd_result) {
-        // metadata is empty
-        printf("\n");
-    }
+    cli_print_output(output);
 }
 
 static void playercmd_follow_metadata(PlayerctlPlayer *player,
@@ -854,7 +890,7 @@ static void playercmd_follow_metadata(PlayerctlPlayer *player,
 
 struct player_command {
     const gchar *name;
-    gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, GError **error);
+    gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output, GError **error);
     gboolean supports_format;
     void (*follow_func)(PlayerctlPlayer *player, struct playercmd_args *args);
 } player_commands[] = {
@@ -1094,7 +1130,6 @@ static gchar *player_id_from_bus_name(const gchar *bus_name) {
 
 static void add_followed_player(PlayerctlPlayer *player, GError **error) {
     GError *tmp_error = NULL;
-    gboolean playercmd_result = FALSE;
 
     if (player == NULL) {
         return;
@@ -1106,22 +1141,12 @@ static void add_followed_player(PlayerctlPlayer *player, GError **error) {
         g_propagate_error(error, tmp_error);
         return;
     }
-    assert(player_cmd->func != NULL);
-    playercmd_result = player_cmd->func(player, playercmd_args->argv, playercmd_args->argc, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(error, tmp_error);
-        return;
-    }
 
     assert(player_cmd->follow_func != NULL);
     player_cmd->follow_func(player, playercmd_args);
     if (tmp_error != NULL) {
         g_propagate_error(error, tmp_error);
         return;
-    }
-
-    if (!playercmd_result) {
-        printf("\n");
     }
 
     followed_players = g_list_prepend(followed_players, player);
@@ -1183,6 +1208,48 @@ static void remove_followed_player_by_name(gchar *player_name) {
 static void clear_followed_players() {
     g_list_free_full(followed_players, g_object_unref);
     followed_players = NULL;
+}
+
+static void followed_players_execute_command(GError **error) {
+    GError *tmp_error = NULL;
+
+    const struct player_command *player_cmd =
+        get_player_command(playercmd_args->argv, playercmd_args->argc,
+                           &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return;
+    }
+    assert(player_cmd->func != NULL);
+
+    gboolean did_command = FALSE;
+    GList *next = followed_players;
+    while (next != NULL) {
+        PlayerctlPlayer *player = PLAYERCTL_PLAYER(next->data);
+        gchar *output = NULL;
+
+        gboolean result =
+            player_cmd->func(player, playercmd_args->argv, playercmd_args->argc,
+                             &output, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            g_free(output);
+            return;
+        }
+
+        if (output != NULL) {
+            cli_print_output(output);
+        }
+        did_command = did_command || result;
+
+        if (result || !select_all_players) {
+            break;
+        }
+    }
+
+    if (!did_command) {
+        cli_print_output(NULL);
+    }
 }
 
 struct owner_changed_user_data {
@@ -1248,7 +1315,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
         }
     }
 
-    // update the followed player
+    // update the followed players
     selected_players = select_players(data->players, data->all_players, data->ignored_players);
     if (selected_players != NULL) {
         // there is a new candidate for following
@@ -1298,6 +1365,9 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
             }
         }
     }
+
+    // rerun the command on the updated list of followed players
+    followed_players_execute_command(&error);
 
 out:
     if (error != NULL) {
@@ -1393,13 +1463,20 @@ int main(int argc, char *argv[]) {
             goto end;
         }
 
-        gboolean result = player_cmd->func(player, command, num_commands, &error);
+        gchar *output = NULL;
+        gboolean result = player_cmd->func(player, command, num_commands, &output, &error);
         if (error != NULL) {
             g_printerr("Could not execute command: %s\n", error->message);
             g_clear_error(&error);
             g_object_unref(player);
+            g_free(output);
             status = 1;
             break;
+        }
+
+        if (output != NULL) {
+            printf("%s", output);
+            g_free(output);
         }
 
         g_object_unref(player);
@@ -1421,9 +1498,13 @@ end:
         data->all_players = all_players;
         data->ignored_players = ignored_players;
 
-        GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
-                G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
-                "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &error);
+        GDBusProxy *proxy =
+            g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
+                                          G_DBUS_PROXY_FLAGS_NONE, NULL,
+                                          "org.freedesktop.DBus",
+                                          "/org/freedesktop/DBus",
+                                          "org.freedesktop.DBus", NULL,
+                                          &error);
         if (error != NULL) {
             g_printerr("%s\n", error->message);
             g_clear_error(&error);
@@ -1443,6 +1524,8 @@ proxy_err_out:
         playercmd_args_destroy(playercmd_args);
     }
 
+    g_free(last_output);
+    clear_followed_players();
     g_list_free_full(all_players, g_free);
     g_list_free_full(players, g_free);
     g_list_free_full(ignored_players, g_free);
