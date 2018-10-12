@@ -50,6 +50,7 @@ enum {
 
 enum {
     // PROPERTIES_CHANGED,
+    STATUS,
     PLAY,
     PAUSE,
     STOP,
@@ -97,14 +98,27 @@ static void playerctl_player_properties_changed_callback(
 
     if (playback_status) {
         const gchar *status_str = g_variant_get_string(playback_status, NULL);
+        GQuark quark = 0;
 
         if (g_strcmp0(status_str, "Playing") == 0) {
+            // DEPRECATED
             g_signal_emit(self, connection_signals[PLAY], 0);
+            quark = g_quark_from_string("playing");
         } else if (g_strcmp0(status_str, "Paused") == 0) {
+            // DEPRECATED
             g_signal_emit(self, connection_signals[PAUSE], 0);
+
+            quark = g_quark_from_string("paused");
         } else if (g_strcmp0(status_str, "Stopped") == 0) {
+            // DEPRECATED
             g_signal_emit(self, connection_signals[STOP], 0);
+
+            quark = g_quark_from_string("stopped");
+        } else {
+            g_warning("got unknown playback state: %s", status_str);
         }
+
+        g_signal_emit(self, connection_signals[STATUS], quark, status_str);
     }
 }
 
@@ -438,10 +452,25 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
       G_TYPE_VARIANT);
 #endif
 
+    connection_signals[STATUS] =
+        g_signal_new("status",                        /* signal_name */
+                     PLAYERCTL_TYPE_PLAYER,           /* itype */
+                     G_SIGNAL_RUN_FIRST |
+                         G_SIGNAL_DETAILED,           /* signal_flags */
+                     0,                               /* class_offset */
+                     NULL,                            /* accumulator */
+                     NULL,                            /* accu_data */
+                     g_cclosure_marshal_VOID__STRING, /* c_marshaller */
+                     G_TYPE_NONE,                     /* return_type */
+                     1,                               /* n_params */
+                     G_TYPE_STRING);
+
+    /* DEPRECATED */
     connection_signals[PLAY] =
         g_signal_new("play",                        /* signal_name */
                      PLAYERCTL_TYPE_PLAYER,         /* itype */
-                     G_SIGNAL_RUN_FIRST,            /* signal_flags */
+                     G_SIGNAL_RUN_FIRST |
+                         G_SIGNAL_DEPRECATED,       /* signal_flags */
                      0,                             /* class_offset */
                      NULL,                          /* accumulator */
                      NULL,                          /* accu_data */
@@ -449,10 +478,12 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                      G_TYPE_NONE,                   /* return_type */
                      0);                            /* n_params */
 
+    /* DEPRECATED */
     connection_signals[PAUSE] =
         g_signal_new("pause",                       /* signal_name */
                      PLAYERCTL_TYPE_PLAYER,         /* itype */
-                     G_SIGNAL_RUN_FIRST,            /* signal_flags */
+                     G_SIGNAL_RUN_FIRST |
+                        G_SIGNAL_DEPRECATED,        /* signal_flags */
                      0,                             /* class_offset */
                      NULL,                          /* accumulator */
                      NULL,                          /* accu_data */
@@ -460,10 +491,12 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                      G_TYPE_NONE,                   /* return_type */
                      0);                            /* n_params */
 
+    /* DEPRECATED */
     connection_signals[STOP] =
         g_signal_new("stop",                        /* signal_name */
                      PLAYERCTL_TYPE_PLAYER,         /* itype */
-                     G_SIGNAL_RUN_FIRST,            /* signal_flags */
+                     G_SIGNAL_RUN_FIRST |
+                        G_SIGNAL_DEPRECATED,        /* signal_flags */
                      0,                             /* class_offset */
                      NULL,                          /* accumulator */
                      NULL,                          /* accu_data */

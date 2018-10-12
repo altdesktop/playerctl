@@ -103,21 +103,26 @@ This example uses the [Python bindings](https://wiki.gnome.org/action/show/Proje
 
 from gi.repository import Playerctl, GLib
 
-player = Playerctl.Player(player_name='vlc')
+player = Playerctl.Player('vlc')
 
-def on_metadata(player, e):
-    if 'xesam:artist' in e.keys() and 'xesam:title' in e.keys():
+
+def on_metadata(player, metadata):
+    if 'xesam:artist' in metadata.keys() and 'xesam:title' in metadata.keys():
         print('Now playing:')
-        print('{artist} - {title}'.format(artist=e['xesam:artist'][0], title=e['xesam:title']))
+        print('{artist} - {title}'.format(
+            artist=metadata['xesam:artist'][0], title=metadata['xesam:title']))
 
-def on_play(player):
+
+def on_play(player, status):
     print('Playing at volume {}'.format(player.props.volume))
 
-def on_pause(player):
+
+def on_pause(player, status):
     print('Paused the song: {}'.format(player.get_title()))
 
-player.on('play', on_play)
-player.on('pause', on_pause)
+
+player.on('status::playing', on_play)
+player.on('status::paused', on_pause)
 player.on('metadata', on_metadata)
 
 # start playing some music
