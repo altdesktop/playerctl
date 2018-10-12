@@ -80,7 +80,7 @@ playerctl position --format "At position: {{ duration(position) }}"
 playerctl metadata --format "Artist in lowercase: {{ lc(artist) }}"
 # prints 'Artist in lowercase: lana del rey'
 
-playerctl metadata status --format "STATUS: {{ uc(status) }}"
+playerctl status --format "STATUS: {{ uc(status) }}"
 # prints 'STATUS: PLAYING'
 ```
 
