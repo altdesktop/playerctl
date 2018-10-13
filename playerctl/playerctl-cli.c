@@ -907,7 +907,7 @@ struct player_command {
     {"previous", &playercmd_previous, FALSE, NULL},
     {"position", &playercmd_position, TRUE, NULL},
     {"volume", &playercmd_volume, TRUE, NULL},
-    {"status", &playercmd_status, TRUE, NULL},
+    {"status", &playercmd_status, TRUE, "status"},
     {"metadata", &playercmd_metadata, TRUE, "metadata"},
 };
 
@@ -1455,12 +1455,12 @@ int main(int argc, char *argv[]) {
                 status = 1;
                 goto end;
             }
-            followed_players_execute_command(&error);
-            if (error != NULL) {
-                g_printerr("Connection to player failed: %s\n", error->message);
-                status = 1;
-                goto end;
+
+            if (select_all_players) {
+                next = next->next;
+                continue;
             }
+
             break;
         }
 
@@ -1500,6 +1500,13 @@ end:
     g_list_free(selected_players);
 
     if (status == 0 && follow) {
+        followed_players_execute_command(&error);
+        if (error != NULL) {
+            g_printerr("Connection to player failed: %s\n", error->message);
+            status = 1;
+            goto end;
+        }
+
         struct owner_changed_user_data *data =
             calloc(1, sizeof(struct owner_changed_user_data));
         data->players = players;
