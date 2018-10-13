@@ -56,6 +56,7 @@ enum {
     STOP,  // deprecated
     METADATA,
     VOLUME,
+    SEEKED,
     EXIT,
     LAST_SIGNAL
 };
@@ -129,6 +130,13 @@ static void playerctl_player_properties_changed_callback(
 
         g_signal_emit(self, connection_signals[STATUS], quark, status_str);
     }
+}
+
+static void playerctl_player_seeked_callback(GDBusProxy *_proxy,
+                                             gint64 position,
+                                             gpointer *user_data) {
+    PlayerctlPlayer *player = PLAYERCTL_PLAYER(user_data);
+    g_signal_emit(player, connection_signals[SEEKED], 0, position);
 }
 
 static void playerctl_player_initable_iface_init(GInitableIface *iface);
@@ -537,6 +545,18 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                      1,                                /* n_params */
                      G_TYPE_DOUBLE);
 
+    connection_signals[SEEKED] =
+        g_signal_new("seeked",                         /* signal_name */
+                     PLAYERCTL_TYPE_PLAYER,            /* itype */
+                     G_SIGNAL_RUN_FIRST,               /* signal_flags */
+                     0,                                /* class_offset */
+                     NULL,                             /* accumulator */
+                     NULL,                             /* accu_data */
+                     g_cclosure_marshal_VOID__LONG,    /* c_marshaller */
+                     G_TYPE_NONE,                      /* return_type */
+                     1,                                /* n_params */
+                     G_TYPE_INT64);
+
     connection_signals[EXIT] =
         g_signal_new("exit",                        /* signal_name */
                      PLAYERCTL_TYPE_PLAYER,         /* itype */
@@ -728,6 +748,10 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
 
     g_signal_connect(player->priv->proxy, "g-properties-changed",
                      G_CALLBACK(playerctl_player_properties_changed_callback),
+                     player);
+
+    g_signal_connect(player->priv->proxy, "seeked",
+                     G_CALLBACK(playerctl_player_seeked_callback),
                      player);
 
     g_signal_connect(player->priv->proxy, "notify::g-name-owner",
