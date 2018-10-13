@@ -600,7 +600,7 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
     const gchar **names = g_variant_get_strv(reply_child, &reply_count);
 
     size_t offset = strlen(MPRIS_PREFIX);
-    for (int i = 0; i < reply_count; i += 1) {
+    for (gsize i = 0; i < reply_count; i += 1) {
         if (g_str_has_prefix(names[i], MPRIS_PREFIX)) {
             players = g_list_append(players, g_strdup(names[i] + offset));
         }
@@ -1011,7 +1011,7 @@ static gchar *print_gvariant(GVariant *variant) {
         gsize prop_count;
         const gchar **prop_strv = g_variant_get_strv(variant, &prop_count);
 
-        for (int i = 0; i < prop_count; i += 1) {
+        for (gsize i = 0; i < prop_count; i += 1) {
             g_string_append(prop, prop_strv[i]);
 
             if (i != prop_count - 1) {

@@ -120,7 +120,7 @@ static gchar *print_gvariant(GVariant *value) {
         gsize prop_count;
         const gchar **prop_strv = g_variant_get_strv(value, &prop_count);
 
-        for (int i = 0; i < prop_count; i += 1) {
+        for (gsize i = 0; i < prop_count; i += 1) {
             g_string_append(printed, prop_strv[i]);
 
             if (i != prop_count - 1) {
@@ -414,7 +414,7 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
             gchar *fn_name = token->data;
             gchar *arg_name = token->arg->data;
 
-            for (int i = 0; i < LENGTH(helpers); ++i) {
+            for (gsize i = 0; i < LENGTH(helpers); ++i) {
                 if (g_strcmp0(helpers[i].name, fn_name) == 0) {
                     GVariant *value = g_variant_dict_lookup_value(context, arg_name, NULL);
                     if (value != NULL) {
@@ -933,7 +933,7 @@ struct player_command {
 };
 
 static const struct player_command *get_player_command(gchar **argv, gint argc, GError **error) {
-    for (int i = 0; i < LENGTH(player_commands); ++i) {
+    for (gsize i = 0; i < LENGTH(player_commands); ++i) {
         const struct player_command command = player_commands[i];
         if (g_strcmp0(command.name, argv[0]) == 0) {
             if (format_string != NULL && !command.supports_format) {
@@ -1413,6 +1413,7 @@ int main(int argc, char *argv[]) {
     PlayerctlPlayer *player;
     GError *error = NULL;
     guint num_commands = 0;
+    int status = 0;
 
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
@@ -1463,7 +1464,6 @@ int main(int argc, char *argv[]) {
         goto end;
     }
 
-    int status = 0;
     playercmd_args = playercmd_args_create(command, num_commands);
     GList *next = selected_players;
     while (next != NULL) {
