@@ -449,6 +449,44 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
     return g_string_free(expanded, FALSE);
 }
 
+static GVariantDict *get_default_template_context(PlayerctlPlayer *player, GVariant *base) {
+    GVariantDict *context = g_variant_dict_new(base);
+    if (!g_variant_dict_contains(context, "artist") &&
+            g_variant_dict_contains(context, "xesam:artist")) {
+        GVariant *artist = g_variant_dict_lookup_value(context, "xesam:artist", NULL);
+        g_variant_dict_insert_value(context, "artist", artist);
+        g_variant_unref(artist);
+    }
+    if (!g_variant_dict_contains(context, "album") &&
+            g_variant_dict_contains(context, "xesam:album")) {
+        GVariant *album = g_variant_dict_lookup_value(context, "xesam:album", NULL);
+        g_variant_dict_insert_value(context, "album", album);
+        g_variant_unref(album);
+    }
+    if (!g_variant_dict_contains(context, "title") &&
+            g_variant_dict_contains(context, "xesam:title")) {
+        GVariant *title = g_variant_dict_lookup_value(context, "xesam:title", NULL);
+        g_variant_dict_insert_value(context, "title", title);
+        g_variant_unref(title);
+    }
+    if (!g_variant_dict_contains(context, "playerName")) {
+        gchar *player_name = NULL;
+        g_object_get(player, "player-name", &player_name, NULL);
+        GVariant *player_name_variant = g_variant_new_string(player_name);
+        g_variant_dict_insert_value(context, "playerName", player_name_variant);
+        g_free(player_name);
+    }
+    if (!g_variant_dict_contains(context, "playerId")) {
+        gchar *player_id = NULL;
+        g_object_get(player, "player-id", &player_id, NULL);
+        GVariant *player_id_variant = g_variant_new_string(player_id);
+        g_variant_dict_insert_value(context, "playerId", player_id_variant);
+        g_free(player_id);
+    }
+
+    return context;
+}
+
 static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *format, GError **error) {
     GError *tmp_error = NULL;
     GVariant *metadata = NULL;
@@ -462,26 +500,7 @@ static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *forma
         return NULL;
     }
 
-    // set our default properties
-    GVariantDict *metadata_dict = g_variant_dict_new(metadata);
-    if (!g_variant_dict_contains(metadata_dict, "artist") &&
-            g_variant_dict_contains(metadata_dict, "xesam:artist")) {
-        GVariant *artist = g_variant_dict_lookup_value(metadata_dict, "xesam:artist", NULL);
-        g_variant_dict_insert_value(metadata_dict, "artist", artist);
-        g_variant_unref(artist);
-    }
-    if (!g_variant_dict_contains(metadata_dict, "album") &&
-            g_variant_dict_contains(metadata_dict, "xesam:album")) {
-        GVariant *album = g_variant_dict_lookup_value(metadata_dict, "xesam:album", NULL);
-        g_variant_dict_insert_value(metadata_dict, "album", album);
-        g_variant_unref(album);
-    }
-    if (!g_variant_dict_contains(metadata_dict, "title") &&
-            g_variant_dict_contains(metadata_dict, "xesam:title")) {
-        GVariant *title = g_variant_dict_lookup_value(metadata_dict, "xesam:title", NULL);
-        g_variant_dict_insert_value(metadata_dict, "title", title);
-        g_variant_unref(title);
-    }
+    GVariantDict *metadata_dict = get_default_template_context(player, metadata);
 
     gchar *result = expand_format(format, metadata_dict, &tmp_error);
     if (tmp_error) {
@@ -683,7 +702,7 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
         g_object_get(player, "position", &offset, NULL);
 
         if (format_string) {
-            GVariantDict *context = g_variant_dict_new(NULL);
+            GVariantDict *context = get_default_template_context(player, NULL);
             GVariant *position = g_variant_new_int64(offset);
             g_variant_dict_insert_value(context, "position", position);
             gchar *formatted = expand_format(format_string, context, &tmp_error);
@@ -756,16 +775,18 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
 
         if (format_string) {
             GError *tmp_error = NULL;
-            GVariantDict *context = g_variant_dict_new(NULL);
+            GVariantDict *context = get_default_template_context(player, NULL);
             GVariant *volume_variant = g_variant_new_double(level);
             g_variant_dict_insert_value(context, "volume", volume_variant);
             gchar *formatted = expand_format(format_string, context, &tmp_error);
             if (tmp_error != NULL) {
                 g_propagate_error(error, tmp_error);
-                g_variant_dict_unref(context);
+                g_variant_unref(volume_variant);
                 return FALSE;
             }
             *output = g_strdup_printf("%s\n", formatted);
+            g_variant_unref(volume_variant);
+            g_free(formatted);
         } else {
             *output = g_strdup_printf("%f\n", level);
         }
@@ -781,7 +802,7 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
     g_object_get(player, "status", &state, NULL);
 
     if (format_string) {
-        GVariantDict *context = g_variant_dict_new(NULL);
+        GVariantDict *context = get_default_template_context(player, NULL);
         GVariant *status_variant = g_variant_new_string(state);
         g_variant_dict_insert_value(context, "status", status_variant);
         gchar *formatted = expand_format(format_string, context, &tmp_error);

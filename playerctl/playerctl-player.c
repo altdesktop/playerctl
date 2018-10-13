@@ -729,13 +729,12 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
         return FALSE;
     }
 
-    if (player->priv->player_name == NULL) {
-        /* org.mpris.MediaPlayer2.{NAME}[.instance{NUM}] */
-        int offset = strlen(MPRIS_PREFIX);
-        gchar **split = g_strsplit(player->priv->bus_name + offset, ".instance", 1);
-        player->priv->player_name = g_strdup(split[0]);
-        g_strfreev(split);
-    }
+    /* org.mpris.MediaPlayer2.{NAME}[.instance{NUM}] */
+    int offset = strlen(MPRIS_PREFIX);
+    gchar **split = g_strsplit(player->priv->bus_name + offset, ".instance", 2);
+    g_free(player->priv->player_name);
+    player->priv->player_name = g_strdup(split[0]);
+    g_strfreev(split);
 
     player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
         bus_type, G_DBUS_PROXY_FLAGS_NONE, player->priv->bus_name,
