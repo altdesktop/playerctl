@@ -906,7 +906,7 @@ struct player_command {
     {"next", &playercmd_next, FALSE, NULL},
     {"previous", &playercmd_previous, FALSE, NULL},
     {"position", &playercmd_position, TRUE, NULL},
-    {"volume", &playercmd_volume, TRUE, NULL},
+    {"volume", &playercmd_volume, TRUE, "volume"},
     {"status", &playercmd_status, TRUE, "status"},
     {"metadata", &playercmd_metadata, TRUE, "metadata"},
 };

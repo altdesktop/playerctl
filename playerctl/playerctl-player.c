@@ -51,10 +51,11 @@ enum {
 enum {
     // PROPERTIES_CHANGED,
     STATUS,
-    PLAY,
-    PAUSE,
-    STOP,
+    PLAY,  // deprecated
+    PAUSE, // deprecated
+    STOP,  // deprecated
     METADATA,
+    VOLUME,
     EXIT,
     LAST_SIGNAL
 };
@@ -91,6 +92,14 @@ static void playerctl_player_properties_changed_callback(
         g_variant_lookup_value(changed_properties, "Metadata", NULL);
     GVariant *playback_status =
         g_variant_lookup_value(changed_properties, "PlaybackStatus", NULL);
+    GVariant *volume =
+        g_variant_lookup_value(changed_properties, "Volume", NULL);
+
+    if (volume) {
+        gdouble volume_value = g_variant_get_double(volume);
+        g_signal_emit(self, connection_signals[VOLUME], 0, volume_value);
+        g_variant_unref(volume);
+    }
 
     if (metadata) {
         g_signal_emit(self, connection_signals[METADATA], 0, metadata);
@@ -515,6 +524,18 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                      G_TYPE_NONE,                      /* return_type */
                      1,                                /* n_params */
                      G_TYPE_VARIANT);
+
+    connection_signals[VOLUME] =
+        g_signal_new("volume",                         /* signal_name */
+                     PLAYERCTL_TYPE_PLAYER,            /* itype */
+                     G_SIGNAL_RUN_FIRST,               /* signal_flags */
+                     0,                                /* class_offset */
+                     NULL,                             /* accumulator */
+                     NULL,                             /* accu_data */
+                     g_cclosure_marshal_VOID__DOUBLE, /* c_marshaller */
+                     G_TYPE_NONE,                      /* return_type */
+                     1,                                /* n_params */
+                     G_TYPE_DOUBLE);
 
     connection_signals[EXIT] =
         g_signal_new("exit",                        /* signal_name */
