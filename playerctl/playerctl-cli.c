@@ -326,27 +326,27 @@ static GList *tokenize_format(const char *format, GError **error) {
     return tokens;
 }
 
-static gchar *helperfn_lc(GVariant *arg) {
-    gchar *printed = print_gvariant(arg);
+static gchar *helperfn_lc(gchar *key, GVariant *value) {
+    gchar *printed = print_gvariant(value);
     gchar *printed_lc = g_utf8_strdown(printed, -1);
     g_free(printed);
     return printed_lc;
 }
 
-static gchar *helperfn_uc(GVariant *arg) {
-    gchar *printed = print_gvariant(arg);
+static gchar *helperfn_uc(gchar *key, GVariant *value) {
+    gchar *printed = print_gvariant(value);
     gchar *printed_uc = g_utf8_strup(printed, -1);
     g_free(printed);
     return printed_uc;
 }
 
-static gchar *helperfn_duration(GVariant *arg) {
+static gchar *helperfn_duration(gchar *key, GVariant *value) {
     // mpris durations are represented as int64 in microseconds
-    if (!g_variant_type_equal(g_variant_get_type(arg), G_VARIANT_TYPE_INT64)) {
+    if (!g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_INT64)) {
         return NULL;
     }
 
-    gint64 duration = g_variant_get_int64(arg);
+    gint64 duration = g_variant_get_int64(value);
     gint64 seconds = (duration / 1000000) % 60;
     gint64 minutes = (duration / 1000000 / 60) % 60;
     gint64 hours = (duration / 1000000 / 60 / 60);
@@ -362,13 +362,40 @@ static gchar *helperfn_duration(GVariant *arg) {
     return g_string_free(formatted, FALSE);
 }
 
+static gchar *helperfn_emoji(gchar *key, GVariant *value) {
+    if (g_strcmp0(key, "status") == 0 &&
+            g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
+        const gchar *status = g_variant_get_string(value, NULL);
+        if (g_strcmp0(status, "Playing") == 0) {
+            return g_strdup("▶️");
+        } else if (g_strcmp0(status, "Paused") == 0) {
+            return g_strdup("⏸️");
+        } else if (g_strcmp0(status, "Stopped") == 0) {
+            return g_strdup("⏹️");
+        }
+    } else if (g_strcmp0(key, "volume") == 0 &&
+            g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
+        const gdouble volume = g_variant_get_double(value);
+        if (volume < 0.3333) {
+            return g_strdup("🔈");
+        } else if (volume < 0.6666) {
+            return g_strdup("🔉");
+        } else {
+            return g_strdup("🔊");
+        }
+    }
+
+    return print_gvariant(value);
+}
+
 struct template_helper {
     const gchar *name;
-    gchar *(*func)(GVariant *arg);
+    gchar *(*func)(gchar *key, GVariant *value);
 } helpers[] = {
     {"lc", &helperfn_lc},
     {"uc", &helperfn_uc},
     {"duration", &helperfn_duration},
+    {"emoji", &helperfn_emoji},
 };
 
 static gchar *expand_format(const gchar *format, GVariantDict *context, GError **error) {
@@ -418,7 +445,7 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
                 if (g_strcmp0(helpers[i].name, fn_name) == 0) {
                     GVariant *value = g_variant_dict_lookup_value(context, arg_name, NULL);
                     if (value != NULL) {
-                        gchar *result = helpers[i].func(value);
+                        gchar *result = helpers[i].func(arg_name, value);
                         if (result != NULL) {
                             expanded = g_string_append(expanded, result);
                             g_free(result);

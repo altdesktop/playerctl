@@ -42,7 +42,7 @@ Similarly, you can ignore players by passing their names with the `--ignore-play
 
 Examples:
 
-```
+```bash
 # Command the first instance of VLC to play
 playerctl --player=vlc play
 
@@ -84,11 +84,12 @@ playerctl status --format "STATUS: {{ uc(status) }}"
 # prints 'STATUS: PLAYING'
 ```
 
-| Function   | Argument | Description                             |
-| ---------- | -------- | --------------------------------------- |
-| `lc`       | string   | convert the string to lowercase         |
-| `uc`       | string   | convert the string to uppercase         |
-| `duration` | int      | convert the duration to hh:mm:ss format |
+| Function   | Argument        | Description                                             |
+| ---------- | --------------- | ------------------------------------------------------- |
+| `lc`       | string          | Convert the string to lowercase.                        |
+| `uc`       | string          | Convert the string to uppercase.                        |
+| `duration` | int             | Convert the duration to hh:mm:ss format.                |
+| `emoji`    | status, volume  | Try to convert the variable to an emoji representation. |
 
 ## Using the Library
 
