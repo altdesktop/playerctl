@@ -1392,6 +1392,7 @@ int main(int argc, char *argv[]) {
     PlayerctlPlayer *player;
     GError *error = NULL;
     guint num_commands = 0;
+    int status = 0;
 
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
@@ -1442,7 +1443,6 @@ int main(int argc, char *argv[]) {
         goto end;
     }
 
-    int status = 0;
     playercmd_args = playercmd_args_create(command, num_commands);
     GList *next = selected_players;
     while (next != NULL) {
