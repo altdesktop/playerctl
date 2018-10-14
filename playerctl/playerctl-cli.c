@@ -942,6 +942,18 @@ static void playercmd_follow_callback(PlayerctlPlayer *player, struct playercmd_
     }
 }
 
+static gboolean playercmd_tick_callback(gpointer data) {
+    GError *tmp_error = NULL;
+    followed_players_execute_command(&tmp_error);
+    if (tmp_error != NULL) {
+        g_printerr("Error while executing command: %s\n", tmp_error->message);
+        g_clear_error(&tmp_error);
+        g_main_loop_quit(main_loop);
+        return FALSE;
+    }
+    return TRUE;
+}
+
 struct player_command {
     const gchar *name;
     gboolean (*func)(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output, GError **error);
@@ -1589,6 +1601,12 @@ end:
         g_signal_connect(G_DBUS_PROXY(proxy), "g-signal",
                          G_CALLBACK(dbus_name_owner_changed_callback),
                          data);
+
+        if (format_tokens != NULL &&
+                token_list_contains_key(format_tokens, "position")) {
+            g_timeout_add(1000, playercmd_tick_callback, NULL);
+        }
+
         main_loop = g_main_loop_new(NULL, FALSE);
         g_main_loop_run(main_loop);
         g_main_loop_unref(main_loop);

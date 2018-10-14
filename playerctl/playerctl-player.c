@@ -164,7 +164,7 @@ G_DEFINE_TYPE_WITH_CODE(PlayerctlPlayer, playerctl_player, G_TYPE_OBJECT,
 G_DEFINE_QUARK(playerctl-player-error-quark, playerctl_player_error);
 
 static inline int64_t timespec_to_usec(const struct timespec *a) {
-	return (int64_t)a->tv_sec * 1e+6 + a->tv_nsec / 1000;
+    return (int64_t)a->tv_sec * 1e+6 + a->tv_nsec / 1000;
 }
 
 static gint64 playerctl_player_calculate_position(PlayerctlPlayer *player) {
@@ -1011,7 +1011,7 @@ static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
     GVariantIter iter;
     GVariant *child;
     GString *table = g_string_new("");
-	const gchar *fmt = "%-5s %-25s %s\n";
+    const gchar *fmt = "%-5s %-25s %s\n";
 
     if (g_strcmp0(g_variant_get_type_string(metadata), "a{sv}") != 0) {
         return NULL;
@@ -1023,21 +1023,21 @@ static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
         const gchar *key = g_variant_get_string(key_variant, 0);
         GVariant *value_variant = g_variant_lookup_value(metadata, key, NULL);
 
-		if (g_variant_is_container(value_variant)) {
-			// only go depth 1
-			int len = g_variant_n_children(value_variant);
-			for (int i = 0; i < len; ++i) {
-				GVariant *child_value = g_variant_get_child_value(value_variant, i);
-				gchar *child_value_str = pctl_print_gvariant(child_value);
-				g_string_append_printf(table, fmt, player_name, key, child_value_str);
-				g_free(child_value_str);
-				g_variant_unref(child_value);
-			}
-		} else {
-			gchar *value = pctl_print_gvariant(value_variant);
-			g_string_append_printf(table, fmt, player_name, key, value);
-			g_free(value);
-		}
+        if (g_variant_is_container(value_variant)) {
+            // only go depth 1
+            int len = g_variant_n_children(value_variant);
+            for (int i = 0; i < len; ++i) {
+                GVariant *child_value = g_variant_get_child_value(value_variant, i);
+                gchar *child_value_str = pctl_print_gvariant(child_value);
+                g_string_append_printf(table, fmt, player_name, key, child_value_str);
+                g_free(child_value_str);
+                g_variant_unref(child_value);
+            }
+        } else {
+            gchar *value = pctl_print_gvariant(value_variant);
+            g_string_append_printf(table, fmt, player_name, key, value);
+            g_free(value);
+        }
 
         g_variant_unref(child);
         g_variant_unref(key_variant);
