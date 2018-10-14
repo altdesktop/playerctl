@@ -26,10 +26,9 @@
 #include <assert.h>
 #include <inttypes.h>
 #include "playerctl.h"
+#include "playerctl-common.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
-
-#define MPRIS_PREFIX "org.mpris.MediaPlayer2."
 
 G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
@@ -112,30 +111,6 @@ static void playercmd_args_destroy(struct playercmd_args *data) {
     free(data);
 
     return;
-}
-
-static gchar *print_gvariant(GVariant *value) {
-    GString *printed = g_string_new("");
-    if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING_ARRAY)) {
-        gsize prop_count;
-        const gchar **prop_strv = g_variant_get_strv(value, &prop_count);
-
-        for (gsize i = 0; i < prop_count; i += 1) {
-            g_string_append(printed, prop_strv[i]);
-
-            if (i != prop_count - 1) {
-                g_string_append(printed, ", ");
-            }
-        }
-
-        g_free(prop_strv);
-    } else if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
-        g_string_append(printed, g_variant_get_string(value, NULL));
-    } else {
-        printed = g_variant_print_string(value, printed, FALSE);
-    }
-
-    return g_string_free(printed, FALSE);
 }
 
 enum token_type {
@@ -327,14 +302,14 @@ static GList *tokenize_format(const char *format, GError **error) {
 }
 
 static gchar *helperfn_lc(gchar *key, GVariant *value) {
-    gchar *printed = print_gvariant(value);
+    gchar *printed = pctl_print_gvariant(value);
     gchar *printed_lc = g_utf8_strdown(printed, -1);
     g_free(printed);
     return printed_lc;
 }
 
 static gchar *helperfn_uc(gchar *key, GVariant *value) {
-    gchar *printed = print_gvariant(value);
+    gchar *printed = pctl_print_gvariant(value);
     gchar *printed_uc = g_utf8_strup(printed, -1);
     g_free(printed);
     return printed_uc;
@@ -385,7 +360,7 @@ static gchar *helperfn_emoji(gchar *key, GVariant *value) {
         }
     }
 
-    return print_gvariant(value);
+    return pctl_print_gvariant(value);
 }
 
 struct template_helper {
@@ -422,7 +397,7 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
             if (g_variant_dict_contains(context, name)) {
                 GVariant *value = g_variant_dict_lookup_value(context, name, NULL);
                 if (value != NULL) {
-                    gchar *value_str = print_gvariant(value);
+                    gchar *value_str = pctl_print_gvariant(value);
                     expanded = g_string_append(expanded, value_str);
                     g_variant_unref(value);
                     g_free(value_str);
@@ -1108,18 +1083,6 @@ static int handle_list_all_flag() {
     return 0;
 }
 
-static gint player_name_instance_compare(gchar *name, gchar *instance) {
-    gboolean exact_match = (g_strcmp0(name, instance) == 0);
-    gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
-            g_str_has_prefix(instance + strlen(name), ".instance"));
-
-    if (exact_match || instance_match) {
-        return 0;
-    } else {
-        return 1;
-    }
-}
-
 static GList *select_players(GList *players, GList *all_players, GList *ignored_players) {
     GList *result = NULL;
 
@@ -1130,7 +1093,7 @@ static GList *select_players(GList *players, GList *all_players, GList *ignored_
             gchar *current_name = all_players_next->data;
             gboolean ignored =
                 (g_list_find_custom(ignored_players, current_name,
-                                    (GCompareFunc)player_name_instance_compare) != NULL);
+                                    (GCompareFunc)pctl_player_name_instance_compare) != NULL);
 
             if (!ignored && !g_list_find(result, current_name)) {
                 result = g_list_append(result, current_name);
@@ -1150,10 +1113,10 @@ static GList *select_players(GList *players, GList *all_players, GList *ignored_
         while (all_players_next != NULL) {
             gchar *current_name = all_players_next->data;
 
-            if (player_name_instance_compare(player_name, current_name) == 0) {
+            if (pctl_player_name_instance_compare(player_name, current_name) == 0) {
                 gboolean ignored =
                     (g_list_find_custom(ignored_players, current_name,
-                                         (GCompareFunc)player_name_instance_compare) != NULL);
+                                         (GCompareFunc)pctl_player_name_instance_compare) != NULL);
                 if (!ignored && !g_list_find(result, current_name)) {
                     result = g_list_append(result, current_name);
                 }
@@ -1401,7 +1364,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
 
                     GList *match =
                         g_list_find_custom(selected_players, name,
-                                           (GCompareFunc)player_name_instance_compare);
+                                           (GCompareFunc)pctl_player_name_instance_compare);
 
                     if (match != NULL) {
                         gchar *match_name = match->data;

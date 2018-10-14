@@ -20,6 +20,7 @@ headers = [
 
 playerctl_sources = [
   'playerctl-player.c',
+  'playerctl-common.c',
   playerctl_generated,
 ]
 

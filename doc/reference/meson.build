@@ -29,6 +29,7 @@ gnome.gtkdoc(
   ignore_headers: [
     'playerctl.h',
     'playerctl-generated.h',
+    'playerctl-common.h',
   ],
   install: true,
 )

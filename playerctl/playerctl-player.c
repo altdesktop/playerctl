@@ -21,12 +21,11 @@
 #include <glib-object.h>
 #include <string.h>
 
+#include "playerctl-common.h"
 #include "playerctl-generated.h"
 #include "playerctl-player.h"
 
 #include <stdint.h>
-
-#define MPRIS_PREFIX "org.mpris.MediaPlayer2."
 
 enum {
     PROP_0,
@@ -614,18 +613,6 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
     return players;
 }
 
-static gint player_name_instance_compare(gchar *instance, gchar *name) {
-    gboolean exact_match = (g_strcmp0(name, instance) == 0);
-    gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
-            g_str_has_prefix(instance + strlen(name), ".instance"));
-
-    if (exact_match || instance_match) {
-        return 0;
-    } else {
-        return 1;
-    }
-}
-
 /*
  * Get the matching bus name for this player name. Bus name will be like:
  * "org.mpris.MediaPlayer2.{PLAYER_NAME}[.instance{NUM}]"
@@ -666,7 +653,8 @@ static gchar *bus_name_for_player_name(gchar *player_name, GBusType bus_type, GE
     }
 
     GList *instance_match =
-        g_list_find_custom(names, player_name, (GCompareFunc)player_name_instance_compare);
+        g_list_find_custom(names, player_name,
+                           (GCompareFunc)pctl_player_name_instance_compare);
     if (instance_match != NULL) {
         gchar *name = instance_match->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
@@ -1005,41 +993,6 @@ void playerctl_player_previous(PlayerctlPlayer *self,
     PLAYER_COMMAND_FUNC(previous);
 }
 
-static gchar *print_gvariant(GVariant *variant) {
-    GString *prop = g_string_new("");
-    if (g_variant_type_equal(g_variant_get_type(variant), G_VARIANT_TYPE_STRING_ARRAY)) {
-        gsize prop_count;
-        const gchar **prop_strv = g_variant_get_strv(variant, &prop_count);
-
-        for (gsize i = 0; i < prop_count; i += 1) {
-            g_string_append(prop, prop_strv[i]);
-
-            if (i != prop_count - 1) {
-                g_string_append(prop, ", ");
-            }
-        }
-
-        g_free(prop_strv);
-    } else if (g_variant_is_of_type(variant, G_VARIANT_TYPE_STRING)) {
-        g_string_append(prop, g_variant_get_string(variant, NULL));
-    } else if (g_variant_is_of_type(variant, G_VARIANT_TYPE_VARIANT)) {
-        int len = g_variant_n_children(variant);
-        for (int i = 0; i < len; ++i) {
-            GVariant *child_value = g_variant_get_child_value(variant, i);
-            gchar *child_value_str = print_gvariant(child_value);
-            g_string_append(prop, child_value_str);
-            g_free(child_value_str);
-            if (i != len - 1) {
-                g_string_append(prop, ", ");
-            }
-        }
-    } else {
-        prop = g_variant_print_string(variant, prop, FALSE);
-    }
-
-    return g_string_free(prop, FALSE);
-}
-
 static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
     GVariantIter iter;
     GVariant *child;
@@ -1061,13 +1014,13 @@ static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
 			int len = g_variant_n_children(value_variant);
 			for (int i = 0; i < len; ++i) {
 				GVariant *child_value = g_variant_get_child_value(value_variant, i);
-				gchar *child_value_str = print_gvariant(child_value);
+				gchar *child_value_str = pctl_print_gvariant(child_value);
 				g_string_append_printf(table, fmt, player_name, key, child_value_str);
 				g_free(child_value_str);
 				g_variant_unref(child_value);
 			}
 		} else {
-			gchar *value = print_gvariant(value_variant);
+			gchar *value = pctl_print_gvariant(value_variant);
 			g_string_append_printf(table, fmt, player_name, key, value);
 			g_free(value);
 		}
@@ -1136,7 +1089,7 @@ gchar *playerctl_player_print_metadata_prop(PlayerctlPlayer *self,
         return NULL;
     }
 
-    gchar *prop = print_gvariant(prop_variant);
+    gchar *prop = pctl_print_gvariant(prop_variant);
     g_variant_unref(prop_variant);
     return prop;
 }
