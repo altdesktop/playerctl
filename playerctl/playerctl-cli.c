@@ -45,16 +45,15 @@ static gboolean print_version_and_exit;
 /* The commands passed on the command line, filled in via G_OPTION_REMAINING. */
 static gchar **command = NULL;
 /* A format string for printing properties and metadata */
-static gchar *format_string = NULL;
+static gchar *format_string_arg = NULL;
+/* The format string compiled to a list of tokens (type: struct token) */
+static GList *format_tokens;
 /* Block and follow the command */
 static gboolean follow = FALSE;
-
 /* The main loop for the follow command */
 static GMainLoop *main_loop = NULL;
-
 /* A list of the players currently being followed */
 GList *followed_players = NULL;
-
 /* The last output printed by the cli */
 static gchar *last_output = NULL;
 
@@ -141,8 +140,35 @@ static void token_destroy(struct token *token) {
     free(token);
 }
 
-static void token_list_destroy(GList *list) {
-    g_list_free_full(list, (GDestroyNotify)token_destroy);
+static void token_list_destroy(GList *tokens) {
+    if (tokens == NULL) {
+        return;
+    }
+
+    g_list_free_full(tokens, (GDestroyNotify)token_destroy);
+}
+
+static gboolean token_list_contains_key(GList *tokens, const gchar *key) {
+    GList *t = NULL;
+    for (t = tokens; t != NULL; t = t->next) {
+        struct token *token = t->data;
+        switch (token->type) {
+        case TOKEN_VARIABLE:
+            if (g_strcmp0(token->data, key) == 0) {
+                return TRUE;
+            }
+            break;
+        case TOKEN_FUNCTION:
+            if (token->arg != NULL && token->arg->type == TOKEN_VARIABLE &&
+                    g_strcmp0(token->arg->data, key) == 0) {
+                return TRUE;
+            }
+            break;
+        default:
+            break;
+        }
+    }
+    return FALSE;
 }
 
 enum parser_state {
@@ -156,6 +182,10 @@ enum parser_state {
 
 static GList *tokenize_format(const char *format, GError **error) {
     GList *tokens = NULL;
+
+    if (format == NULL) {
+        return NULL;
+    }
 
     int len = strlen(format);
     char buf[1028];
@@ -373,15 +403,8 @@ struct template_helper {
     {"emoji", &helperfn_emoji},
 };
 
-static gchar *expand_format(const gchar *format, GVariantDict *context, GError **error) {
-    GError *tmp_error = NULL;
+static gchar *expand_format(GList *tokens, GVariantDict *context, GError **error) {
     GString *expanded;
-
-    GList *tokens = tokenize_format(format, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(error, tmp_error);
-        return NULL;
-    }
 
     expanded = g_string_new("");
     GList *next = tokens;
@@ -447,7 +470,6 @@ static gchar *expand_format(const gchar *format, GVariantDict *context, GError *
         next = next->next;
     }
 
-    token_list_destroy(tokens);
     return g_string_free(expanded, FALSE);
 }
 
@@ -485,11 +507,23 @@ static GVariantDict *get_default_template_context(PlayerctlPlayer *player, GVari
         g_variant_dict_insert_value(context, "playerId", player_id_variant);
         g_free(player_id);
     }
+    if (!g_variant_dict_contains(context, "volume")) {
+        gdouble level = 0.0;
+        g_object_get(player, "volume", &level, NULL);
+        GVariant *volume_variant = g_variant_new_double(level);
+        g_variant_dict_insert_value(context, "volume", volume_variant);
+    }
+    if (!g_variant_dict_contains(context, "position")) {
+        gint64 position = 0;
+        g_object_get(player, "position", &position, NULL);
+        GVariant *position_variant = g_variant_new_int64(position);
+        g_variant_dict_insert_value(context, "position", position_variant);
+    }
 
     return context;
 }
 
-static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *format, GError **error) {
+static gchar *get_metadata_formatted(PlayerctlPlayer *player, GList *tokens, GError **error) {
     GError *tmp_error = NULL;
     GVariant *metadata = NULL;
     g_object_get(player, "metadata", &metadata, NULL);
@@ -504,7 +538,7 @@ static gchar *get_metadata_formatted(PlayerctlPlayer *player, const gchar *forma
 
     GVariantDict *metadata_dict = get_default_template_context(player, metadata);
 
-    gchar *result = expand_format(format, metadata_dict, &tmp_error);
+    gchar *result = expand_format(tokens, metadata_dict, &tmp_error);
     if (tmp_error) {
         g_variant_unref(metadata);
         g_variant_dict_unref(metadata_dict);
@@ -661,7 +695,7 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
     GError *tmp_error = NULL;
 
     if (position) {
-        if (format_string != NULL) {
+        if (format_string_arg != NULL) {
             g_set_error(error, playerctl_cli_error_quark(), 1,
                     "format strings are not supported on command functions.");
             return FALSE;
@@ -701,13 +735,9 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
             }
         }
     } else {
-        g_object_get(player, "position", &offset, NULL);
-
-        if (format_string) {
+        if (format_string_arg) {
             GVariantDict *context = get_default_template_context(player, NULL);
-            GVariant *position = g_variant_new_int64(offset);
-            g_variant_dict_insert_value(context, "position", position);
-            gchar *formatted = expand_format(format_string, context, &tmp_error);
+            gchar *formatted = expand_format(format_tokens, context, &tmp_error);
             if (tmp_error != NULL) {
                 g_propagate_error(error, tmp_error);
                 g_variant_dict_unref(context);
@@ -719,6 +749,7 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
             g_free(formatted);
             g_variant_dict_unref(context);
         } else {
+            g_object_get(player, "position", &offset, NULL);
             *output = g_strdup_printf("%f\n", (double)offset / 1000000.0);
         }
     }
@@ -732,7 +763,7 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
     gdouble level;
 
     if (volume) {
-        if (format_string != NULL) {
+        if (format_string_arg != NULL) {
             g_set_error(error, playerctl_cli_error_quark(), 1,
                         "format strings are not supported on command functions.");
             return FALSE;
@@ -775,19 +806,15 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
     } else {
         g_object_get(player, "volume", &level, NULL);
 
-        if (format_string) {
+        if (format_string_arg) {
             GError *tmp_error = NULL;
             GVariantDict *context = get_default_template_context(player, NULL);
-            GVariant *volume_variant = g_variant_new_double(level);
-            g_variant_dict_insert_value(context, "volume", volume_variant);
-            gchar *formatted = expand_format(format_string, context, &tmp_error);
+            gchar *formatted = expand_format(format_tokens, context, &tmp_error);
             if (tmp_error != NULL) {
                 g_propagate_error(error, tmp_error);
-                g_variant_unref(volume_variant);
                 return FALSE;
             }
             *output = g_strdup_printf("%s\n", formatted);
-            g_variant_unref(volume_variant);
             g_free(formatted);
         } else {
             *output = g_strdup_printf("%f\n", level);
@@ -803,11 +830,11 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
     gchar *state = NULL;
     g_object_get(player, "status", &state, NULL);
 
-    if (format_string) {
+    if (format_string_arg) {
         GVariantDict *context = get_default_template_context(player, NULL);
         GVariant *status_variant = g_variant_new_string(state);
         g_variant_dict_insert_value(context, "status", status_variant);
-        gchar *formatted = expand_format(format_string, context, &tmp_error);
+        gchar *formatted = expand_format(format_tokens, context, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
             g_variant_dict_unref(context);
@@ -839,8 +866,8 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
         return FALSE;
     }
 
-    if (format_string != NULL) {
-        gchar *data = get_metadata_formatted(player, format_string, &tmp_error);
+    if (format_string_arg != NULL) {
+        gchar *data = get_metadata_formatted(player, format_tokens, &tmp_error);
         if (tmp_error) {
             g_propagate_error(error, tmp_error);
             return FALSE;
@@ -938,7 +965,7 @@ static const struct player_command *get_player_command(gchar **argv, gint argc, 
     for (gsize i = 0; i < LENGTH(player_commands); ++i) {
         const struct player_command command = player_commands[i];
         if (g_strcmp0(command.name, argv[0]) == 0) {
-            if (format_string != NULL && !command.supports_format) {
+            if (format_string_arg != NULL && !command.supports_format) {
                 g_set_error(error, playerctl_cli_error_quark(), 1,
                             "format strings are not supported on command: %s", argv[0]);
                 return NULL;
@@ -970,7 +997,7 @@ static const GOptionEntry entries[] = {
      NULL},
     {"ignore-player", 'i', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &ignore_player_arg,
      "A comma separated list of names of players to ignore.", "IGNORE"},
-    {"format", 'f', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &format_string,
+    {"format", 'f', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &format_string_arg,
      "A format string for printing properties and metadata", NULL},
     {"follow", 'F', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &follow,
      "Block and append the query to output when it changes. Exit when the players exit.",
@@ -1161,6 +1188,20 @@ static void add_followed_player(PlayerctlPlayer *player, GError **error) {
     g_signal_connect(G_OBJECT(player), player_cmd->follow_signal,
                      G_CALLBACK(playercmd_follow_callback),
                      playercmd_args);
+
+    if (format_tokens != NULL) {
+        for (gsize i = 0; i < LENGTH(player_commands); ++i) {
+            const struct player_command cmd = player_commands[i];
+            if (&cmd != player_cmd &&
+                    cmd.follow_signal != NULL &&
+                    g_strcmp0(cmd.name, "metadata") != 0 &&
+                    token_list_contains_key(format_tokens, cmd.follow_signal)) {
+                g_signal_connect(G_OBJECT(player), cmd.follow_signal,
+                                 G_CALLBACK(playercmd_follow_callback),
+                                 playercmd_args);
+            }
+        }
+    }
 
     followed_players = g_list_prepend(followed_players, player);
 }
@@ -1433,6 +1474,13 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    format_tokens = tokenize_format(format_string_arg, &error);
+    if (error != NULL) {
+        g_printerr("Could not execute command: %s\n", error->message);
+        g_clear_error(&error);
+        exit(1);
+    }
+
     const struct player_command *player_cmd = get_player_command(command, num_commands, &error);
     if (error != NULL) {
         g_printerr("Could not execute command: %s\n", error->message);
@@ -1550,6 +1598,7 @@ proxy_err_out:
         playercmd_args_destroy(playercmd_args);
     }
 
+    token_list_destroy(format_tokens);
     g_free(last_output);
     clear_followed_players();
     g_list_free_full(all_players, g_free);
