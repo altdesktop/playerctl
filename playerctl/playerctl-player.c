@@ -81,6 +81,9 @@ struct _PlayerctlPlayerPrivate {
     GError *init_error;
     gboolean initted;
     GVariant *metadata;
+    enum pctl_playback_status cached_status;
+    gint64 cached_position;
+    struct timespec cached_position_monotonic;
 };
 
 static void playerctl_player_properties_changed_callback(
@@ -107,27 +110,38 @@ static void playerctl_player_properties_changed_callback(
 
     if (playback_status) {
         const gchar *status_str = g_variant_get_string(playback_status, NULL);
+        enum pctl_playback_status status = pctl_parse_playback_status(status_str);
         GQuark quark = 0;
 
-        if (g_strcmp0(status_str, "Playing") == 0) {
-            // DEPRECATED
+        switch (status) {
+        case PCTL_PLAYBACK_STATUS_PLAYING:
             g_signal_emit(self, connection_signals[PLAY], 0);
             quark = g_quark_from_string("playing");
-        } else if (g_strcmp0(status_str, "Paused") == 0) {
+            if (self->priv->cached_status != PCTL_PLAYBACK_STATUS_PLAYING) {
+                clock_gettime(CLOCK_MONOTONIC, &self->priv->cached_position_monotonic);
+            }
+            break;
+        case PCTL_PLAYBACK_STATUS_PAUSED:
+            quark = g_quark_from_string("paused");
             // DEPRECATED
             g_signal_emit(self, connection_signals[PAUSE], 0);
-
-            quark = g_quark_from_string("paused");
-        } else if (g_strcmp0(status_str, "Stopped") == 0) {
+            break;
+        case PCTL_PLAYBACK_STATUS_STOPPED:
+            self->priv->cached_position = 0;
+            quark = g_quark_from_string("stopped");
             // DEPRECATED
             g_signal_emit(self, connection_signals[STOP], 0);
-
-            quark = g_quark_from_string("stopped");
-        } else {
+            break;
+        case PCTL_PLAYBACK_STATUS_UNKNOWN:
+            self->priv->cached_position = 0;
             g_warning("got unknown playback state: %s", status_str);
+            break;
         }
 
-        g_signal_emit(self, connection_signals[STATUS], quark, status_str);
+        if (self->priv->cached_status != status) {
+            self->priv->cached_status = status;
+            g_signal_emit(self, connection_signals[STATUS], quark, status_str);
+        }
     }
 }
 
@@ -135,6 +149,8 @@ static void playerctl_player_seeked_callback(GDBusProxy *_proxy,
                                              gint64 position,
                                              gpointer *user_data) {
     PlayerctlPlayer *player = PLAYERCTL_PLAYER(user_data);
+    player->priv->cached_position = position;
+    clock_gettime(CLOCK_MONOTONIC, &player->priv->cached_position_monotonic);
     g_signal_emit(player, connection_signals[SEEKED], 0, position);
 }
 
@@ -146,6 +162,28 @@ G_DEFINE_TYPE_WITH_CODE(PlayerctlPlayer, playerctl_player, G_TYPE_OBJECT,
                             playerctl_player_initable_iface_init));
 
 G_DEFINE_QUARK(playerctl-player-error-quark, playerctl_player_error);
+
+static inline int64_t timespec_to_usec(const struct timespec *a) {
+	return (int64_t)a->tv_sec * 1e+6 + a->tv_nsec / 1000;
+}
+
+static gint64 playerctl_player_calculate_position(PlayerctlPlayer *player) {
+    gint64 offset = 0;
+    struct timespec current_time;
+
+    switch (player->priv->cached_status) {
+    case PCTL_PLAYBACK_STATUS_PLAYING:
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        offset =
+            timespec_to_usec(&current_time) -
+            timespec_to_usec(&player->priv->cached_position_monotonic);
+        return player->priv->cached_position + offset;
+    case PCTL_PLAYBACK_STATUS_PAUSED:
+        return player->priv->cached_position;
+    default:
+        return 0;
+    }
+}
 
 static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self,
                                                GError **err) {
@@ -255,42 +293,10 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
         }
         break;
 
-    case PROP_POSITION:
-        if (self->priv->proxy) {
-            // XXX: the position cache seems to never be updated after the
-            // connection is made so we have to call the method directly here or it
-            // won't work.
-            GError *tmp_error = NULL;
-            GVariant *call_reply = g_dbus_proxy_call_sync(
-                G_DBUS_PROXY(self->priv->proxy),
-                "org.freedesktop.DBus.Properties.Get",
-                g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "Position"),
-                G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
-
-            if (tmp_error) {
-                g_warning("Get position property failed. Using cache. (%s)",
-                          tmp_error->message);
-                gint64 cached_position =
-                    org_mpris_media_player2_player_get_position(self->priv->proxy);
-                g_value_set_int64(value, cached_position);
-                break;
-            }
-
-            GVariant *call_reply_properties =
-                g_variant_get_child_value(call_reply, 0);
-            GVariant *call_reply_unboxed =
-                g_variant_get_variant(call_reply_properties);
-
-            gint64 position = g_variant_get_int64(call_reply_unboxed);
-            g_value_set_int64(value, position);
-
-            g_variant_unref(call_reply);
-            g_variant_unref(call_reply_properties);
-            g_variant_unref(call_reply_unboxed);
-        } else {
-            g_value_set_int64(value, 0);
-        }
+    case PROP_POSITION: {
+        g_value_set_int64(value, playerctl_player_calculate_position(self));
         break;
+    }
 
     case PROP_CAN_CONTROL:
         if (self->priv->proxy == NULL) {
@@ -727,11 +733,19 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
     player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
         bus_type, G_DBUS_PROXY_FLAGS_NONE, player->priv->bus_name,
         "/org/mpris/MediaPlayer2", NULL, &tmp_error);
-
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
         return FALSE;
     }
+
+    // init the cache
+    player->priv->cached_position =
+        org_mpris_media_player2_player_get_position(player->priv->proxy);
+    clock_gettime(CLOCK_MONOTONIC, &player->priv->cached_position_monotonic);
+    player->priv->cached_status =
+        pctl_parse_playback_status(
+            org_mpris_media_player2_player_get_playback_status(player->priv->proxy));
+
 
     g_signal_connect(player->priv->proxy, "g-properties-changed",
                      G_CALLBACK(playerctl_player_properties_changed_callback),
@@ -1158,6 +1172,49 @@ gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err) {
     }
 
     return playerctl_player_print_metadata_prop(self, "xesam:album", NULL);
+}
+
+/**
+ * playerctl_player_get_position
+ * @self: a #PlayerctlPlayer
+ * @err: (allow-none): the location of a GError or NULL
+ *
+ * Gets the position of the current track in microseconds ignoring the property
+ * cache.
+ */
+gint64 playerctl_player_get_position(PlayerctlPlayer *self, GError **err) {
+    GError *tmp_error = NULL;
+
+    g_return_val_if_fail(self != NULL, 0);
+    g_return_val_if_fail(err == NULL || *err == NULL, 0);
+
+    if (self->priv->init_error != NULL) {
+        g_propagate_error(err, g_error_copy(self->priv->init_error));
+        return 0;
+    }
+
+    GVariant *call_reply = g_dbus_proxy_call_sync(
+            G_DBUS_PROXY(self->priv->proxy),
+            "org.freedesktop.DBus.Properties.Get",
+            g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "Position"),
+            G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
+    if (tmp_error) {
+        g_propagate_error(err, tmp_error);
+        return 0;
+    }
+
+    GVariant *call_reply_properties =
+        g_variant_get_child_value(call_reply, 0);
+    GVariant *call_reply_unboxed =
+        g_variant_get_variant(call_reply_properties);
+
+    gint64 position = g_variant_get_int64(call_reply_unboxed);
+
+    g_variant_unref(call_reply);
+    g_variant_unref(call_reply_properties);
+    g_variant_unref(call_reply_unboxed);
+
+    return position;
 }
 
 /**

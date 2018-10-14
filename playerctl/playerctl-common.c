@@ -19,6 +19,23 @@
 
 #include <stdio.h>
 #include <glib.h>
+#include "playerctl-common.h"
+
+enum pctl_playback_status pctl_parse_playback_status(const gchar *status) {
+    if (status == NULL) {
+        return PCTL_PLAYBACK_STATUS_UNKNOWN;
+    }
+
+    if (g_strcmp0(status, "Playing") == 0) {
+        return PCTL_PLAYBACK_STATUS_PLAYING;
+    } else if (g_strcmp0(status, "Paused") == 0) {
+        return PCTL_PLAYBACK_STATUS_PAUSED;
+    } else if (g_strcmp0(status, "Stopped") == 0) {
+        return PCTL_PLAYBACK_STATUS_STOPPED;
+    } else {
+        return PCTL_PLAYBACK_STATUS_UNKNOWN;
+    }
+}
 
 gchar *pctl_print_gvariant(GVariant *value) {
     GString *printed = g_string_new("");

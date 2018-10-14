@@ -24,6 +24,15 @@
 
 #define MPRIS_PREFIX "org.mpris.MediaPlayer2."
 
+enum pctl_playback_status {
+    PCTL_PLAYBACK_STATUS_UNKNOWN = 0,
+    PCTL_PLAYBACK_STATUS_PLAYING,
+    PCTL_PLAYBACK_STATUS_PAUSED,
+    PCTL_PLAYBACK_STATUS_STOPPED,
+};
+
+enum pctl_playback_status pctl_parse_playback_status(const gchar *playback_status);
+
 gchar *pctl_print_gvariant(GVariant *value);
 
 gint pctl_player_name_instance_compare(gchar *name, gchar *instance);
