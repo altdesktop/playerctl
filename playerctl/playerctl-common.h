@@ -33,6 +33,8 @@ enum pctl_playback_status {
 
 enum pctl_playback_status pctl_parse_playback_status(const gchar *playback_status);
 
+const gchar *pctl_playback_status_to_string(enum pctl_playback_status status);
+
 gchar *pctl_print_gvariant(GVariant *value);
 
 gint pctl_player_name_instance_compare(gchar *name, gchar *instance);

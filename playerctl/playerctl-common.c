@@ -37,6 +37,19 @@ enum pctl_playback_status pctl_parse_playback_status(const gchar *status) {
     }
 }
 
+const gchar *pctl_playback_status_to_string(enum pctl_playback_status status) {
+    switch (status) {
+    case PCTL_PLAYBACK_STATUS_PLAYING:
+        return "Playing";
+    case PCTL_PLAYBACK_STATUS_PAUSED:
+        return "Paused";
+    case PCTL_PLAYBACK_STATUS_STOPPED:
+        return "Stopped";
+    case PCTL_PLAYBACK_STATUS_UNKNOWN:
+        return "Unknown";
+    }
+}
+
 gchar *pctl_print_gvariant(GVariant *value) {
     GString *printed = g_string_new("");
     if (g_variant_is_of_type(value, G_VARIANT_TYPE_STRING_ARRAY)) {

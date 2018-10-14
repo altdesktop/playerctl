@@ -83,8 +83,48 @@ struct _PlayerctlPlayerPrivate {
     GVariant *metadata;
     enum pctl_playback_status cached_status;
     gint64 cached_position;
+    gchar *cached_track_id;
     struct timespec cached_position_monotonic;
 };
+
+static inline int64_t timespec_to_usec(const struct timespec *a) {
+    return (int64_t)a->tv_sec * 1e+6 + a->tv_nsec / 1000;
+}
+
+static gint64 calculate_cached_position(enum pctl_playback_status status, struct timespec *position_monotonic, gint64 position) {
+    gint64 offset = 0;
+    struct timespec current_time;
+
+    switch (status) {
+    case PCTL_PLAYBACK_STATUS_PLAYING:
+        clock_gettime(CLOCK_MONOTONIC, &current_time);
+        offset =
+            timespec_to_usec(&current_time) -
+            timespec_to_usec(position_monotonic);
+        return position + offset;
+    case PCTL_PLAYBACK_STATUS_PAUSED:
+        return position;
+    default:
+        return 0;
+    }
+}
+
+static gchar *metadata_get_track_id(GVariant *metadata) {
+    GVariant *track_id_variant = g_variant_lookup_value(
+        metadata, "mpris:trackid", G_VARIANT_TYPE_OBJECT_PATH);
+    if (track_id_variant == NULL) {
+        // XXX some players set this as a string, which is against the protocol,
+        // but a lot of them do it and I don't feel like fixing it on all the
+        // players in the world.
+        track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid",
+                                                  G_VARIANT_TYPE_STRING);
+    }
+
+    const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
+    g_variant_unref(track_id_variant);
+
+    return g_strdup(track_id);
+}
 
 static void playerctl_player_properties_changed_callback(
     GDBusProxy *_proxy, GVariant *changed_properties,
@@ -104,11 +144,41 @@ static void playerctl_player_properties_changed_callback(
         g_variant_unref(volume);
     }
 
+    gboolean track_id_invalid = FALSE;
     if (metadata) {
+        // update the cached track id
+        gchar *track_id = metadata_get_track_id(metadata);
+        if (track_id != NULL) {
+            g_free(self->priv->cached_track_id);
+            self->priv->cached_track_id = track_id;
+            track_id_invalid = TRUE;
+        }
         g_signal_emit(self, connection_signals[METADATA], 0, metadata);
     }
 
-    if (playback_status) {
+    if (track_id_invalid) {
+        self->priv->cached_position = 0;
+        clock_gettime(CLOCK_MONOTONIC, &self->priv->cached_position_monotonic);
+    }
+
+    if (playback_status == NULL && track_id_invalid) {
+        // XXX: Lots of player aren't setting status correctly when the track
+        // changes so we have to get it from the interface. We should
+        // definitely go fix this bug on the players.
+        GVariant *call_reply = g_dbus_proxy_call_sync(
+            G_DBUS_PROXY(self->priv->proxy), "org.freedesktop.DBus.Properties.Get",
+            g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "PlaybackStatus"),
+            G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL);
+
+        if (call_reply != NULL) {
+            GVariant *call_reply_box = g_variant_get_child_value(call_reply, 0);
+            playback_status = g_variant_get_child_value(call_reply_box, 0);
+            g_variant_unref(call_reply);
+            g_variant_unref(call_reply_box);
+        }
+    }
+
+    if (playback_status != NULL) {
         const gchar *status_str = g_variant_get_string(playback_status, NULL);
         enum pctl_playback_status status = pctl_parse_playback_status(status_str);
         GQuark quark = 0;
@@ -123,6 +193,10 @@ static void playerctl_player_properties_changed_callback(
             break;
         case PCTL_PLAYBACK_STATUS_PAUSED:
             quark = g_quark_from_string("paused");
+            self->priv->cached_position =
+                calculate_cached_position(self->priv->cached_status,
+                                          &self->priv->cached_position_monotonic,
+                                          self->priv->cached_position);
             // DEPRECATED
             g_signal_emit(self, connection_signals[PAUSE], 0);
             break;
@@ -162,28 +236,6 @@ G_DEFINE_TYPE_WITH_CODE(PlayerctlPlayer, playerctl_player, G_TYPE_OBJECT,
                             playerctl_player_initable_iface_init));
 
 G_DEFINE_QUARK(playerctl-player-error-quark, playerctl_player_error);
-
-static inline int64_t timespec_to_usec(const struct timespec *a) {
-    return (int64_t)a->tv_sec * 1e+6 + a->tv_nsec / 1000;
-}
-
-static gint64 playerctl_player_calculate_position(PlayerctlPlayer *player) {
-    gint64 offset = 0;
-    struct timespec current_time;
-
-    switch (player->priv->cached_status) {
-    case PCTL_PLAYBACK_STATUS_PLAYING:
-        clock_gettime(CLOCK_MONOTONIC, &current_time);
-        offset =
-            timespec_to_usec(&current_time) -
-            timespec_to_usec(&player->priv->cached_position_monotonic);
-        return player->priv->cached_position + offset;
-    case PCTL_PLAYBACK_STATUS_PAUSED:
-        return player->priv->cached_position;
-    default:
-        return 0;
-    }
-}
 
 static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self,
                                                GError **err) {
@@ -260,8 +312,7 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
         if (self->priv->proxy) {
             g_main_context_iteration(NULL, FALSE);
             g_value_set_string(value,
-                               org_mpris_media_player2_player_get_playback_status(
-                                   self->priv->proxy));
+                               pctl_playback_status_to_string(self->priv->cached_status));
         } else {
             g_value_set_string(value, "");
         }
@@ -294,7 +345,11 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
         break;
 
     case PROP_POSITION: {
-        g_value_set_int64(value, playerctl_player_calculate_position(self));
+        gint64 position =
+            calculate_cached_position(self->priv->cached_status,
+                                      &self->priv->cached_position_monotonic,
+                                      self->priv->cached_position);
+        g_value_set_int64(value, position);
         break;
     }
 
@@ -1242,30 +1297,18 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position,
         return;
     }
 
-    GVariant *track_id_variant = g_variant_lookup_value(
-        metadata, "mpris:trackid", G_VARIANT_TYPE_OBJECT_PATH);
-
-    if (track_id_variant == NULL) {
-        // XXX some players set this as a string, which is against the protocol,
-        // but a lot of them do it and I don't feel like fixing it on all the
-        // players in the world.
-        track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid",
-                                                  G_VARIANT_TYPE_STRING);
-    }
-
+    gchar *track_id = metadata_get_track_id(metadata);
     g_variant_unref(metadata);
-    if (track_id_variant == NULL) {
+
+    if (track_id == NULL) {
         tmp_error = g_error_new(playerctl_player_error_quark(), 2,
                                 "Could not get track id to set position");
         g_propagate_error(err, tmp_error);
         return;
     }
 
-    const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
-
     org_mpris_media_player2_player_call_set_position_sync(
         self->priv->proxy, track_id, position, NULL, &tmp_error);
-    g_variant_unref(track_id_variant);
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
     }

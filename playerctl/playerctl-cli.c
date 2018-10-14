@@ -507,6 +507,13 @@ static GVariantDict *get_default_template_context(PlayerctlPlayer *player, GVari
         g_variant_dict_insert_value(context, "playerId", player_id_variant);
         g_free(player_id);
     }
+    if (!g_variant_dict_contains(context, "status")) {
+        gchar *status = NULL;
+        g_object_get(player, "status", &status, NULL);
+        GVariant *status_variant = g_variant_new_string(status);
+        g_variant_dict_insert_value(context, "status", status_variant);
+        g_free(status);
+    }
     if (!g_variant_dict_contains(context, "volume")) {
         gdouble level = 0.0;
         g_object_get(player, "volume", &level, NULL);
@@ -1207,7 +1214,7 @@ static void add_followed_player(PlayerctlPlayer *player, GError **error) {
             if (&cmd != player_cmd &&
                     cmd.follow_signal != NULL &&
                     g_strcmp0(cmd.name, "metadata") != 0 &&
-                    token_list_contains_key(format_tokens, cmd.follow_signal)) {
+                    token_list_contains_key(format_tokens, cmd.name)) {
                 g_signal_connect(G_OBJECT(player), cmd.follow_signal,
                                  G_CALLBACK(playercmd_follow_callback),
                                  playercmd_args);
