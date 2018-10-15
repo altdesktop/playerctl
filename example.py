@@ -20,8 +20,8 @@ def on_pause(player, status):
     print('Paused the song: {}'.format(player.get_title()))
 
 
-player.on('status:playing', on_play)
-player.on('status::paused', on_pause)
+player.on('playback-status:playing', on_play)
+player.on('playback-status::paused', on_pause)
 player.on('metadata', on_metadata)
 
 # start playing some music

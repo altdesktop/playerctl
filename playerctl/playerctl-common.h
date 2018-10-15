@@ -21,19 +21,13 @@
 #define __PLAYERCTL_COMMON_H__
 
 #include <glib.h>
+#include <playerctl/playerctl-player.h>
 
 #define MPRIS_PREFIX "org.mpris.MediaPlayer2."
 
-enum pctl_playback_status {
-    PCTL_PLAYBACK_STATUS_UNKNOWN = 0,
-    PCTL_PLAYBACK_STATUS_PLAYING,
-    PCTL_PLAYBACK_STATUS_PAUSED,
-    PCTL_PLAYBACK_STATUS_STOPPED,
-};
+gboolean pctl_parse_playback_status(const gchar *playback_status, PlayerctlPlaybackStatus *status);
 
-enum pctl_playback_status pctl_parse_playback_status(const gchar *playback_status);
-
-const gchar *pctl_playback_status_to_string(enum pctl_playback_status status);
+const gchar *pctl_playback_status_to_string(PlayerctlPlaybackStatus status);
 
 gchar *pctl_print_gvariant(GVariant *value);
 

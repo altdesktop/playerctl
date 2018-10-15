@@ -370,13 +370,17 @@ static gchar *helperfn_duration(gchar *key, GVariant *value) {
 static gchar *helperfn_emoji(gchar *key, GVariant *value) {
     if (g_strcmp0(key, "status") == 0 &&
             g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
-        const gchar *status = g_variant_get_string(value, NULL);
-        if (g_strcmp0(status, "Playing") == 0) {
-            return g_strdup("▶️");
-        } else if (g_strcmp0(status, "Paused") == 0) {
-            return g_strdup("⏸️");
-        } else if (g_strcmp0(status, "Stopped") == 0) {
-            return g_strdup("⏹️");
+        const gchar *status_str = g_variant_get_string(value, NULL);
+        PlayerctlPlaybackStatus status = 0;
+        if (pctl_parse_playback_status(status_str, &status)) {
+            switch (status) {
+            case PLAYERCTL_PLAYBACK_STATUS_PLAYING:
+                return g_strdup("▶️");
+            case PLAYERCTL_PLAYBACK_STATUS_STOPPED:
+                return g_strdup("⏹️");
+            case PLAYERCTL_PLAYBACK_STATUS_PAUSED:
+                return g_strdup("⏸️");
+            }
         }
     } else if (g_strcmp0(key, "volume") == 0 &&
             g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
@@ -508,11 +512,11 @@ static GVariantDict *get_default_template_context(PlayerctlPlayer *player, GVari
         g_free(player_id);
     }
     if (!g_variant_dict_contains(context, "status")) {
-        gchar *status = NULL;
-        g_object_get(player, "status", &status, NULL);
-        GVariant *status_variant = g_variant_new_string(status);
+        PlayerctlPlaybackStatus status = 0;
+        g_object_get(player, "playback-status", &status, NULL);
+        const gchar *status_str = pctl_playback_status_to_string(status);
+        GVariant *status_variant = g_variant_new_string(status_str);
         g_variant_dict_insert_value(context, "status", status_variant);
-        g_free(status);
     }
     if (!g_variant_dict_contains(context, "volume")) {
         gdouble level = 0.0;
@@ -834,13 +838,9 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
 static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint argc,
                                  gchar **output, GError **error) {
     GError *tmp_error = NULL;
-    gchar *state = NULL;
-    g_object_get(player, "status", &state, NULL);
 
     if (format_string_arg) {
         GVariantDict *context = get_default_template_context(player, NULL);
-        GVariant *status_variant = g_variant_new_string(state);
-        g_variant_dict_insert_value(context, "status", status_variant);
         gchar *formatted = expand_format(format_tokens, context, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
@@ -853,10 +853,11 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
         g_variant_dict_unref(context);
         g_free(formatted);
     } else {
-        *output = g_strdup_printf("%s\n", state ? state : "Not available");
+        PlayerctlPlaybackStatus status = 0;
+        g_object_get(player, "playback-status", &status, NULL);
+        const gchar *status_str = pctl_playback_status_to_string(status);
+        *output = g_strdup_printf("%s\n", status_str);
     }
-
-    g_free(state);
 
     return TRUE;
 }
@@ -976,7 +977,7 @@ struct player_command {
     {"previous", &playercmd_previous, FALSE, NULL},
     {"position", &playercmd_position, TRUE, "seeked"},
     {"volume", &playercmd_volume, TRUE, "volume"},
-    {"status", &playercmd_status, TRUE, "status"},
+    {"status", &playercmd_status, TRUE, "playback-status"},
     {"metadata", &playercmd_metadata, TRUE, "metadata"},
 };
 

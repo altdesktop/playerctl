@@ -21,33 +21,35 @@
 #include <glib.h>
 #include "playerctl-common.h"
 
-enum pctl_playback_status pctl_parse_playback_status(const gchar *status) {
-    if (status == NULL) {
-        return PCTL_PLAYBACK_STATUS_UNKNOWN;
+gboolean pctl_parse_playback_status(const gchar *status_str, PlayerctlPlaybackStatus *status) {
+    if (status_str == NULL) {
+        return FALSE;
     }
 
-    if (g_strcmp0(status, "Playing") == 0) {
-        return PCTL_PLAYBACK_STATUS_PLAYING;
-    } else if (g_strcmp0(status, "Paused") == 0) {
-        return PCTL_PLAYBACK_STATUS_PAUSED;
-    } else if (g_strcmp0(status, "Stopped") == 0) {
-        return PCTL_PLAYBACK_STATUS_STOPPED;
+    if (g_strcmp0(status_str, "Playing") == 0) {
+        *status = PLAYERCTL_PLAYBACK_STATUS_PLAYING;
+        return TRUE;
+    } else if (g_strcmp0(status_str, "Paused") == 0) {
+        *status = PLAYERCTL_PLAYBACK_STATUS_PAUSED;
+        return TRUE;
     } else {
-        return PCTL_PLAYBACK_STATUS_UNKNOWN;
+        *status = PLAYERCTL_PLAYBACK_STATUS_STOPPED;
+        return TRUE;
     }
+
+    return FALSE;
 }
 
-const gchar *pctl_playback_status_to_string(enum pctl_playback_status status) {
+const gchar *pctl_playback_status_to_string(PlayerctlPlaybackStatus status) {
     switch (status) {
-    case PCTL_PLAYBACK_STATUS_PLAYING:
+    case PLAYERCTL_PLAYBACK_STATUS_PLAYING:
         return "Playing";
-    case PCTL_PLAYBACK_STATUS_PAUSED:
+    case PLAYERCTL_PLAYBACK_STATUS_PAUSED:
         return "Paused";
-    case PCTL_PLAYBACK_STATUS_STOPPED:
+    case PLAYERCTL_PLAYBACK_STATUS_STOPPED:
         return "Stopped";
-    case PCTL_PLAYBACK_STATUS_UNKNOWN:
-        return "Unknown";
     }
+    return NULL;
 }
 
 gchar *pctl_print_gvariant(GVariant *value) {

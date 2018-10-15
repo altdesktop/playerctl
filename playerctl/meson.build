@@ -30,6 +30,8 @@ add_global_arguments(
   language: 'c',
 )
 
+enums = gnome.mkenums_simple('playerctl-enum-types', sources: headers, install: true)
+
 deps = [
   gobject_dep,
   gio_dep,
@@ -37,7 +39,7 @@ deps = [
 
 playerctl_lib = both_libraries(
   'playerctl-1.0',
-  sources: playerctl_sources,
+  sources: playerctl_sources + enums,
   dependencies: deps,
   include_directories: configuration_inc,
   version: '0.0.0',

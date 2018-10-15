@@ -25,6 +25,7 @@
 #endif
 
 #include <glib-object.h>
+#include <playerctl/playerctl-enum-types.h>
 
 /**
  * SECTION: playerctl-player
@@ -64,6 +65,21 @@ struct _PlayerctlPlayerClass {
 GType playerctl_player_get_type(void);
 
 PlayerctlPlayer *playerctl_player_new(const gchar *player_name, GError **err);
+
+/**
+ * PlayerctlPlaybackStatus:
+ * @PLAYERCTL_STATUS_PLAYING: A track is currently playing.
+ * @PLAYERCTL_STATUS_PAUSED: A track is currently paused.
+ * @PLAYERCTL_STATUS_STOPPED: There is no track currently playing.
+ *
+ * Playback status enumeration for a #PlayerctlPlayer
+ *
+ */
+typedef enum {
+    PLAYERCTL_PLAYBACK_STATUS_PLAYING, /*< nick=Playing >*/
+    PLAYERCTL_PLAYBACK_STATUS_PAUSED,  /*< nick=Paused >*/
+    PLAYERCTL_PLAYBACK_STATUS_STOPPED, /*< nick=Stopped >*/
+} PlayerctlPlaybackStatus;
 
 /*
  * Static methods
