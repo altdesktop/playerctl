@@ -81,6 +81,21 @@ typedef enum {
     PLAYERCTL_PLAYBACK_STATUS_STOPPED, /*< nick=Stopped >*/
 } PlayerctlPlaybackStatus;
 
+/**
+ * PlayerctlLoopStatus:
+ * @PLAYERCTL_LOOP_STATUS_NONE: The playback will stop when there are no more tracks to play.
+ * @PLAYERCTL_LOOP_STATUS_TRACK: The current track will start again from the beginning once it has finished playing.
+ * @PLAYERCTL_LOOP_STATUS_PLAYLIST: The playback loops through a list of tracks.
+ *
+ * Playback status enumeration for a #PlayerctlPlayer
+ *
+ */
+typedef enum {
+    PLAYERCTL_LOOP_STATUS_NONE, /*< nick=None >*/
+    PLAYERCTL_LOOP_STATUS_TRACK, /*< nick=Track >*/
+    PLAYERCTL_LOOP_STATUS_PLAYLIST, /* nick=Playlist >*/
+} PlayerctlLoopStatus;
+
 /*
  * Static methods
  */
@@ -126,5 +141,9 @@ gint64 playerctl_player_get_position(PlayerctlPlayer *self, GError **err);
 
 void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position,
                                    GError **err);
+
+void playerctl_player_set_loop_status(PlayerctlPlayer *self,
+                                      PlayerctlLoopStatus status,
+                                      GError **err);
 
 #endif /* __PLAYERCTL_PLAYER_H__ */

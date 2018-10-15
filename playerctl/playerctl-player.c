@@ -34,6 +34,7 @@ enum {
     PROP_PLAYER_NAME,
     PROP_PLAYER_ID,
     PROP_PLAYBACK_STATUS,
+    PROP_LOOP_STATUS,
     PROP_STATUS, // deprecated
     PROP_VOLUME,
     PROP_METADATA,
@@ -52,6 +53,7 @@ enum {
 enum {
     // PROPERTIES_CHANGED,
     PLAYBACK_STATUS,
+    LOOP_STATUS,
     PLAY,  // deprecated
     PAUSE, // deprecated
     STOP,  // deprecated
@@ -137,6 +139,8 @@ static void playerctl_player_properties_changed_callback(
         g_variant_lookup_value(changed_properties, "Metadata", NULL);
     GVariant *playback_status =
         g_variant_lookup_value(changed_properties, "PlaybackStatus", NULL);
+    GVariant *loop_status =
+        g_variant_lookup_value(changed_properties, "LoopStatus", NULL);
     GVariant *volume =
         g_variant_lookup_value(changed_properties, "Volume", NULL);
 
@@ -146,24 +150,24 @@ static void playerctl_player_properties_changed_callback(
         g_variant_unref(volume);
     }
 
-    gboolean track_id_invalid = FALSE;
+    gboolean track_id_invalidated = FALSE;
     if (metadata) {
         // update the cached track id
         gchar *track_id = metadata_get_track_id(metadata);
         if (track_id != NULL) {
             g_free(self->priv->cached_track_id);
             self->priv->cached_track_id = track_id;
-            track_id_invalid = TRUE;
+            track_id_invalidated = TRUE;
         }
         g_signal_emit(self, connection_signals[METADATA], 0, metadata);
     }
 
-    if (track_id_invalid) {
+    if (track_id_invalidated) {
         self->priv->cached_position = 0;
         clock_gettime(CLOCK_MONOTONIC, &self->priv->cached_position_monotonic);
     }
 
-    if (playback_status == NULL && track_id_invalid) {
+    if (playback_status == NULL && track_id_invalidated) {
         // XXX: Lots of player aren't setting status correctly when the track
         // changes so we have to get it from the interface. We should
         // definitely go fix this bug on the players.
@@ -180,6 +184,27 @@ static void playerctl_player_properties_changed_callback(
         }
     }
 
+    if (loop_status != NULL) {
+        const gchar *status_str = g_variant_get_string(loop_status, NULL);
+        PlayerctlLoopStatus status = 0;
+        GQuark quark = 0;
+        if (pctl_parse_loop_status(status_str, &status)) {
+            switch (status) {
+            case PLAYERCTL_LOOP_STATUS_TRACK:
+                quark = g_quark_from_string("track");
+                break;
+            case PLAYERCTL_LOOP_STATUS_PLAYLIST:
+                quark = g_quark_from_string("playlist");
+                break;
+            case PLAYERCTL_LOOP_STATUS_NONE:
+                quark = g_quark_from_string("none");
+                break;
+            }
+
+            g_signal_emit(self, connection_signals[LOOP_STATUS], quark, status);
+        }
+    }
+
     if (playback_status != NULL) {
         const gchar *status_str = g_variant_get_string(playback_status, NULL);
         PlayerctlPlaybackStatus status = 0;
@@ -187,28 +212,28 @@ static void playerctl_player_properties_changed_callback(
 
         if (pctl_parse_playback_status(status_str, &status)) {
             switch (status) {
-                case PLAYERCTL_PLAYBACK_STATUS_PLAYING:
-                    quark = g_quark_from_string("playing");
-                    if (self->priv->cached_status != PLAYERCTL_PLAYBACK_STATUS_PLAYING) {
-                        clock_gettime(CLOCK_MONOTONIC, &self->priv->cached_position_monotonic);
-                    }
-                    g_signal_emit(self, connection_signals[PLAY], 0);
-                    break;
-                case PLAYERCTL_PLAYBACK_STATUS_PAUSED:
-                    quark = g_quark_from_string("paused");
-                    self->priv->cached_position =
-                        calculate_cached_position(self->priv->cached_status,
-                                &self->priv->cached_position_monotonic,
-                                self->priv->cached_position);
-                    // DEPRECATED
-                    g_signal_emit(self, connection_signals[PAUSE], 0);
-                    break;
-                case PLAYERCTL_PLAYBACK_STATUS_STOPPED:
-                    self->priv->cached_position = 0;
-                    quark = g_quark_from_string("stopped");
-                    // DEPRECATED
-                    g_signal_emit(self, connection_signals[STOP], 0);
-                    break;
+            case PLAYERCTL_PLAYBACK_STATUS_PLAYING:
+                quark = g_quark_from_string("playing");
+                if (self->priv->cached_status != PLAYERCTL_PLAYBACK_STATUS_PLAYING) {
+                    clock_gettime(CLOCK_MONOTONIC, &self->priv->cached_position_monotonic);
+                }
+                g_signal_emit(self, connection_signals[PLAY], 0);
+                break;
+            case PLAYERCTL_PLAYBACK_STATUS_PAUSED:
+                quark = g_quark_from_string("paused");
+                self->priv->cached_position =
+                    calculate_cached_position(self->priv->cached_status,
+                            &self->priv->cached_position_monotonic,
+                            self->priv->cached_position);
+                // DEPRECATED
+                g_signal_emit(self, connection_signals[PAUSE], 0);
+                break;
+            case PLAYERCTL_PLAYBACK_STATUS_STOPPED:
+                self->priv->cached_position = 0;
+                quark = g_quark_from_string("stopped");
+                // DEPRECATED
+                g_signal_emit(self, connection_signals[STOP], 0);
+                break;
             }
 
             if (self->priv->cached_status != status) {
@@ -313,6 +338,19 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
     case PROP_PLAYBACK_STATUS:
         g_value_set_enum(value, self->priv->cached_status);
         break;
+
+    case PROP_LOOP_STATUS: {
+        const gchar *status_str =
+            org_mpris_media_player2_player_get_loop_status(self->priv->proxy);
+        PlayerctlLoopStatus status = 0;
+        if (pctl_parse_loop_status(status_str, &status)) {
+            g_value_set_enum(value, status);
+        } else {
+            g_warning("got unknown loop status: %s", status_str);
+            g_value_set_enum(value, PLAYERCTL_LOOP_STATUS_NONE);
+        }
+        break;
+   }
 
     case PROP_STATUS:
         // DEPRECATED
@@ -479,6 +517,13 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                           PLAYERCTL_PLAYBACK_STATUS_STOPPED,
                           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
+    obj_properties[PROP_LOOP_STATUS] =
+        g_param_spec_enum("loop-status", "Player loop status",
+                          "Whether the loop mode is none, track, or playlist.",
+                          playerctl_loop_status_get_type(),
+                          PLAYERCTL_LOOP_STATUS_NONE,
+                          G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
     obj_properties[PROP_STATUS] =
         g_param_spec_string("status", "Player status",
                             "The play status of the player (deprecated: use "
@@ -555,6 +600,19 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                      G_TYPE_NONE,                     /* return_type */
                      1,                               /* n_params */
                      playerctl_playback_status_get_type());
+
+    connection_signals[LOOP_STATUS] =
+        g_signal_new("loop-status",               /* signal_name */
+                     PLAYERCTL_TYPE_PLAYER,           /* itype */
+                     G_SIGNAL_RUN_FIRST |
+                         G_SIGNAL_DETAILED,           /* signal_flags */
+                     0,                               /* class_offset */
+                     NULL,                            /* accumulator */
+                     NULL,                            /* accu_data */
+                     g_cclosure_marshal_VOID__ENUM, /* c_marshaller */
+                     G_TYPE_NONE,                     /* return_type */
+                     1,                               /* n_params */
+                     playerctl_loop_status_get_type());
 
     /* DEPRECATED */
     connection_signals[PLAY] =
@@ -961,8 +1019,7 @@ void playerctl_player_on(PlayerctlPlayer *self, const gchar *event,
  *
  * Command the player to play if it is paused or pause if it is playing
  */
-void playerctl_player_play_pause(PlayerctlPlayer *self,
-                                             GError **err) {
+void playerctl_player_play_pause(PlayerctlPlayer *self, GError **err) {
     PLAYER_COMMAND_FUNC(play_pause);
 }
 
@@ -973,8 +1030,7 @@ void playerctl_player_play_pause(PlayerctlPlayer *self,
  *
  * Command the player to open given URI
  */
-void playerctl_player_open(PlayerctlPlayer *self, gchar *uri,
-                                       GError **err) {
+void playerctl_player_open(PlayerctlPlayer *self, gchar *uri, GError **err) {
     GError *tmp_error = NULL;
 
     g_return_if_fail(self != NULL);
@@ -1307,6 +1363,7 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position,
 
     if (self->priv->init_error != NULL) {
         g_propagate_error(err, g_error_copy(self->priv->init_error));
+        return;
     }
 
     // calling the function requires the track id
@@ -1331,4 +1388,22 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position,
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
     }
+}
+
+void playerctl_player_set_loop_status(PlayerctlPlayer *self,
+                                      PlayerctlLoopStatus status,
+                                      GError **err) {
+    g_return_if_fail(self != NULL);
+    g_return_if_fail(err == NULL || *err == NULL);
+
+    if (self->priv->init_error != NULL) {
+        g_propagate_error(err, g_error_copy(self->priv->init_error));
+        return;
+    }
+
+    const gchar *status_str = pctl_loop_status_to_string(status);
+    g_return_if_fail(status_str != NULL);
+
+    // TODO better error handling
+    org_mpris_media_player2_player_set_loop_status(self->priv->proxy, status_str);
 }

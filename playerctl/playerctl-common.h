@@ -29,6 +29,10 @@ gboolean pctl_parse_playback_status(const gchar *playback_status, PlayerctlPlayb
 
 const gchar *pctl_playback_status_to_string(PlayerctlPlaybackStatus status);
 
+gboolean pctl_parse_loop_status(const gchar *loop_status, PlayerctlLoopStatus *status);
+
+const gchar *pctl_loop_status_to_string(PlayerctlLoopStatus status);
+
 gchar *pctl_print_gvariant(GVariant *value);
 
 gint pctl_player_name_instance_compare(gchar *name, gchar *instance);

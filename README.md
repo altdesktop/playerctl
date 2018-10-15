@@ -29,6 +29,7 @@ Here is a list of available commands:
 | **`status`**                 | Get the play status of the player. Either "Playing", "Paused", or "Stopped".                           |
 | **`metadata [KEY...]`**      | Print the metadata for the current track. If KEY is passed, print only those values from the metadata. |
 | **`open [URI]`**             | Command for the player to open a given URI. Can be either a file path or a remote URL.                 |
+| **`loop [STATUS]`**          | Print or set the loop status. Either "None", "Track", or "Playlist".                                   |
 
 ### Selecting Players to Control
 

@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <glib.h>
+#include <strings.h>
 #include "playerctl-common.h"
 
 gboolean pctl_parse_playback_status(const gchar *status_str, PlayerctlPlaybackStatus *status) {
@@ -26,13 +27,13 @@ gboolean pctl_parse_playback_status(const gchar *status_str, PlayerctlPlaybackSt
         return FALSE;
     }
 
-    if (g_strcmp0(status_str, "Playing") == 0) {
+    if (strcasecmp(status_str, "Playing") == 0) {
         *status = PLAYERCTL_PLAYBACK_STATUS_PLAYING;
         return TRUE;
-    } else if (g_strcmp0(status_str, "Paused") == 0) {
+    } else if (strcasecmp(status_str, "Paused") == 0) {
         *status = PLAYERCTL_PLAYBACK_STATUS_PAUSED;
         return TRUE;
-    } else {
+    } else if (strcasecmp(status_str, "Stopped") == 0) {
         *status = PLAYERCTL_PLAYBACK_STATUS_STOPPED;
         return TRUE;
     }
@@ -50,6 +51,38 @@ const gchar *pctl_playback_status_to_string(PlayerctlPlaybackStatus status) {
         return "Stopped";
     }
     return NULL;
+}
+
+const gchar *pctl_loop_status_to_string(PlayerctlLoopStatus status) {
+    switch (status) {
+    case PLAYERCTL_LOOP_STATUS_NONE:
+        return "None";
+    case PLAYERCTL_LOOP_STATUS_TRACK:
+        return "Track";
+    case PLAYERCTL_LOOP_STATUS_PLAYLIST:
+        return "Playlist";
+    }
+    return NULL;
+}
+
+gboolean pctl_parse_loop_status(const gchar *status_str, PlayerctlLoopStatus *status) {
+    if (status_str == NULL) {
+        return FALSE;
+    }
+
+    if (strcasecmp(status_str, "None") == 0) {
+        *status = PLAYERCTL_LOOP_STATUS_NONE;
+        return TRUE;
+    } else if (strcasecmp(status_str, "Track") == 0) {
+        *status = PLAYERCTL_LOOP_STATUS_TRACK;
+        return TRUE;
+    } else if (strcasecmp(status_str, "Playlist") == 0) {
+        *status = PLAYERCTL_LOOP_STATUS_PLAYLIST;
+        return TRUE;
+    }
+
+    return FALSE;
+
 }
 
 gchar *pctl_print_gvariant(GVariant *value) {

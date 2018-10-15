@@ -518,6 +518,13 @@ static GVariantDict *get_default_template_context(PlayerctlPlayer *player, GVari
         GVariant *status_variant = g_variant_new_string(status_str);
         g_variant_dict_insert_value(context, "status", status_variant);
     }
+    if (!g_variant_dict_contains(context, "loop")) {
+        PlayerctlLoopStatus status = 0;
+        g_object_get(player, "loop-status", &status, NULL);
+        const gchar *status_str = pctl_loop_status_to_string(status);
+        GVariant *status_variant = g_variant_new_string(status_str);
+        g_variant_dict_insert_value(context, "loop", status_variant);
+    }
     if (!g_variant_dict_contains(context, "volume")) {
         gdouble level = 0.0;
         g_object_get(player, "volume", &level, NULL);
@@ -839,7 +846,7 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
                                  gchar **output, GError **error) {
     GError *tmp_error = NULL;
 
-    if (format_string_arg) {
+    if (format_tokens != NULL) {
         GVariantDict *context = get_default_template_context(player, NULL);
         gchar *formatted = expand_format(format_tokens, context, &tmp_error);
         if (tmp_error != NULL) {
@@ -856,7 +863,53 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
         PlayerctlPlaybackStatus status = 0;
         g_object_get(player, "playback-status", &status, NULL);
         const gchar *status_str = pctl_playback_status_to_string(status);
+        assert(status_str != NULL);
         *output = g_strdup_printf("%s\n", status_str);
+    }
+
+    return TRUE;
+}
+
+static gboolean playercmd_loop(PlayerctlPlayer *player, gchar **argv, gint argc,
+                               gchar **output, GError **error) {
+    GError *tmp_error = NULL;
+
+    if (argc > 1) {
+        gchar *status_str = argv[1];
+        PlayerctlLoopStatus status = 0;
+        if (!pctl_parse_loop_status(status_str, &status)) {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                        "Got unknown loop status: '%s' (expected 'none', "
+                        "'playlist', or 'track').", argv[1]);
+            return FALSE;
+        }
+
+        playerctl_player_set_loop_status(player, status, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return FALSE;
+        }
+    } else {
+        if (format_tokens != NULL) {
+            GVariantDict *context = get_default_template_context(player, NULL);
+            gchar *formatted = expand_format(format_tokens, context, &tmp_error);
+            if (tmp_error != NULL) {
+                g_propagate_error(error, tmp_error);
+                g_variant_dict_unref(context);
+                return FALSE;
+            }
+
+            *output = g_strdup_printf("%s\n", formatted);
+
+            g_variant_dict_unref(context);
+            g_free(formatted);
+        } else {
+            PlayerctlLoopStatus status = 0;
+            g_object_get(player, "loop-status", &status, NULL);
+            const gchar *status_str = pctl_loop_status_to_string(status);
+            assert(status_str != NULL);
+            *output = g_strdup_printf("%s\n", status_str);
+        }
     }
 
     return TRUE;
@@ -978,6 +1031,7 @@ struct player_command {
     {"position", &playercmd_position, TRUE, "seeked"},
     {"volume", &playercmd_volume, TRUE, "volume"},
     {"status", &playercmd_status, TRUE, "playback-status"},
+    {"loop", &playercmd_loop, TRUE, "loop-status"},
     {"metadata", &playercmd_metadata, TRUE, "metadata"},
 };
 
@@ -1052,7 +1106,10 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         "\n                          print only those values. KEY may be artist,"
         "title, album, or any key found in the metadata."
         "\n  open [URI]              Command for the player to open given URI."
-        "\n                          URI can be either file path or remote URL.";
+        "\n                          URI can be either file path or remote URL."
+        "\n  loop [STATUS]           Print or set the loop status."
+        "\n                          Can be \"None\", \"Track\", or \"Playlist\".";
+
     static const gchar *summary =
         "  For players supporting the MPRIS D-Bus specification";
     GOptionContext *context = NULL;
