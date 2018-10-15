@@ -35,6 +35,7 @@ enum {
     PROP_PLAYER_ID,
     PROP_PLAYBACK_STATUS,
     PROP_LOOP_STATUS,
+    PROP_SHUFFLE,
     PROP_STATUS, // deprecated
     PROP_VOLUME,
     PROP_METADATA,
@@ -54,6 +55,7 @@ enum {
     // PROPERTIES_CHANGED,
     PLAYBACK_STATUS,
     LOOP_STATUS,
+    SHUFFLE,
     PLAY,  // deprecated
     PAUSE, // deprecated
     STOP,  // deprecated
@@ -135,6 +137,7 @@ static void playerctl_player_properties_changed_callback(
     const gchar *const *invalidated_properties, gpointer user_data) {
     PlayerctlPlayer *self = user_data;
 
+    // TODO probably need to replace this with an iterator
     GVariant *metadata =
         g_variant_lookup_value(changed_properties, "Metadata", NULL);
     GVariant *playback_status =
@@ -143,15 +146,23 @@ static void playerctl_player_properties_changed_callback(
         g_variant_lookup_value(changed_properties, "LoopStatus", NULL);
     GVariant *volume =
         g_variant_lookup_value(changed_properties, "Volume", NULL);
+    GVariant *shuffle =
+        g_variant_lookup_value(changed_properties, "Shuffle", NULL);
 
-    if (volume) {
+    if (shuffle != NULL) {
+        gboolean shuffle_value = g_variant_get_boolean(shuffle);
+        g_signal_emit(self, connection_signals[SHUFFLE], 0, shuffle_value);
+        g_variant_unref(shuffle);
+    }
+
+    if (volume != NULL) {
         gdouble volume_value = g_variant_get_double(volume);
         g_signal_emit(self, connection_signals[VOLUME], 0, volume_value);
         g_variant_unref(volume);
     }
 
     gboolean track_id_invalidated = FALSE;
-    if (metadata) {
+    if (metadata != NULL) {
         // update the cached track id
         gchar *track_id = metadata_get_track_id(metadata);
         if (track_id != NULL) {
@@ -203,6 +214,8 @@ static void playerctl_player_properties_changed_callback(
 
             g_signal_emit(self, connection_signals[LOOP_STATUS], quark, status);
         }
+
+        g_variant_unref(loop_status);
     }
 
     if (playback_status != NULL) {
@@ -349,6 +362,17 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
             g_warning("got unknown loop status: %s", status_str);
             g_value_set_enum(value, PLAYERCTL_LOOP_STATUS_NONE);
         }
+        break;
+   }
+
+    case PROP_SHUFFLE: {
+        if (self->priv->proxy == NULL) {
+            g_value_set_boolean(value, FALSE);
+            break;
+        }
+        g_main_context_iteration(NULL, FALSE);
+        g_value_set_boolean(value,
+                            org_mpris_media_player2_player_get_shuffle(self->priv->proxy));
         break;
    }
 
@@ -524,6 +548,13 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                           PLAYERCTL_LOOP_STATUS_NONE,
                           G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
+    obj_properties[PROP_SHUFFLE] = g_param_spec_boolean(
+        "shuffle", "Shuffle", "A value of false indicates that playback is "
+        "progressing linearly through a playlist, while true means playback is "
+        "progressing through a playlist in some other order. ", FALSE,
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+    // DEPRECATED
     obj_properties[PROP_STATUS] =
         g_param_spec_string("status", "Player status",
                             "The play status of the player (deprecated: use "
@@ -602,7 +633,7 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                      playerctl_playback_status_get_type());
 
     connection_signals[LOOP_STATUS] =
-        g_signal_new("loop-status",               /* signal_name */
+        g_signal_new("loop-status",                   /* signal_name */
                      PLAYERCTL_TYPE_PLAYER,           /* itype */
                      G_SIGNAL_RUN_FIRST |
                          G_SIGNAL_DETAILED,           /* signal_flags */
@@ -613,6 +644,18 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
                      G_TYPE_NONE,                     /* return_type */
                      1,                               /* n_params */
                      playerctl_loop_status_get_type());
+
+    connection_signals[SHUFFLE] =
+        g_signal_new("shuffle",                       /* signal_name */
+                     PLAYERCTL_TYPE_PLAYER,           /* itype */
+                     G_SIGNAL_RUN_FIRST,              /* signal_flags */
+                     0,                               /* class_offset */
+                     NULL,                            /* accumulator */
+                     NULL,                            /* accu_data */
+                     g_cclosure_marshal_VOID__BOOLEAN,/* c_marshaller */
+                     G_TYPE_NONE,                     /* return_type */
+                     1,                               /* n_params */
+                     G_TYPE_BOOLEAN);
 
     /* DEPRECATED */
     connection_signals[PLAY] =
@@ -1406,4 +1449,19 @@ void playerctl_player_set_loop_status(PlayerctlPlayer *self,
 
     // TODO better error handling
     org_mpris_media_player2_player_set_loop_status(self->priv->proxy, status_str);
+}
+
+void playerctl_player_set_shuffle(PlayerctlPlayer *self,
+                                  gboolean shuffle,
+                                  GError **err) {
+    g_return_if_fail(self != NULL);
+    g_return_if_fail(err == NULL || *err == NULL);
+
+    if (self->priv->init_error != NULL) {
+        g_propagate_error(err, g_error_copy(self->priv->init_error));
+        return;
+    }
+
+    // TODO better error handling
+    org_mpris_media_player2_player_set_shuffle(self->priv->proxy, shuffle);
 }

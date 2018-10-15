@@ -511,6 +511,12 @@ static GVariantDict *get_default_template_context(PlayerctlPlayer *player, GVari
         g_variant_dict_insert_value(context, "playerId", player_id_variant);
         g_free(player_id);
     }
+    if (!g_variant_dict_contains(context, "shuffle")) {
+        gboolean shuffle = FALSE;
+        g_object_get(player, "shuffle", &shuffle, NULL);
+        GVariant *shuffle_variant = g_variant_new_boolean(shuffle);
+        g_variant_dict_insert_value(context, "shuffle", shuffle_variant);
+    }
     if (!g_variant_dict_contains(context, "status")) {
         PlayerctlPlaybackStatus status = 0;
         g_object_get(player, "playback-status", &status, NULL);
@@ -870,6 +876,59 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
     return TRUE;
 }
 
+static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint argc,
+                                  gchar **output, GError **error) {
+    GError *tmp_error = NULL;
+
+    if (argc > 1) {
+        gchar *status_str = argv[1];
+        gboolean status = FALSE;
+
+        if (strcasecmp(status_str, "on") == 0) {
+            status = TRUE;
+        } else if (strcasecmp(status_str, "off") == 0) {
+            status = FALSE;
+        } else {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                        "Got unknown loop status: '%s' (expected 'none', "
+                        "'playlist', or 'track').", argv[1]);
+            return FALSE;
+        }
+
+        playerctl_player_set_shuffle(player, status, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return FALSE;
+        }
+    } else {
+        if (format_tokens != NULL) {
+            GVariantDict *context = get_default_template_context(player, NULL);
+            gchar *formatted = expand_format(format_tokens, context, &tmp_error);
+            if (tmp_error != NULL) {
+                g_propagate_error(error, tmp_error);
+                g_variant_dict_unref(context);
+                return FALSE;
+            }
+
+            *output = g_strdup_printf("%s\n", formatted);
+
+            g_variant_dict_unref(context);
+            g_free(formatted);
+        } else {
+            gboolean status = FALSE;
+            g_object_get(player, "shuffle", &status, NULL);
+            if (status) {
+                *output = g_strdup("On\n");
+            } else {
+                *output = g_strdup("Off\n");
+            }
+        }
+    }
+
+    return TRUE;
+
+}
+
 static gboolean playercmd_loop(PlayerctlPlayer *player, gchar **argv, gint argc,
                                gchar **output, GError **error) {
     GError *tmp_error = NULL;
@@ -1032,6 +1091,7 @@ struct player_command {
     {"volume", &playercmd_volume, TRUE, "volume"},
     {"status", &playercmd_status, TRUE, "playback-status"},
     {"loop", &playercmd_loop, TRUE, "loop-status"},
+    {"shuffle", &playercmd_shuffle, TRUE, "shuffle"},
     {"metadata", &playercmd_metadata, TRUE, "metadata"},
 };
 
@@ -1108,7 +1168,9 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         "\n  open [URI]              Command for the player to open given URI."
         "\n                          URI can be either file path or remote URL."
         "\n  loop [STATUS]           Print or set the loop status."
-        "\n                          Can be \"None\", \"Track\", or \"Playlist\".";
+        "\n                          Can be \"None\", \"Track\", or \"Playlist\"."
+        "\n  shuffle [STATUS]        Print or set the shuffle status."
+        "\n                          Can be \"On\" or \"Off\".";
 
     static const gchar *summary =
         "  For players supporting the MPRIS D-Bus specification";

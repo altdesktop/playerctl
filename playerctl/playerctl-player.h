@@ -146,4 +146,8 @@ void playerctl_player_set_loop_status(PlayerctlPlayer *self,
                                       PlayerctlLoopStatus status,
                                       GError **err);
 
+void playerctl_player_set_shuffle(PlayerctlPlayer *self,
+                                  gboolean shuffle,
+                                  GError **err);
+
 #endif /* __PLAYERCTL_PLAYER_H__ */
