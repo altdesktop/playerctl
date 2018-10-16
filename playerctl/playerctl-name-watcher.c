@@ -21,11 +21,13 @@
 #include <glib-object.h>
 #include "playerctl/playerctl-common.h"
 #include "playerctl/playerctl-name-watcher.h"
+#include "playerctl/playerctl-marshal.h"
 #include <playerctl/playerctl-player.h>
 
 enum {
     PROP_0,
     PROP_PLAYERS,
+    PROP_PLAYER_NAMES,
     PROP_BUS_TYPE,
     N_PROPERTIES,
 };
@@ -33,6 +35,8 @@ enum {
 enum {
     NAME_APPEARED,
     NAME_VANISHED,
+    PLAYER_APPEARED,
+    PLAYER_VANISHED,
     LAST_SIGNAL,
 };
 
@@ -46,8 +50,12 @@ struct _PlayerctlNameWatcherPrivate {
     gboolean initted;
     GError *init_error;
     GDBusProxy *proxy;
+    GList *player_names;
     GList *players;
     GBusType bus_type;
+    GCompareDataFunc sort_func;
+    gpointer *sort_data;
+    GDestroyNotify sort_notify;
 };
 
 static void playerctl_name_watcher_initable_iface_init(GInitableIface *iface);
@@ -80,6 +88,9 @@ static void playerctl_name_watcher_get_property(GObject *object, guint property_
     case PROP_PLAYERS:
         g_value_set_pointer(value, watcher->priv->players);
         break;
+    case PROP_PLAYER_NAMES:
+        g_value_set_pointer(value, watcher->priv->player_names);
+        break;
     case PROP_BUS_TYPE:
         g_value_set_enum(value, watcher->priv->bus_type);
         break;
@@ -107,10 +118,53 @@ static void playerctl_name_watcher_dispose(GObject *gobject) {
 static void playerctl_name_watcher_finalize(GObject *gobject) {
     PlayerctlNameWatcher *watcher = PLAYERCTL_NAME_WATCHER(gobject);
 
-    g_list_free_full(watcher->priv->players, g_free);
+    g_list_free_full(watcher->priv->player_names, g_free);
+    g_list_free_full(watcher->priv->players, g_object_unref);
 
     G_OBJECT_CLASS(playerctl_name_watcher_parent_class)->finalize(gobject);
 }
+
+
+/**
+ * playerctl_name_event_copy:
+ * @event: a #PlayerctlNameEvent
+ *
+ * Creates a dynamically allocated name event container as a copy of
+ * @event.
+ *
+ * Returns: (transfer full): a newly-allocated copy of @event
+ */
+PlayerctlNameEvent *playerctl_name_event_copy(PlayerctlNameEvent *event) {
+    PlayerctlNameEvent *retval;
+
+    g_return_val_if_fail(event != NULL, NULL);
+
+    retval = g_slice_new0(PlayerctlNameEvent);
+    *retval = *event;
+
+    retval->name = g_strdup(event->name);
+
+    return retval;
+}
+
+/**
+ * playerctl_name_event_free:
+ * @event: (allow-none): a #PlayerctlNameEvent
+ *
+ * Frees @event. If @event is %NULL, it simply returns.
+ */
+void playerctl_name_event_free(PlayerctlNameEvent *event) {
+    if (event == NULL) {
+        return;
+    }
+
+    g_free(event->name);
+    g_slice_free(PlayerctlNameEvent, event);
+}
+
+G_DEFINE_BOXED_TYPE(PlayerctlNameEvent, playerctl_name_event,
+    playerctl_name_event_copy, playerctl_name_event_free);
+
 
 static void playerctl_name_watcher_class_init(PlayerctlNameWatcherClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
@@ -122,14 +176,25 @@ static void playerctl_name_watcher_class_init(PlayerctlNameWatcherClass *klass) 
     gobject_class->finalize = playerctl_name_watcher_finalize;
 
     /**
-     * PlayerctlNameWatcher:players: (transfer none) (type GList(utf8)):
+     * PlayerctlNameWatcher:players: (transfer none) (type GList(PlayerctlPlayer)):
      *
-     * A list of players that are currently available to control.
+     * A list of players that are currently managed by this class.
      */
     obj_properties[PROP_PLAYERS] =
        g_param_spec_pointer("players",
                             "players",
-                            "A list of players that are currently available to control.",
+                            "A list of player objects managed by this watcher",
+                            G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+
+    /**
+     * PlayerctlNameWatcher:player-names: (transfer none) (type GList(utf8)):
+     *
+     * A list of player names that are currently available to control.
+     */
+    obj_properties[PROP_PLAYER_NAMES] =
+       g_param_spec_pointer("player-names",
+                            "player names",
+                            "A list of player names that are currently available to control.",
                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
     obj_properties[PROP_BUS_TYPE] =
@@ -143,17 +208,24 @@ static void playerctl_name_watcher_class_init(PlayerctlNameWatcherClass *klass) 
     g_object_class_install_properties(gobject_class, N_PROPERTIES,
                                       obj_properties);
 
+    /**
+    * PlayerctlNameWatcher::name-appeared:
+    * @self: the #PlayerctlNameWatcher on which the signal was emitted
+    * @event: A #PlayerctlNameEvent containing information about the name appearing.
+    *
+    * Returns: (allow-none) (transfer none): A #PlayerctlPlayer to be managed by this class.
+    */
     connection_signals[NAME_APPEARED] =
         g_signal_new("name-appeared",
                      PLAYERCTL_TYPE_NAME_WATCHER,
-                     G_SIGNAL_RUN_FIRST,
+                     G_SIGNAL_RUN_LAST,
                      0,
                      NULL,
                      NULL,
-                     g_cclosure_marshal_VOID__STRING,
-                     G_TYPE_NONE,
+                     g_cclosure_user_marshal_OBJECT__BOXED,
+                     PLAYERCTL_TYPE_PLAYER,
                      1,
-                     G_TYPE_STRING);
+                     PLAYERCTL_TYPE_NAME_EVENT);
 
     connection_signals[NAME_VANISHED] =
         g_signal_new("name-vanished",
@@ -162,10 +234,34 @@ static void playerctl_name_watcher_class_init(PlayerctlNameWatcherClass *klass) 
                      0,
                      NULL,
                      NULL,
-                     g_cclosure_marshal_VOID__STRING,
+                     g_cclosure_marshal_VOID__BOXED,
                      G_TYPE_NONE,
                      1,
-                     G_TYPE_STRING);
+                     PLAYERCTL_TYPE_NAME_EVENT);
+
+    connection_signals[PLAYER_APPEARED] =
+        g_signal_new("player-appeared",
+                     PLAYERCTL_TYPE_NAME_WATCHER,
+                     G_SIGNAL_RUN_FIRST,
+                     0,
+                     NULL,
+                     NULL,
+                     g_cclosure_marshal_VOID__OBJECT,
+                     G_TYPE_NONE,
+                     1,
+                     PLAYERCTL_TYPE_PLAYER);
+
+    connection_signals[PLAYER_VANISHED] =
+        g_signal_new("player-vanished",
+                     PLAYERCTL_TYPE_NAME_WATCHER,
+                     G_SIGNAL_RUN_FIRST,
+                     0,
+                     NULL,
+                     NULL,
+                     g_cclosure_marshal_VOID__OBJECT,
+                     G_TYPE_NONE,
+                     1,
+                     PLAYERCTL_TYPE_PLAYER);
 }
 
 static void playerctl_name_watcher_init(PlayerctlNameWatcher *watcher) {
@@ -182,6 +278,46 @@ static gchar *player_id_from_bus_name(const gchar *bus_name) {
     }
 
     return g_strdup(bus_name + prefix_len);
+}
+
+static void watcher_add_managed_player(PlayerctlNameWatcher *watcher,
+                                       PlayerctlPlayer *player) {
+    GList *l = NULL;
+    for (l = watcher->priv->players; l != NULL; l = l->next) {
+        PlayerctlPlayer *current = PLAYERCTL_PLAYER(l->data);
+        if (player == current) {
+            return;
+        }
+    }
+
+    if (watcher->priv->sort_func) {
+        watcher->priv->players =
+            g_list_insert_sorted_with_data(watcher->priv->players, player,
+                                           watcher->priv->sort_func,
+                                           watcher->priv->sort_data);
+    } else {
+        watcher->priv->players = g_list_prepend(watcher->priv->players, player);
+    }
+
+    g_signal_emit(watcher, connection_signals[PLAYER_APPEARED], 0, player);
+}
+
+static void watcher_remove_managed_player_by_name(PlayerctlNameWatcher *watcher,
+                                                  gchar *player_name) {
+    GList *l = NULL;
+    for (l = watcher->priv->players; l != NULL; l = l->next) {
+        PlayerctlPlayer *player = PLAYERCTL_PLAYER(l->data);
+        gchar *id = NULL;
+        g_object_get(player, "player-id", &id, NULL);
+        if (g_strcmp0(id, player_name) == 0) {
+            g_signal_emit(watcher, connection_signals[PLAYER_VANISHED], 0, player);
+            watcher->priv->players = g_list_remove_link(watcher->priv->players, l);
+            g_list_free_full(l, g_object_unref);
+            g_free(id);
+            break;
+        }
+        g_free(id);
+    }
 }
 
 static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_name,
@@ -219,24 +355,31 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
     if (strlen(new_owner) == 0 && strlen(previous_owner) != 0) {
         // the name has vanished
         player_entry =
-            g_list_find_custom(watcher->priv->players, player_id,
+            g_list_find_custom(watcher->priv->player_names, player_id,
                                (GCompareFunc)g_strcmp0);
         if (player_entry != NULL) {
-            watcher->priv->players =
-                g_list_remove_link(watcher->priv->players, player_entry);
+            watcher->priv->player_names =
+                g_list_remove_link(watcher->priv->player_names, player_entry);
+            watcher_remove_managed_player_by_name(watcher, player_entry->data);
+            PlayerctlNameEvent *event = g_slice_new(PlayerctlNameEvent);
+            event->name = g_strdup(player_entry->data);
             g_signal_emit(watcher, connection_signals[NAME_VANISHED], 0,
-                          player_entry->data);
+                          event);
             g_list_free_full(player_entry, g_free);
         }
     } else if (strlen(previous_owner) == 0 && strlen(new_owner) != 0) {
         // the name has appeared
         player_entry =
-            g_list_find_custom(watcher->priv->players, player_id,
+            g_list_find_custom(watcher->priv->player_names, player_id,
                                (GCompareFunc)g_strcmp0);
         if (player_entry == NULL) {
-            watcher->priv->players = g_list_prepend(watcher->priv->players, g_strdup(player_id));
+            watcher->priv->player_names = g_list_prepend(watcher->priv->player_names, g_strdup(player_id));
+            PlayerctlPlayer *player = NULL;
+            PlayerctlNameEvent *event = g_slice_new(PlayerctlNameEvent);
+            event->name = g_strdup(player_id);
             g_signal_emit(watcher, connection_signals[NAME_APPEARED], 0,
-                          player_id);
+                          event, &player);
+            watcher_add_managed_player(watcher, player);
         }
     }
 
@@ -268,7 +411,7 @@ static gboolean playerctl_name_watcher_initable_init(GInitable *initable,
         return FALSE;
     }
 
-    watcher->priv->players = playerctl_list_players(&tmp_error);
+    watcher->priv->player_names = playerctl_list_players(&tmp_error);
     if (tmp_error != NULL) {
         g_propagate_error(error, tmp_error);
         return FALSE;
@@ -312,4 +455,30 @@ PlayerctlNameWatcher *playerctl_name_watcher_new_for_bus(GError **err, GBusType 
     }
 
     return watcher;
+}
+
+void playerctl_name_watcher_set_sort_func(PlayerctlNameWatcher *watcher,
+                                          GCompareDataFunc sort_func,
+                                          gpointer *sort_data,
+                                          GDestroyNotify notify) {
+    // TODO figure out how to make this work with the bindings
+    watcher->priv->sort_func = sort_func;
+    watcher->priv->sort_data = sort_data;
+    watcher->priv->sort_notify = notify;
+
+    watcher->priv->players =
+        g_list_sort_with_data(watcher->priv->players, sort_func, sort_data);
+}
+
+void playerctl_name_watcher_move_player_to_top(PlayerctlNameWatcher *watcher,
+                                               PlayerctlPlayer *player) {
+    GList *l;
+    for (l = watcher->priv->players; l != NULL; l = l->next) {
+        PlayerctlPlayer *current = PLAYERCTL_PLAYER(l->data);
+        if (current == player) {
+            watcher->priv->players = g_list_remove_link(watcher->priv->players, l);
+            watcher->priv->players = g_list_prepend(watcher->priv->players, l);
+            break;
+        }
+    }
 }

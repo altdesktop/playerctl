@@ -33,6 +33,8 @@ add_global_arguments(
 
 enums = gnome.mkenums_simple('playerctl-enum-types', sources: headers, install: true)
 
+marshal = gnome.genmarshal('playerctl-marshal', sources: 'marshal.list')
+
 deps = [
   gobject_dep,
   gio_dep,
@@ -40,7 +42,7 @@ deps = [
 
 playerctl_lib = both_libraries(
   'playerctl-1.0',
-  sources: playerctl_sources + enums,
+  playerctl_sources, enums, marshal,
   dependencies: deps,
   include_directories: configuration_inc,
   version: '0.0.0',
@@ -55,7 +57,7 @@ playerctl_shared_link = declare_dependency(
 
 playerctl_executable = executable(
   'playerctl',
-  'playerctl-cli.c',
+  'playerctl-cli.c', enums,
   dependencies: playerctl_shared_link,
   include_directories: configuration_inc,
   install: true,
@@ -78,12 +80,15 @@ if get_option('introspection')
   gnome.generate_gir(
     playerctl_lib.get_shared_lib(),
     sources: [
+      enums,
+      'playerctl-name-watcher.c',
+      'playerctl-name-watcher.h',
       'playerctl-player.c',
       'playerctl-player.h',
     ],
     nsversion: '1.0',
     namespace: 'Playerctl',
-    includes : 'GObject-2.0',
+    includes : ['GObject-2.0', 'Gio-2.0'],
     install: true,
   )
 endif
@@ -95,6 +100,5 @@ pkgconfig.generate(
   name: 'Playerctl',
   filebase: 'playerctl-1.0',
   description: 'A C library for MPRIS players',
-  requires: 'gobject-2.0',
-  requires_private: 'gio-2.0',
+  requires: ['gobject-2.0', 'gio-2.0'],
 )

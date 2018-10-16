@@ -24,6 +24,7 @@
 #error "Only <playerctl/playerctl.h> can be included directly."
 #endif
 
+#include <playerctl/playerctl-player.h>
 #include <glib-object.h>
 #include <gio/gio.h>
 
@@ -49,6 +50,25 @@ typedef struct _PlayerctlNameWatcher PlayerctlNameWatcher;
 typedef struct _PlayerctlNameWatcherClass PlayerctlNameWatcherClass;
 typedef struct _PlayerctlNameWatcherPrivate PlayerctlNameWatcherPrivate;
 
+#define PLAYERCTL_TYPE_NAME_EVENT (playerctl_name_event_get_type())
+
+typedef struct _PlayerctlNameEvent PlayerctlNameEvent;
+
+/**
+ * PlayerctlNameEvent:
+ * @name: the name of the player that has appeared or vanished.
+ *
+ * Event container for when names of players appear or disapear as the
+ * controllable media player applications open and close.
+ */
+struct _PlayerctlNameEvent {
+    gchar *name;
+};
+
+void playerctl_name_event_free(PlayerctlNameEvent *event);
+PlayerctlNameEvent *playerctl_name_event_copy(PlayerctlNameEvent *event);
+GType playerctl_name_event_get_type(void);
+
 struct _PlayerctlNameWatcher {
     /* Parent instance structure */
     GObject parent_instance;
@@ -68,5 +88,13 @@ PlayerctlNameWatcher *playerctl_name_watcher_new(GError **err);
 
 PlayerctlNameWatcher *playerctl_name_watcher_new_for_bus(GError **err,
                                                          GBusType bus_type);
+
+void playerctl_name_watcher_set_sort_func(PlayerctlNameWatcher *watcher,
+                                          GCompareDataFunc sort_func,
+                                          gpointer *sort_data,
+                                          GDestroyNotify notify);
+
+void playerctl_name_watcher_move_player_to_top(PlayerctlNameWatcher *watcher,
+                                               PlayerctlPlayer *player);
 
 #endif /* __PLAYERCTL_NAME_WATCHER_H__ */
