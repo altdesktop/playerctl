@@ -21,6 +21,7 @@ headers = [
 playerctl_sources = [
   'playerctl-player.c',
   'playerctl-common.c',
+  'playerctl-name-watcher.c',
   playerctl_generated,
 ]
 
