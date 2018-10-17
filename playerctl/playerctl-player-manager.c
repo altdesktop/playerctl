@@ -28,7 +28,6 @@ enum {
     PROP_0,
     PROP_PLAYERS,
     PROP_PLAYER_NAMES,
-    PROP_BUS_TYPE,
     N_PROPERTIES,
 };
 
@@ -52,7 +51,6 @@ struct _PlayerctlPlayerManagerPrivate {
     GDBusProxy *proxy;
     GList *player_names;
     GList *players;
-    GBusType bus_type;
     GCompareDataFunc sort_func;
     gpointer *sort_data;
     GDestroyNotify sort_notify;
@@ -69,12 +67,9 @@ G_DEFINE_TYPE_WITH_CODE(PlayerctlPlayerManager, playerctl_player_manager, G_TYPE
 static void playerctl_player_manager_set_property(GObject *object, guint property_id,
                                           const GValue *value,
                                           GParamSpec *pspec) {
-    PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(object);
+    //PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(object);
 
     switch (property_id) {
-    case PROP_BUS_TYPE:
-        manager->priv->bus_type = g_value_get_enum(value);
-        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -90,9 +85,6 @@ static void playerctl_player_manager_get_property(GObject *object, guint propert
         break;
     case PROP_PLAYER_NAMES:
         g_value_set_pointer(value, manager->priv->player_names);
-        break;
-    case PROP_BUS_TYPE:
-        g_value_set_enum(value, manager->priv->bus_type);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -196,14 +188,6 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                             "player names",
                             "A list of player names that are currently available to control.",
                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
-
-    obj_properties[PROP_BUS_TYPE] =
-        g_param_spec_enum("bus-type", "Bus type",
-                          "The bus type to watch names on",
-                          g_bus_type_get_type(),
-                          G_BUS_TYPE_SESSION,
-                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
-                          G_PARAM_STATIC_STRINGS);
 
     g_object_class_install_properties(gobject_class, N_PROPERTIES,
                                       obj_properties);
@@ -375,8 +359,9 @@ static gboolean playerctl_player_manager_initable_init(GInitable *initable,
         return TRUE;
     }
 
+    // TODO system bus
     manager->priv->proxy =
-        g_dbus_proxy_new_for_bus_sync(manager->priv->bus_type,
+        g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
                                       G_DBUS_PROXY_FLAGS_NONE, NULL,
                                       "org.freedesktop.DBus",
                                       "/org/freedesktop/DBus",
@@ -411,20 +396,6 @@ PlayerctlPlayerManager *playerctl_player_manager_new(GError **err) {
 
     PlayerctlPlayerManager *manager =
         g_initable_new(PLAYERCTL_TYPE_PLAYER_MANAGER, NULL, &tmp_error, NULL);
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        return NULL;
-    }
-
-    return manager;
-}
-
-PlayerctlPlayerManager *playerctl_player_manager_new_for_bus(GError **err, GBusType bus_type) {
-    GError *tmp_error = NULL;
-
-    PlayerctlPlayerManager *manager =
-        g_initable_new(PLAYERCTL_TYPE_PLAYER_MANAGER, NULL, &tmp_error,
-                       "bus-type", bus_type, NULL);
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
         return NULL;

@@ -86,9 +86,6 @@ GType playerctl_player_manager_get_type(void);
 
 PlayerctlPlayerManager *playerctl_player_manager_new(GError **err);
 
-PlayerctlPlayerManager *playerctl_player_manager_new_for_bus(GError **err,
-                                                             GBusType bus_type);
-
 void playerctl_player_manager_manage_player(PlayerctlPlayerManager *manager,
                                             PlayerctlPlayer *player);
 
