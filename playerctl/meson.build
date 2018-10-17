@@ -21,7 +21,7 @@ headers = [
 playerctl_sources = [
   'playerctl-player.c',
   'playerctl-common.c',
-  'playerctl-name-watcher.c',
+  'playerctl-player-manager.c',
   playerctl_generated,
 ]
 
@@ -81,8 +81,8 @@ if get_option('introspection')
     playerctl_lib.get_shared_lib(),
     sources: [
       enums,
-      'playerctl-name-watcher.c',
-      'playerctl-name-watcher.h',
+      'playerctl-player-manager.c',
+      'playerctl-player-manager.h',
       'playerctl-player.c',
       'playerctl-player.h',
     ],
