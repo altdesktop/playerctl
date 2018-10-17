@@ -19,6 +19,7 @@ headers = [
 ]
 
 playerctl_sources = [
+  'playerctl-formatter.c',
   'playerctl-player.c',
   'playerctl-common.c',
   'playerctl-player-manager.c',
