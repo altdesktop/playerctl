@@ -212,8 +212,6 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
     * PlayerctlPlayerManager::name-appeared:
     * @self: the #PlayerctlPlayerManager on which the signal was emitted
     * @event: A #PlayerctlNameEvent containing information about the name appearing.
-    *
-    * Returns: (allow-none) (transfer none): A #PlayerctlPlayer to be managed by this class.
     */
     connection_signals[NAME_APPEARED] =
         g_signal_new("name-appeared",
@@ -222,8 +220,8 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                      0,
                      NULL,
                      NULL,
-                     g_cclosure_user_marshal_OBJECT__BOXED,
-                     PLAYERCTL_TYPE_PLAYER,
+                     g_cclosure_marshal_VOID__BOXED,
+                     G_TYPE_NONE,
                      1,
                      PLAYERCTL_TYPE_NAME_EVENT);
 
@@ -278,28 +276,6 @@ static gchar *player_id_from_bus_name(const gchar *bus_name) {
     }
 
     return g_strdup(bus_name + prefix_len);
-}
-
-static void manager_add_managed_player(PlayerctlPlayerManager *manager,
-                                       PlayerctlPlayer *player) {
-    GList *l = NULL;
-    for (l = manager->priv->players; l != NULL; l = l->next) {
-        PlayerctlPlayer *current = PLAYERCTL_PLAYER(l->data);
-        if (player == current) {
-            return;
-        }
-    }
-
-    if (manager->priv->sort_func) {
-        manager->priv->players =
-            g_list_insert_sorted_with_data(manager->priv->players, player,
-                                           manager->priv->sort_func,
-                                           manager->priv->sort_data);
-    } else {
-        manager->priv->players = g_list_prepend(manager->priv->players, player);
-    }
-
-    g_signal_emit(manager, connection_signals[PLAYER_APPEARED], 0, player);
 }
 
 static void manager_remove_managed_player_by_name(PlayerctlPlayerManager *manager,
@@ -365,6 +341,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
             event->name = g_strdup(player_entry->data);
             g_signal_emit(manager, connection_signals[NAME_VANISHED], 0,
                           event);
+            playerctl_name_event_free(event);
             g_list_free_full(player_entry, g_free);
         }
     } else if (strlen(previous_owner) == 0 && strlen(new_owner) != 0) {
@@ -374,12 +351,11 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
                                (GCompareFunc)g_strcmp0);
         if (player_entry == NULL) {
             manager->priv->player_names = g_list_prepend(manager->priv->player_names, g_strdup(player_id));
-            PlayerctlPlayer *player = NULL;
             PlayerctlNameEvent *event = g_slice_new(PlayerctlNameEvent);
             event->name = g_strdup(player_id);
             g_signal_emit(manager, connection_signals[NAME_APPEARED], 0,
-                          event, &player);
-            manager_add_managed_player(manager, player);
+                          event);
+            playerctl_name_event_free(event);
         }
     }
 
@@ -481,4 +457,31 @@ void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager
             break;
         }
     }
+}
+
+void playerctl_player_manager_manage_player(PlayerctlPlayerManager *manager,
+                                            PlayerctlPlayer *player) {
+    if (player == NULL) {
+        return;
+    }
+
+    GList *l = NULL;
+    for (l = manager->priv->players; l != NULL; l = l->next) {
+        PlayerctlPlayer *current = PLAYERCTL_PLAYER(l->data);
+        if (player == current) {
+            return;
+        }
+    }
+
+    if (manager->priv->sort_func) {
+        manager->priv->players =
+            g_list_insert_sorted_with_data(manager->priv->players, player,
+                                           manager->priv->sort_func,
+                                           manager->priv->sort_data);
+    } else {
+        manager->priv->players = g_list_prepend(manager->priv->players, player);
+    }
+
+    g_object_ref(player);
+    g_signal_emit(manager, connection_signals[PLAYER_APPEARED], 0, player);
 }

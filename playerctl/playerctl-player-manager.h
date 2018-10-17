@@ -89,6 +89,9 @@ PlayerctlPlayerManager *playerctl_player_manager_new(GError **err);
 PlayerctlPlayerManager *playerctl_player_manager_new_for_bus(GError **err,
                                                              GBusType bus_type);
 
+void playerctl_player_manager_manage_player(PlayerctlPlayerManager *manager,
+                                            PlayerctlPlayer *player);
+
 void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
                                             GCompareDataFunc sort_func,
                                             gpointer *sort_data,
