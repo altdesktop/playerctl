@@ -48,18 +48,22 @@ static gchar **command = NULL;
 /* A format string for printing properties and metadata */
 static gchar *format_string_arg = NULL;
 /* The formatter for the format string argument if present */
-PlayerctlFormatter *formatter = NULL;
+static PlayerctlFormatter *formatter = NULL;
 /* Block and follow the command */
 static gboolean follow = FALSE;
 /* The main loop for the follow command */
 static GMainLoop *main_loop = NULL;
-/* A list of the players currently being followed */
-GList *followed_players = NULL;
 /* The last output printed by the cli */
 static gchar *last_output = NULL;
+/* The manager of all the players we connect to */
+static PlayerctlPlayerManager *manager = NULL;
+/* List of player names parsed from the --player arg */
+static GList *player_names = NULL;
+/* List of ignored player names passed from the --ignore-player arg*/
+static GList *ignored_player_names = NULL;
 
 /* forward definitions */
-static void followed_players_execute_command(GError **error);
+static void managed_players_execute_command(GError **error);
 
 /*
  * Sometimes players may notify metadata when nothing we care about has
@@ -129,19 +133,19 @@ static gchar *get_metadata_formatted(PlayerctlPlayer *player, GError **error) {
         return NULL;
     }
 
-    GVariantDict *metadata_dict =
+    GVariantDict *context =
         playerctl_formatter_default_template_context(formatter, player, metadata);
 
-    gchar *result = playerctl_formatter_expand_format(formatter, metadata_dict, &tmp_error);
+    gchar *result = playerctl_formatter_expand_format(formatter, context, &tmp_error);
     if (tmp_error) {
         g_variant_unref(metadata);
-        g_variant_dict_unref(metadata_dict);
+        g_variant_dict_unref(context);
         g_propagate_error(error, tmp_error);
         return NULL;
     }
 
     g_variant_unref(metadata);
-    g_variant_dict_unref(metadata_dict);
+    g_variant_dict_unref(context);
 
     return result;
 }
@@ -623,28 +627,15 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
     return TRUE;
 }
 
-static void playercmd_follow_callback(PlayerctlPlayer *player, struct playercmd_args *args) {
-    if (select_all_players) {
-        GList *match = g_list_find(followed_players, player);
-        if (match == NULL) {
-            return;
-        }
-        followed_players = g_list_remove_link(followed_players, match);
-        followed_players = g_list_prepend(followed_players, player);
-    }
-
-    GError *tmp_error = NULL;
-    followed_players_execute_command(&tmp_error);
-    if (tmp_error != NULL) {
-        g_printerr("Error while executing command: %s\n", tmp_error->message);
-        g_clear_error(&tmp_error);
-        g_main_loop_quit(main_loop);
-    }
+static void managed_player_properties_callback(PlayerctlPlayer *player, gpointer *data) {
+    playerctl_player_manager_move_player_to_top(manager, player);
+    GError *error = NULL;
+    managed_players_execute_command(&error);
 }
 
 static gboolean playercmd_tick_callback(gpointer data) {
     GError *tmp_error = NULL;
-    followed_players_execute_command(&tmp_error);
+    managed_players_execute_command(&tmp_error);
     if (tmp_error != NULL) {
         g_printerr("Error while executing command: %s\n", tmp_error->message);
         g_clear_error(&tmp_error);
@@ -829,161 +820,7 @@ static int handle_list_all_flag() {
     return 0;
 }
 
-static GList *select_players(GList *players, GList *all_players, GList *ignored_players) {
-    GList *result = NULL;
-
-    if (players == NULL) {
-        // select the players that are not ignored
-        GList *all_players_next = all_players;
-        while (all_players_next != NULL) {
-            gchar *current_name = all_players_next->data;
-            gboolean ignored =
-                (g_list_find_custom(ignored_players, current_name,
-                                    (GCompareFunc)pctl_player_name_instance_compare) != NULL);
-
-            if (!ignored && !g_list_find(result, current_name)) {
-                result = g_list_append(result, current_name);
-            }
-
-            all_players_next = all_players_next->next;
-        }
-
-        return result;
-    }
-
-    GList *players_next = players;
-    while (players_next) {
-        gchar *player_name = players_next->data;
-
-        GList *all_players_next = all_players;
-        while (all_players_next != NULL) {
-            gchar *current_name = all_players_next->data;
-
-            if (pctl_player_name_instance_compare(player_name, current_name) == 0) {
-                gboolean ignored =
-                    (g_list_find_custom(ignored_players, current_name,
-                                         (GCompareFunc)pctl_player_name_instance_compare) != NULL);
-                if (!ignored && !g_list_find(result, current_name)) {
-                    result = g_list_append(result, current_name);
-                }
-            }
-
-            all_players_next = all_players_next->next;
-        }
-
-        players_next = players_next->next;
-    }
-
-    return result;
-}
-
-static gchar *player_id_from_bus_name(const gchar *bus_name) {
-    const size_t prefix_len = strlen(MPRIS_PREFIX);
-
-    if (bus_name == NULL ||
-            !g_str_has_prefix(bus_name, MPRIS_PREFIX) ||
-            strlen(bus_name) <= prefix_len) {
-        return NULL;
-    }
-
-    return g_strdup(bus_name + prefix_len);
-}
-
-static void add_followed_player(PlayerctlPlayer *player, GError **error) {
-    GError *tmp_error = NULL;
-
-    if (player == NULL) {
-        return;
-    }
-    const struct player_command *player_cmd =
-        get_player_command(playercmd_args->argv, playercmd_args->argc,
-                           &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(error, tmp_error);
-        return;
-    }
-
-    assert(player_cmd->follow_signal != NULL);
-    g_signal_connect(G_OBJECT(player), player_cmd->follow_signal,
-                     G_CALLBACK(playercmd_follow_callback),
-                     playercmd_args);
-
-    if (formatter != NULL) {
-        for (gsize i = 0; i < LENGTH(player_commands); ++i) {
-            const struct player_command cmd = player_commands[i];
-            if (&cmd != player_cmd &&
-                    cmd.follow_signal != NULL &&
-                    g_strcmp0(cmd.name, "metadata") != 0 &&
-                    playerctl_formatter_contains_key(formatter, cmd.name)) {
-                g_signal_connect(G_OBJECT(player), cmd.follow_signal,
-                                 G_CALLBACK(playercmd_follow_callback),
-                                 playercmd_args);
-            }
-        }
-    }
-
-    followed_players = g_list_prepend(followed_players, player);
-}
-
-static void add_followed_player_by_name(gchar *player_name, GError **error) {
-    // check and see if it's in the list
-    GError *tmp_error = NULL;
-    PlayerctlPlayer *player = NULL;
-
-    if (player_name == NULL) {
-        return;
-    }
-
-    GList *next = followed_players;
-    while (next != NULL) {
-        player = PLAYERCTL_PLAYER(next->data);
-        gchar *player_id = NULL;
-        g_object_get(player, "player-id", &player_id, NULL);
-        if (g_strcmp0(player_id, player_name) == 0) {
-            g_free(player_id);
-            return;
-        }
-
-        g_free(player_id);
-        next = next->next;
-    }
-
-    player = playerctl_player_new(player_name, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(error, tmp_error);
-        return;
-    }
-
-    add_followed_player(player, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(error, tmp_error);
-        return;
-    }
-}
-
-static void remove_followed_player_by_name(gchar *player_name) {
-    GList *next = followed_players;
-    while (next != NULL) {
-        PlayerctlPlayer *player = PLAYERCTL_PLAYER(next->data);
-        gchar *player_id = NULL;
-        g_object_get(player, "player-id", &player_id, NULL);
-        if (g_strcmp0(player_id, player_name) == 0) {
-            followed_players = g_list_remove_link(followed_players, next);
-            g_list_free_full(next, g_object_unref);
-            g_free(player_id);
-            break;
-        }
-        g_free(player_id);
-        next = next->next;
-    }
-}
-
-static void clear_followed_players() {
-    g_list_free_full(followed_players, g_object_unref);
-    followed_players = NULL;
-}
-
-static void followed_players_execute_command(GError **error) {
+static void managed_players_execute_command(GError **error) {
     GError *tmp_error = NULL;
 
     const struct player_command *player_cmd =
@@ -996,9 +833,12 @@ static void followed_players_execute_command(GError **error) {
     assert(player_cmd->func != NULL);
 
     gboolean did_command = FALSE;
-    GList *next = followed_players;
-    while (next != NULL) {
-        PlayerctlPlayer *player = PLAYERCTL_PLAYER(next->data);
+    GList *players = NULL;
+    g_object_get(manager, "players", &players, NULL);
+    GList *l = NULL;
+    for (l = players; l != NULL; l = l->next) {
+        PlayerctlPlayer *player = PLAYERCTL_PLAYER(l->data);
+        assert(player != NULL);
         gchar *output = NULL;
 
         gboolean result =
@@ -1018,8 +858,6 @@ static void followed_players_execute_command(GError **error) {
         if (result || !select_all_players) {
             break;
         }
-
-        next = next->next;
     }
 
     if (!did_command) {
@@ -1027,140 +865,151 @@ static void followed_players_execute_command(GError **error) {
     }
 }
 
-struct owner_changed_user_data {
-    GList *all_players;
-    GList *players;
-    GList *ignored_players;
-};
+static gboolean name_is_selected(gchar *name) {
+    if (ignored_player_names != NULL) {
+        gboolean ignored =
+            (g_list_find_custom(ignored_player_names, name,
+                                (GCompareFunc)pctl_player_name_instance_compare) != NULL);
+        if (ignored) {
+            return FALSE;
+        }
+    }
 
-static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_name,
-                                             gchar *signal_name, GVariant *parameters,
-                                             gpointer _data) {
-    struct owner_changed_user_data *data = _data;
-    GList *selected_players = NULL;
+    if (player_names != NULL) {
+        gboolean selected =
+            (g_list_find_custom(player_names, name,
+                                (GCompareFunc)pctl_player_name_instance_compare) != NULL);
+        if (!selected) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static void name_appeared_callback(PlayerctlPlayerManager *manager,
+        PlayerctlNameEvent *event, gpointer *data) {
+    if (!name_is_selected(event->name)) {
+        return;
+    }
+
     GError *error = NULL;
-
-    if (g_strcmp0(signal_name, "NameOwnerChanged") != 0) {
-        return;
-    }
-
-    if (!g_variant_is_of_type(parameters, G_VARIANT_TYPE("(sss)"))) {
-        g_warning("Got unknown parameters on org.freedesktop.DBus "
-                  "NameOwnerChange signal: %s",
-                  g_variant_get_type_string(parameters));
-        return;
-    }
-
-    GVariant *name_variant = g_variant_get_child_value(parameters, 0);
-    const gchar *name = g_variant_get_string(name_variant, NULL);
-
-    gchar *player_id = player_id_from_bus_name(name);
-
-    if (player_id == NULL) {
-        g_variant_unref(name_variant);
-        return;
-    }
-
-    GVariant *previous_owner_variant = g_variant_get_child_value(parameters, 1);
-    const gchar *previous_owner = g_variant_get_string(previous_owner_variant, NULL);
-
-    GVariant *new_owner_variant = g_variant_get_child_value(parameters, 2);
-    const gchar *new_owner = g_variant_get_string(new_owner_variant, NULL);
-
-    // update the list of all players
-    GList *player_entry = NULL;
-    if (strlen(new_owner) == 0 && strlen(previous_owner) != 0) {
-        // the name has vanished
-        player_entry =
-            g_list_find_custom(data->all_players, name + strlen(MPRIS_PREFIX), (GCompareFunc)g_strcmp0);
-
-        if (player_entry != NULL) {
-            data->all_players = g_list_remove_link(data->all_players, player_entry);
-            g_list_free_full(player_entry, g_free);
-        }
-
-        remove_followed_player_by_name(player_id);
-    } else if (strlen(previous_owner) == 0 && strlen(new_owner) != 0) {
-        // the name has appeared
-        player_entry =
-            g_list_find_custom(data->all_players, name + strlen(MPRIS_PREFIX), (GCompareFunc)g_strcmp0);
-        if (player_entry == NULL) {
-            data->all_players =
-                g_list_prepend(data->all_players, g_strdup(name + strlen(MPRIS_PREFIX)));
-        }
-    }
-
-    // update the followed players
-    selected_players = select_players(data->players, data->all_players, data->ignored_players);
-    if (selected_players != NULL) {
-        // there is a new candidate for following
-        gchar *first_selected = selected_players->data;
-        guint followed_len = g_list_length(followed_players);
-
-        if (followed_len == 0) {
-            // not following a player, follow this one
-            add_followed_player_by_name(first_selected, &error);
-            if (error != NULL) {
-                goto out;
-            }
-        } else {
-            if (data->players == NULL) {
-                // if no player arguments were passed, always follow the most
-                // recently opened player.
-                if (!select_all_players) {
-                    clear_followed_players();
-                }
-                add_followed_player_by_name(first_selected, &error);
-                if (error != NULL) {
-                    goto out;
-                }
-            } else {
-                // if player arguments were passed, follow the most recently
-                // opened player in the order they were passed on the command
-                // line.
-                GList *next = data->players;
-                while (next != NULL) {
-                    gchar *name = next->data;
-
-                    GList *match =
-                        g_list_find_custom(selected_players, name,
-                                           (GCompareFunc)pctl_player_name_instance_compare);
-
-                    if (match != NULL) {
-                        gchar *match_name = match->data;
-                        if (!select_all_players) {
-                            clear_followed_players();
-                        }
-                        add_followed_player_by_name(match_name, &error);
-                        if (error != NULL) {
-                            goto out;
-                        }
-                        break;
-                    }
-
-                    next = next->next;
-                }
-            }
-        }
-    }
-
-    // rerun the command on the updated list of followed players
-    followed_players_execute_command(&error);
-
-out:
+    PlayerctlPlayer *player = playerctl_player_new(event->name, &error);
     if (error != NULL) {
+        // TODO exit status
         g_printerr("Could not connect to player: %s\n", error->message);
         g_clear_error(&error);
         g_main_loop_quit(main_loop);
     }
-    g_list_free(selected_players);
-    g_variant_unref(name_variant);
-    g_variant_unref(previous_owner_variant);
-    g_variant_unref(new_owner_variant);
+
+    playerctl_player_manager_manage_player(manager, player);
+    g_object_unref(player);
+}
+
+static void init_managed_player(PlayerctlPlayer *player, const struct
+                                player_command *player_cmd) {
+    assert(player_cmd->follow_signal != NULL);
+    g_signal_connect(G_OBJECT(player), player_cmd->follow_signal,
+                     G_CALLBACK(managed_player_properties_callback),
+                     playercmd_args);
+
+    if (formatter != NULL) {
+        for (gsize i = 0; i < LENGTH(player_commands); ++i) {
+            const struct player_command cmd = player_commands[i];
+            if (&cmd != player_cmd &&
+                    cmd.follow_signal != NULL &&
+                    g_strcmp0(cmd.name, "metadata") != 0 &&
+                    playerctl_formatter_contains_key(formatter, cmd.name)) {
+                g_signal_connect(G_OBJECT(player), cmd.follow_signal,
+                                 G_CALLBACK(managed_player_properties_callback),
+                                 playercmd_args);
+            }
+        }
+    }
+
+}
+
+static void player_appeared_callback(PlayerctlPlayerManager *manager,
+        PlayerctlPlayer *player, gpointer *data) {
+    GError *error = NULL;
+    const struct player_command *player_cmd =
+        get_player_command(playercmd_args->argv, playercmd_args->argc,
+                           &error);
+    if (error != NULL) {
+        // TODO exit status
+        g_printerr("Could not get player command: %s\n", error->message);
+        g_clear_error(&error);
+        g_main_loop_quit(main_loop);
+        return;
+    }
+
+    init_managed_player(player, player_cmd);
+
+    managed_players_execute_command(&error);
+    if (error != NULL) {
+        // TODO exit status
+        g_printerr("Could not execute command: %s\n", error->message);
+        g_clear_error(&error);
+        g_main_loop_quit(main_loop);
+        return;
+    }
+}
+
+static void player_vanished_callback(PlayerctlPlayerManager *manager,
+        PlayerctlPlayer *player, gpointer *data) {
+    GError *error = NULL;
+
+    managed_players_execute_command(&error);
+    if (error != NULL) {
+        // TODO exit status
+        g_printerr("Could not execute command: %s\n", error->message);
+        g_clear_error(&error);
+        g_main_loop_quit(main_loop);
+        return;
+    }
+}
+
+gint player_compare_func(gconstpointer a, gconstpointer b, gpointer *user_data) {
+    PlayerctlPlayer *player_a = PLAYERCTL_PLAYER(a);
+    PlayerctlPlayer *player_b = PLAYERCTL_PLAYER(b);
+    gchar *name_a = NULL;
+    gchar *name_b = NULL;
+    g_object_get(player_a, "player-name", &name_a, NULL);
+    g_object_get(player_b, "player-name", &name_b, NULL);
+    gboolean compared = FALSE;
+    gint result = 1;
+
+    if (g_strcmp0(name_a, name_b) == 0) {
+        compared = TRUE;
+        result = 0;
+        goto end;
+    }
+
+    GList *l = NULL;
+    for (l = player_names; l != NULL; l = l->next) {
+        gchar *name = l->data;
+        if (pctl_player_name_instance_compare(name_a, name) == 0) {
+            compared = TRUE;
+            result = -1;
+            goto end;
+        }
+        if (pctl_player_name_instance_compare(name_b, name) == 0) {
+            compared = TRUE;
+            result = 1;
+            goto end;
+        }
+    }
+
+end:
+    if (!compared) {
+        g_warning("could not put players %s and %s in sorted order", name_a, name_b);
+    }
+    g_free(name_a);
+    g_free(name_b);
+    return result;
 }
 
 int main(int argc, char *argv[]) {
-    PlayerctlPlayer *player;
     GError *error = NULL;
     guint num_commands = 0;
     int status = 0;
@@ -1186,9 +1035,10 @@ int main(int argc, char *argv[]) {
 
     num_commands = g_strv_length(command);
 
-    GList *all_players = playerctl_list_players(&error);
+    const struct player_command *player_cmd =
+        get_player_command(command, num_commands, &error);
     if (error != NULL) {
-        g_printerr("%s\n", error->message);
+        g_printerr("Could not execute command: %s\n", error->message);
         g_clear_error(&error);
         exit(1);
     }
@@ -1202,114 +1052,87 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    const struct player_command *player_cmd = get_player_command(command, num_commands, &error);
+    player_names = parse_player_list(player_arg);
+    ignored_player_names = parse_player_list(ignore_player_arg);
+    playercmd_args = playercmd_args_create(command, num_commands);
+
+    manager = playerctl_player_manager_new(&error);
     if (error != NULL) {
-        g_printerr("Could not execute command: %s\n", error->message);
-        g_clear_error(&error);
-        exit(1);
-    }
-
-    if (all_players == NULL && !follow) {
-        g_printerr("No players were found\n");
-        exit(0);
-    }
-
-    GList *players = parse_player_list(player_arg);
-    GList *ignored_players = parse_player_list(ignore_player_arg);
-    GList *selected_players = select_players(players, all_players, ignored_players);
-
-    if (selected_players == NULL && !follow) {
-        g_printerr("No players were found\n");
+        g_printerr("Could not connect to players: %s\n", error->message);
+        status = 1;
         goto end;
     }
 
-    playercmd_args = playercmd_args_create(command, num_commands);
-    GList *next = selected_players;
-    while (next != NULL) {
-        gchar *player_name = next->data;
+    if (player_names != NULL && !select_all_players) {
+        playerctl_player_manager_set_sort_func(manager,
+                (GCompareDataFunc)player_compare_func, NULL, NULL);
+    }
+
+    GList *available_players = NULL;
+    g_object_get(manager, "player-names", &available_players, NULL);
+
+    gboolean has_selected = FALSE;
+    GList *l = NULL;
+    for (l = available_players; l != NULL; l = l->next) {
+        gchar *name = l->data;
+        if (!name_is_selected(name)) {
+            continue;
+        }
+        has_selected = TRUE;
+
+        PlayerctlPlayer *player = playerctl_player_new(name, &error);
+        if (error != NULL) {
+            g_printerr("Could not connect to players: %s\n", error->message);
+            status = 1;
+            goto end;
+        }
 
         if (follow) {
-            add_followed_player_by_name(player_name, &error);
+            playerctl_player_manager_manage_player(manager, player);
+            init_managed_player(player, player_cmd);
+        } else {
+            gchar *output = NULL;
+            gboolean result =
+                player_cmd->func(player, command, num_commands, &output, &error);
             if (error != NULL) {
-                g_printerr("Connection to player failed: %s\n", error->message);
+                g_printerr("Could not execute command: %s\n", error->message);
                 status = 1;
                 goto end;
             }
+            if (result) {
+                printf("%s", output);
+                g_free(output);
 
-            if (select_all_players) {
-                next = next->next;
-                continue;
+                if (!select_all_players) {
+                    g_object_unref(player);
+                    goto end;
+                }
             }
-
-            break;
-        }
-
-        player = playerctl_player_new(player_name, &error);
-        if (error != NULL) {
-            g_printerr("Connection to player failed: %s\n", error->message);
-            status = 1;
-            goto end;
-        }
-
-        gchar *output = NULL;
-        gboolean result = player_cmd->func(player, command, num_commands, &output, &error);
-        if (error != NULL) {
-            g_printerr("Could not execute command: %s\n", error->message);
-            g_clear_error(&error);
-            g_object_unref(player);
-            g_free(output);
-            status = 1;
-            break;
-        }
-
-        if (output != NULL) {
-            printf("%s", output);
-            g_free(output);
         }
 
         g_object_unref(player);
-
-        if (result && !select_all_players) {
-            break;
-        }
-
-        next = next->next;
     }
 
-end:
-    g_list_free(selected_players);
+    if (!follow && !has_selected) {
+        g_printerr("No players found\n");
+        goto end;
+    }
 
-    if (status == 0 && follow) {
-        followed_players_execute_command(&error);
+
+    if (follow) {
+        managed_players_execute_command(&error);
         if (error != NULL) {
             g_printerr("Connection to player failed: %s\n", error->message);
             status = 1;
             goto end;
         }
 
-        struct owner_changed_user_data *data =
-            calloc(1, sizeof(struct owner_changed_user_data));
-        data->players = players;
-        data->all_players = all_players;
-        data->ignored_players = ignored_players;
-
-        GDBusProxy *proxy =
-            g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
-                                          G_DBUS_PROXY_FLAGS_NONE, NULL,
-                                          "org.freedesktop.DBus",
-                                          "/org/freedesktop/DBus",
-                                          "org.freedesktop.DBus", NULL,
-                                          &error);
-        if (error != NULL) {
-            g_printerr("%s\n", error->message);
-            g_clear_error(&error);
-            status = 1;
-            goto proxy_err_out;
-        }
-
-        g_signal_connect(G_DBUS_PROXY(proxy), "g-signal",
-                         G_CALLBACK(dbus_name_owner_changed_callback),
-                         data);
+        g_signal_connect(PLAYERCTL_PLAYER_MANAGER(manager), "name-appeared",
+                         G_CALLBACK(name_appeared_callback), NULL);
+        g_signal_connect(PLAYERCTL_PLAYER_MANAGER(manager), "player-appeared",
+                         G_CALLBACK(player_appeared_callback), NULL);
+        g_signal_connect(PLAYERCTL_PLAYER_MANAGER(manager), "player-vanished",
+                         G_CALLBACK(player_vanished_callback), NULL);
 
         if (formatter != NULL &&
                 playerctl_formatter_contains_key(formatter, "position")) {
@@ -1319,18 +1142,17 @@ end:
         main_loop = g_main_loop_new(NULL, FALSE);
         g_main_loop_run(main_loop);
         g_main_loop_unref(main_loop);
-
-proxy_err_out:
-        free(data);
-        playercmd_args_destroy(playercmd_args);
     }
 
+end:
+    playercmd_args_destroy(playercmd_args);
+    if (manager != NULL) {
+        g_object_unref(manager);
+    }
     playerctl_formatter_destroy(formatter);
     g_free(last_output);
-    clear_followed_players();
-    g_list_free_full(all_players, g_free);
-    g_list_free_full(players, g_free);
-    g_list_free_full(ignored_players, g_free);
+    g_list_free_full(player_names, g_free);
+    g_list_free_full(ignored_player_names, g_free);
 
     exit(status);
 }

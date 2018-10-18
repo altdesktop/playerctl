@@ -270,8 +270,8 @@ static void manager_remove_managed_player_by_name(PlayerctlPlayerManager *manage
         gchar *id = NULL;
         g_object_get(player, "player-id", &id, NULL);
         if (g_strcmp0(id, player_name) == 0) {
-            g_signal_emit(manager, connection_signals[PLAYER_VANISHED], 0, player);
             manager->priv->players = g_list_remove_link(manager->priv->players, l);
+            g_signal_emit(manager, connection_signals[PLAYER_VANISHED], 0, player);
             g_list_free_full(l, g_object_unref);
             g_free(id);
             break;
@@ -424,7 +424,15 @@ void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager
         PlayerctlPlayer *current = PLAYERCTL_PLAYER(l->data);
         if (current == player) {
             manager->priv->players = g_list_remove_link(manager->priv->players, l);
-            manager->priv->players = g_list_prepend(manager->priv->players, l);
+            manager->priv->players = g_list_concat(l, manager->priv->players);
+
+            if (manager->priv->sort_func) {
+                manager->priv->players =
+                    g_list_sort_with_data(manager->priv->players,
+                            manager->priv->sort_func,
+                            manager->priv->sort_data);
+            }
+
             break;
         }
     }
