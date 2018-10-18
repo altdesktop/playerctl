@@ -33,6 +33,8 @@
 
 G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
 
+/* The CLI will exit with this exit status */
+static gint exit_status = 0;
 /* A comma separated list of players to control. */
 static gchar *player_arg = NULL;
 /* A comma separated list of players to ignore. */
@@ -44,7 +46,7 @@ static gboolean list_all_players_and_exit;
 /* If true, print the version and exit. */
 static gboolean print_version_and_exit;
 /* The commands passed on the command line, filled in via G_OPTION_REMAINING. */
-static gchar **command = NULL;
+static gchar **command_arg = NULL;
 /* A format string for printing properties and metadata */
 static gchar *format_string_arg = NULL;
 /* The formatter for the format string argument if present */
@@ -274,6 +276,13 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
     const gchar *uri = *argv;
     GError *tmp_error = NULL;
 
+    gboolean can_control = FALSE;
+    g_object_get(player, "can-control", &can_control, NULL);
+
+    if (!can_control) {
+        return FALSE;
+    }
+
     if (uri) {
         playerctl_player_open(player,
                               g_file_get_uri(g_file_new_for_commandline_arg(uri)),
@@ -475,6 +484,12 @@ static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint ar
             return FALSE;
         }
 
+        gboolean can_control = FALSE;
+        g_object_get(player, "can-control", &can_control, NULL);
+        if (!can_control) {
+            return FALSE;
+        }
+
         playerctl_player_set_shuffle(player, status, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
@@ -522,6 +537,12 @@ static gboolean playercmd_loop(PlayerctlPlayer *player, gchar **argv, gint argc,
             g_set_error(error, playerctl_cli_error_quark(), 1,
                         "Got unknown loop status: '%s' (expected 'none', "
                         "'playlist', or 'track').", argv[1]);
+            return FALSE;
+        }
+
+        gboolean can_control = FALSE;
+        g_object_get(player, "can-control", &can_control, NULL);
+        if (!can_control) {
             return FALSE;
         }
 
@@ -637,6 +658,7 @@ static gboolean playercmd_tick_callback(gpointer data) {
     GError *tmp_error = NULL;
     managed_players_execute_command(&tmp_error);
     if (tmp_error != NULL) {
+        exit_status = 1;
         g_printerr("Error while executing command: %s\n", tmp_error->message);
         g_clear_error(&tmp_error);
         g_main_loop_quit(main_loop);
@@ -712,7 +734,7 @@ static const GOptionEntry entries[] = {
      "List the names of running players that can be controlled", NULL},
     {"version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
      &print_version_and_exit, "Print version information", NULL},
-    {G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command, NULL,
+    {G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command_arg, NULL,
      "COMMAND"},
     {NULL}};
 
@@ -760,7 +782,7 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         return FALSE;
     }
 
-    if (command == NULL && !print_version_and_exit &&
+    if (command_arg == NULL && !print_version_and_exit &&
         !list_all_players_and_exit) {
         gchar *help = g_option_context_get_help(context, TRUE, NULL);
         g_set_error(error, playerctl_cli_error_quark(), 1,
@@ -896,7 +918,7 @@ static void name_appeared_callback(PlayerctlPlayerManager *manager,
     GError *error = NULL;
     PlayerctlPlayer *player = playerctl_player_new(event->name, &error);
     if (error != NULL) {
-        // TODO exit status
+        exit_status = 1;
         g_printerr("Could not connect to player: %s\n", error->message);
         g_clear_error(&error);
         g_main_loop_quit(main_loop);
@@ -936,7 +958,7 @@ static void player_appeared_callback(PlayerctlPlayerManager *manager,
         get_player_command(playercmd_args->argv, playercmd_args->argc,
                            &error);
     if (error != NULL) {
-        // TODO exit status
+        exit_status = 1;
         g_printerr("Could not get player command: %s\n", error->message);
         g_clear_error(&error);
         g_main_loop_quit(main_loop);
@@ -947,7 +969,7 @@ static void player_appeared_callback(PlayerctlPlayerManager *manager,
 
     managed_players_execute_command(&error);
     if (error != NULL) {
-        // TODO exit status
+        exit_status = 1;
         g_printerr("Could not execute command: %s\n", error->message);
         g_clear_error(&error);
         g_main_loop_quit(main_loop);
@@ -961,7 +983,7 @@ static void player_vanished_callback(PlayerctlPlayerManager *manager,
 
     managed_players_execute_command(&error);
     if (error != NULL) {
-        // TODO exit status
+        exit_status = 1;
         g_printerr("Could not execute command: %s\n", error->message);
         g_clear_error(&error);
         g_main_loop_quit(main_loop);
@@ -1012,7 +1034,6 @@ end:
 int main(int argc, char *argv[]) {
     GError *error = NULL;
     guint num_commands = 0;
-    int status = 0;
 
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
@@ -1033,10 +1054,10 @@ int main(int argc, char *argv[]) {
         exit(result);
     }
 
-    num_commands = g_strv_length(command);
+    num_commands = g_strv_length(command_arg);
 
     const struct player_command *player_cmd =
-        get_player_command(command, num_commands, &error);
+        get_player_command(command_arg, num_commands, &error);
     if (error != NULL) {
         g_printerr("Could not execute command: %s\n", error->message);
         g_clear_error(&error);
@@ -1054,12 +1075,12 @@ int main(int argc, char *argv[]) {
 
     player_names = parse_player_list(player_arg);
     ignored_player_names = parse_player_list(ignore_player_arg);
-    playercmd_args = playercmd_args_create(command, num_commands);
+    playercmd_args = playercmd_args_create(command_arg, num_commands);
 
     manager = playerctl_player_manager_new(&error);
     if (error != NULL) {
         g_printerr("Could not connect to players: %s\n", error->message);
-        status = 1;
+        exit_status = 1;
         goto end;
     }
 
@@ -1082,8 +1103,8 @@ int main(int argc, char *argv[]) {
 
         PlayerctlPlayer *player = playerctl_player_new(name, &error);
         if (error != NULL) {
-            g_printerr("Could not connect to players: %s\n", error->message);
-            status = 1;
+            g_printerr("Could not connect to player: %s\n", error->message);
+            exit_status = 1;
             goto end;
         }
 
@@ -1093,10 +1114,11 @@ int main(int argc, char *argv[]) {
         } else {
             gchar *output = NULL;
             gboolean result =
-                player_cmd->func(player, command, num_commands, &output, &error);
+                player_cmd->func(player, command_arg, num_commands, &output, &error);
             if (error != NULL) {
                 g_printerr("Could not execute command: %s\n", error->message);
-                status = 1;
+                exit_status = 1;
+                g_object_unref(player);
                 goto end;
             }
             if (result) {
@@ -1123,7 +1145,7 @@ int main(int argc, char *argv[]) {
         managed_players_execute_command(&error);
         if (error != NULL) {
             g_printerr("Connection to player failed: %s\n", error->message);
-            status = 1;
+            exit_status = 1;
             goto end;
         }
 
@@ -1154,5 +1176,5 @@ end:
     g_list_free_full(player_names, g_free);
     g_list_free_full(ignored_player_names, g_free);
 
-    exit(status);
+    exit(exit_status);
 }
