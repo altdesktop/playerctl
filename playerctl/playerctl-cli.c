@@ -90,6 +90,7 @@ static void cli_print_output(gchar *output) {
     }
 
     printf("%s", output);
+    fflush(stdout);
     last_output = output;
 }
 
@@ -727,7 +728,7 @@ static const GOptionEntry entries[] = {
     {"format", 'f', G_OPTION_FLAG_NONE, G_OPTION_ARG_STRING, &format_string_arg,
      "A format string for printing properties and metadata", NULL},
     {"follow", 'F', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &follow,
-     "Block and append the query to output when it changes. Exit when the players exit.",
+     "Block and append the query to output when it changes for the most recently updated player.",
      NULL},
     {"list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE,
      &list_all_players_and_exit,

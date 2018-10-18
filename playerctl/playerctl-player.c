@@ -126,10 +126,13 @@ static gchar *metadata_get_track_id(GVariant *metadata) {
                                                   G_VARIANT_TYPE_STRING);
     }
 
-    const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
-    g_variant_unref(track_id_variant);
+    if (track_id_variant != NULL) {
+        const gchar *track_id = g_variant_get_string(track_id_variant, NULL);
+        g_variant_unref(track_id_variant);
+        return g_strdup(track_id);
+    }
 
-    return g_strdup(track_id);
+    return NULL;
 }
 
 static void playerctl_player_properties_changed_callback(
@@ -165,11 +168,14 @@ static void playerctl_player_properties_changed_callback(
     if (metadata != NULL) {
         // update the cached track id
         gchar *track_id = metadata_get_track_id(metadata);
-        if (track_id != NULL) {
+        if ((track_id == NULL && self->priv->cached_track_id != NULL) ||
+                (track_id != NULL && self->priv->cached_track_id == NULL) ||
+                (g_strcmp0(track_id, self->priv->cached_track_id) != 0)) {
             g_free(self->priv->cached_track_id);
             self->priv->cached_track_id = track_id;
             track_id_invalidated = TRUE;
         }
+
         g_signal_emit(self, connection_signals[METADATA], 0, metadata);
     }
 
@@ -359,7 +365,9 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
         if (pctl_parse_loop_status(status_str, &status)) {
             g_value_set_enum(value, status);
         } else {
-            g_warning("got unknown loop status: %s", status_str);
+            if (status_str != NULL) {
+                g_warning("got unknown loop status: %s", status_str);
+            }
             g_value_set_enum(value, PLAYERCTL_LOOP_STATUS_NONE);
         }
         break;
