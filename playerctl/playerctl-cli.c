@@ -879,7 +879,7 @@ static void managed_players_execute_command(GError **error) {
         }
         did_command = did_command || result;
 
-        if (result || !select_all_players) {
+        if (result) {
             break;
         }
     }
