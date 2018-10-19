@@ -21,7 +21,6 @@
 #include <glib-object.h>
 #include "playerctl/playerctl-common.h"
 #include "playerctl/playerctl-player-manager.h"
-#include "playerctl/playerctl-marshal.h"
 #include <playerctl/playerctl-player.h>
 
 enum {
