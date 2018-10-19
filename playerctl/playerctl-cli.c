@@ -28,6 +28,7 @@
 #include "playerctl.h"
 #include "playerctl-common.h"
 #include "playerctl-formatter.h"
+#include "playerctl-player-manager.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
@@ -892,7 +893,7 @@ static gboolean name_is_selected(gchar *name) {
     if (ignored_player_names != NULL) {
         gboolean ignored =
             (g_list_find_custom(ignored_player_names, name,
-                                (GCompareFunc)pctl_player_name_instance_compare) != NULL);
+                                (GCompareFunc)pctl_player_name_string_instance_compare) != NULL);
         if (ignored) {
             return FALSE;
         }
@@ -901,7 +902,7 @@ static gboolean name_is_selected(gchar *name) {
     if (player_names != NULL) {
         gboolean selected =
             (g_list_find_custom(player_names, name,
-                                (GCompareFunc)pctl_player_name_instance_compare) != NULL);
+                                (GCompareFunc)pctl_player_name_string_instance_compare) != NULL);
         if (!selected) {
             return FALSE;
         }
@@ -911,18 +912,20 @@ static gboolean name_is_selected(gchar *name) {
 }
 
 static void name_appeared_callback(PlayerctlPlayerManager *manager,
-        PlayerctlNameEvent *event, gpointer *data) {
-    if (!name_is_selected(event->name)) {
+        PlayerctlPlayerName *name, gpointer *data) {
+    if (!name_is_selected(name->name)) {
         return;
     }
 
     GError *error = NULL;
-    PlayerctlPlayer *player = playerctl_player_new(event->name, &error);
+    // TODO bus type
+    PlayerctlPlayer *player = playerctl_player_new(name->name, &error);
     if (error != NULL) {
         exit_status = 1;
         g_printerr("Could not connect to player: %s\n", error->message);
         g_clear_error(&error);
         g_main_loop_quit(main_loop);
+        return;
     }
 
     playerctl_player_manager_manage_player(manager, player);
@@ -1011,12 +1014,12 @@ gint player_compare_func(gconstpointer a, gconstpointer b, gpointer *user_data) 
     GList *l = NULL;
     for (l = player_names; l != NULL; l = l->next) {
         gchar *name = l->data;
-        if (pctl_player_name_instance_compare(name_a, name) == 0) {
+        if (pctl_player_name_string_instance_compare(name_a, name) == 0) {
             compared = TRUE;
             result = -1;
             goto end;
         }
-        if (pctl_player_name_instance_compare(name_b, name) == 0) {
+        if (pctl_player_name_string_instance_compare(name_b, name) == 0) {
             compared = TRUE;
             result = 1;
             goto end;
@@ -1096,13 +1099,13 @@ int main(int argc, char *argv[]) {
     gboolean has_selected = FALSE;
     GList *l = NULL;
     for (l = available_players; l != NULL; l = l->next) {
-        gchar *name = l->data;
-        if (!name_is_selected(name)) {
+        PlayerctlPlayerName *name = l->data;
+        if (!name_is_selected(name->name)) {
             continue;
         }
         has_selected = TRUE;
 
-        PlayerctlPlayer *player = playerctl_player_new(name, &error);
+        PlayerctlPlayer *player = playerctl_player_new(name->name, &error);
         if (error != NULL) {
             g_printerr("Could not connect to player: %s\n", error->message);
             exit_status = 1;

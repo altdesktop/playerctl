@@ -50,24 +50,25 @@ typedef struct _PlayerctlPlayerManager PlayerctlPlayerManager;
 typedef struct _PlayerctlPlayerManagerClass PlayerctlPlayerManagerClass;
 typedef struct _PlayerctlPlayerManagerPrivate PlayerctlPlayerManagerPrivate;
 
-#define PLAYERCTL_TYPE_NAME_EVENT (playerctl_name_event_get_type())
+#define PLAYERCTL_TYPE_PLAYER_NAME (playerctl_player_name_get_type())
 
-typedef struct _PlayerctlNameEvent PlayerctlNameEvent;
+typedef struct _PlayerctlPlayerName PlayerctlPlayerName;
 
 /**
- * PlayerctlNameEvent:
+ * PlayerctlPlayerName:
  * @name: the name of the player that has appeared or vanished.
  *
  * Event container for when names of players appear or disapear as the
  * controllable media player applications open and close.
  */
-struct _PlayerctlNameEvent {
+struct _PlayerctlPlayerName {
     gchar *name;
+    GBusType bus_type;
 };
 
-void playerctl_name_event_free(PlayerctlNameEvent *event);
-PlayerctlNameEvent *playerctl_name_event_copy(PlayerctlNameEvent *event);
-GType playerctl_name_event_get_type(void);
+void playerctl_player_name_free(PlayerctlPlayerName *event);
+PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *event);
+GType playerctl_player_name_get_type(void);
 
 struct _PlayerctlPlayerManager {
     /* Parent instance structure */

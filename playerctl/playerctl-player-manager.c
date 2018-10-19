@@ -109,7 +109,8 @@ static void playerctl_player_manager_dispose(GObject *gobject) {
 static void playerctl_player_manager_finalize(GObject *gobject) {
     PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(gobject);
 
-    g_list_free_full(manager->priv->player_names, g_free);
+    g_list_free_full(manager->priv->player_names,
+                     (GDestroyNotify)playerctl_player_name_free);
     g_list_free_full(manager->priv->players, g_object_unref);
 
     G_OBJECT_CLASS(playerctl_player_manager_parent_class)->finalize(gobject);
@@ -117,44 +118,45 @@ static void playerctl_player_manager_finalize(GObject *gobject) {
 
 
 /**
- * playerctl_name_event_copy:
- * @event: a #PlayerctlNameEvent
+ * playerctl_player_name_copy:
+ * @name: a #PlayerctlPlayerName
  *
- * Creates a dynamically allocated name event container as a copy of
- * @event.
+ * Creates a dynamically allocated name name container as a copy of
+ * @name.
  *
- * Returns: (transfer full): a newly-allocated copy of @event
+ * Returns: (transfer full): a newly-allocated copy of @name
  */
-PlayerctlNameEvent *playerctl_name_event_copy(PlayerctlNameEvent *event) {
-    PlayerctlNameEvent *retval;
+PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *name) {
+    PlayerctlPlayerName *retval;
 
-    g_return_val_if_fail(event != NULL, NULL);
+    g_return_val_if_fail(name != NULL, NULL);
 
-    retval = g_slice_new0(PlayerctlNameEvent);
-    *retval = *event;
+    retval = g_slice_new0(PlayerctlPlayerName);
+    *retval = *name;
 
-    retval->name = g_strdup(event->name);
+    retval->bus_type = name->bus_type;
+    retval->name = g_strdup(name->name);
 
     return retval;
 }
 
 /**
- * playerctl_name_event_free:
- * @event: (allow-none): a #PlayerctlNameEvent
+ * playerctl_player_name_free:
+ * @name: (allow-none): a #PlayerctlPlayerName
  *
- * Frees @event. If @event is %NULL, it simply returns.
+ * Frees @name. If @name is %NULL, it simply returns.
  */
-void playerctl_name_event_free(PlayerctlNameEvent *event) {
-    if (event == NULL) {
+void playerctl_player_name_free(PlayerctlPlayerName *name) {
+    if (name == NULL) {
         return;
     }
 
-    g_free(event->name);
-    g_slice_free(PlayerctlNameEvent, event);
+    g_free(name->name);
+    g_slice_free(PlayerctlPlayerName, name);
 }
 
-G_DEFINE_BOXED_TYPE(PlayerctlNameEvent, playerctl_name_event,
-    playerctl_name_event_copy, playerctl_name_event_free);
+G_DEFINE_BOXED_TYPE(PlayerctlPlayerName, playerctl_player_name,
+    playerctl_player_name_copy, playerctl_player_name_free);
 
 
 static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *klass) {
@@ -178,7 +180,7 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
     /**
-     * PlayerctlPlayerManager:player-names: (transfer none) (type GList(utf8)):
+     * PlayerctlPlayerManager:player-names: (transfer none) (type GList(PlayerctlPlayerName)):
      *
      * A list of player names that are currently available to control.
      */
@@ -194,7 +196,7 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
     /**
     * PlayerctlPlayerManager::name-appeared:
     * @self: the #PlayerctlPlayerManager on which the signal was emitted
-    * @event: A #PlayerctlNameEvent containing information about the name appearing.
+    * @name: A #PlayerctlPlayerName containing information about the name appearing.
     */
     connection_signals[NAME_APPEARED] =
         g_signal_new("name-appeared",
@@ -206,7 +208,7 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                      g_cclosure_marshal_VOID__BOXED,
                      G_TYPE_NONE,
                      1,
-                     PLAYERCTL_TYPE_NAME_EVENT);
+                     PLAYERCTL_TYPE_PLAYER_NAME);
 
     connection_signals[NAME_VANISHED] =
         g_signal_new("name-vanished",
@@ -218,7 +220,7 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                      g_cclosure_marshal_VOID__BOXED,
                      G_TYPE_NONE,
                      1,
-                     PLAYERCTL_TYPE_NAME_EVENT);
+                     PLAYERCTL_TYPE_PLAYER_NAME);
 
     connection_signals[PLAYER_APPEARED] =
         g_signal_new("player-appeared",
@@ -262,13 +264,14 @@ static gchar *player_id_from_bus_name(const gchar *bus_name) {
 }
 
 static void manager_remove_managed_player_by_name(PlayerctlPlayerManager *manager,
-                                                  gchar *player_name) {
+                                                  PlayerctlPlayerName *player_name) {
     GList *l = NULL;
     for (l = manager->priv->players; l != NULL; l = l->next) {
         PlayerctlPlayer *player = PLAYERCTL_PLAYER(l->data);
         gchar *id = NULL;
         g_object_get(player, "player-id", &id, NULL);
-        if (g_strcmp0(id, player_name) == 0) {
+        // TODO match bus type
+        if (g_strcmp0(id, player_name->name) == 0) {
             manager->priv->players = g_list_remove_link(manager->priv->players, l);
             g_signal_emit(manager, connection_signals[PLAYER_VANISHED], 0, player);
             g_list_free_full(l, g_object_unref);
@@ -314,31 +317,30 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
     if (strlen(new_owner) == 0 && strlen(previous_owner) != 0) {
         // the name has vanished
         player_entry =
-            g_list_find_custom(manager->priv->player_names, player_id,
-                               (GCompareFunc)g_strcmp0);
+            pctl_player_name_find(manager->priv->player_names, player_id,
+                                  G_BUS_TYPE_SESSION);
         if (player_entry != NULL) {
+            PlayerctlPlayerName *player_name = player_entry->data;
             manager->priv->player_names =
                 g_list_remove_link(manager->priv->player_names, player_entry);
-            manager_remove_managed_player_by_name(manager, player_entry->data);
-            PlayerctlNameEvent *event = g_slice_new(PlayerctlNameEvent);
-            event->name = g_strdup(player_entry->data);
+            manager_remove_managed_player_by_name(manager, player_name);
             g_signal_emit(manager, connection_signals[NAME_VANISHED], 0,
-                          event);
-            playerctl_name_event_free(event);
-            g_list_free_full(player_entry, g_free);
+                          player_name);
+            pctl_player_name_list_destroy(player_entry);
         }
     } else if (strlen(previous_owner) == 0 && strlen(new_owner) != 0) {
         // the name has appeared
         player_entry =
-            g_list_find_custom(manager->priv->player_names, player_id,
-                               (GCompareFunc)g_strcmp0);
+            pctl_player_name_find(manager->priv->players, player_id,
+                                  G_BUS_TYPE_SESSION);
         if (player_entry == NULL) {
-            manager->priv->player_names = g_list_prepend(manager->priv->player_names, g_strdup(player_id));
-            PlayerctlNameEvent *event = g_slice_new(PlayerctlNameEvent);
-            event->name = g_strdup(player_id);
+            PlayerctlPlayerName *player_name = g_slice_new0(PlayerctlPlayerName);
+            player_name->name = g_strdup(player_id);
+            player_name->bus_type = G_BUS_TYPE_SESSION;
+
+            manager->priv->player_names = g_list_prepend(manager->priv->player_names, player_name);
             g_signal_emit(manager, connection_signals[NAME_APPEARED], 0,
-                          event);
-            playerctl_name_event_free(event);
+                          player_name);
         }
     }
 

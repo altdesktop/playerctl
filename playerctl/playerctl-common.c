@@ -109,7 +109,24 @@ gchar *pctl_print_gvariant(GVariant *value) {
     return g_string_free(printed, FALSE);
 }
 
-gint pctl_player_name_instance_compare(gchar *name, gchar *instance) {
+
+gint pctl_player_name_compare(PlayerctlPlayerName *name_a,
+                              PlayerctlPlayerName *name_b) {
+    if (name_a->bus_type != name_b->bus_type) {
+        return 1;
+    }
+    return g_strcmp0(name_a->name, name_b->name);
+}
+
+gint pctl_player_name_instance_compare(PlayerctlPlayerName *name,
+                                       PlayerctlPlayerName *instance) {
+    if (name->bus_type != instance->bus_type) {
+        return 1;
+    }
+    return pctl_player_name_string_instance_compare(name->name, instance->name);
+}
+
+gint pctl_player_name_string_instance_compare(gchar *name, gchar *instance) {
     gboolean exact_match = (g_strcmp0(name, instance) == 0);
     gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
             g_str_has_prefix(instance + strlen(name), ".instance"));
@@ -119,4 +136,29 @@ gint pctl_player_name_instance_compare(gchar *name, gchar *instance) {
     } else {
         return 1;
     }
+}
+
+GList *pctl_player_name_find(GList *list, gchar *player_id, GBusType bus_type) {
+    PlayerctlPlayerName player_name = {
+        .name = player_id,
+        .bus_type = bus_type,
+    };
+
+    return g_list_find_custom(list, &player_name,
+                              (GCompareFunc)pctl_player_name_compare);
+}
+
+GList *pctl_player_name_find_instance(GList *list, gchar *player_id, GBusType bus_type) {
+    PlayerctlPlayerName player_name = {
+        .name = player_id,
+        .bus_type = bus_type,
+    };
+
+    return g_list_find_custom(list, &player_name,
+                              (GCompareFunc)pctl_player_name_instance_compare);
+
+}
+
+void pctl_player_name_list_destroy(GList *list) {
+    g_list_free_full(list, (GDestroyNotify)playerctl_player_name_free);
 }

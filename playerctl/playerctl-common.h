@@ -22,6 +22,7 @@
 
 #include <glib.h>
 #include <playerctl/playerctl-player.h>
+#include <playerctl/playerctl-player-manager.h>
 
 #define MPRIS_PREFIX "org.mpris.MediaPlayer2."
 
@@ -35,7 +36,18 @@ const gchar *pctl_loop_status_to_string(PlayerctlLoopStatus status);
 
 gchar *pctl_print_gvariant(GVariant *value);
 
-gint pctl_player_name_instance_compare(gchar *name, gchar *instance);
+gint pctl_player_name_compare(PlayerctlPlayerName *name_a,
+                              PlayerctlPlayerName *name_b);
+
+gint pctl_player_name_instance_compare(PlayerctlPlayerName *name, PlayerctlPlayerName *instance);
+
+gint pctl_player_name_string_instance_compare(gchar *name, gchar *instance);
+
+GList *pctl_player_name_find(GList *list, gchar *player_id, GBusType bus_type);
+
+GList *pctl_player_name_find_instance(GList *list, gchar *player_id, GBusType bus_type);
+
+void pctl_player_name_list_destroy(GList *list);
 
 #undef __PLAYERCTL_COMMON_H__
 #endif

@@ -24,6 +24,7 @@
 #include "playerctl-common.h"
 #include "playerctl-generated.h"
 #include "playerctl-player.h"
+#include <playerctl/playerctl-player-manager.h>
 #include <playerctl/playerctl-enum-types.h>
 
 #include <stdint.h>
@@ -785,7 +786,10 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
     size_t offset = strlen(MPRIS_PREFIX);
     for (gsize i = 0; i < reply_count; i += 1) {
         if (g_str_has_prefix(names[i], MPRIS_PREFIX)) {
-            players = g_list_append(players, g_strdup(names[i] + offset));
+            PlayerctlPlayerName *player_name = g_slice_new(PlayerctlPlayerName);
+            player_name->name = g_strdup(names[i] + offset);
+            player_name->bus_type = bus_type;
+            players = g_list_append(players, player_name);
         }
     }
 
@@ -804,7 +808,7 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
  * Returns NULL if no matching bus name is found on the bus.
  * Returns an error if there was a problem listing the names on the bus.
  */
-static gchar *bus_name_for_player_name(gchar *player_name, GBusType bus_type, GError **err) {
+static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **err) {
     gchar *bus_name = NULL;
     GError *tmp_error = NULL;
 
@@ -820,29 +824,26 @@ static gchar *bus_name_for_player_name(gchar *player_name, GBusType bus_type, GE
         return NULL;
     }
 
-    if (player_name == NULL) {
-        gchar *name = names->data;
-        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
-        g_list_free_full(names, g_free);
+    if (name == NULL) {
+        PlayerctlPlayerName *name = names->data;
+        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->name);
+        pctl_player_name_list_destroy(names);
         return bus_name;
     }
 
-    GList *exact_match =
-        g_list_find_custom(names, player_name, (GCompareFunc)g_strcmp0);
+    GList *exact_match = pctl_player_name_find(names, name, bus_type);
     if (exact_match != NULL) {
-        gchar *name = exact_match->data;
-        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
-        g_list_free_full(names, g_free);
+        PlayerctlPlayerName *name = exact_match->data;
+        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->name);
+        g_list_free_full(names, (GDestroyNotify)playerctl_player_name_free);
         return bus_name;
     }
 
-    GList *instance_match =
-        g_list_find_custom(names, player_name,
-                           (GCompareFunc)pctl_player_name_instance_compare);
+    GList *instance_match = pctl_player_name_find_instance(names, name, bus_type);
     if (instance_match != NULL) {
         gchar *name = instance_match->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
-        g_list_free_full(names, g_free);
+        pctl_player_name_list_destroy(names);
         return bus_name;
     }
 
@@ -955,7 +956,7 @@ static void playerctl_player_initable_iface_init(GInitableIface *iface) {
  *
  * Lists all the players that can be controlled by Playerctl.
  *
- * Returns:(transfer full) (element-type utf8): A list of player names.
+ * Returns:(transfer full) (element-type PlayerctlPlayerName): A list of player names.
  */
 GList *playerctl_list_players(GError **err) {
     GError *tmp_error = NULL;
@@ -974,21 +975,10 @@ GList *playerctl_list_players(GError **err) {
         return NULL;
     }
 
-    if (system_players) {
-        GList *next = system_players;
-        while (next) {
-            gchar *player = next->data;
-            if (g_list_find_custom(session_players, player, (GCompareFunc)g_strcmp0)) {
-                g_free(player);
-            } else {
-                session_players = g_list_append(session_players, player);
-            }
-            next = next->next;
-        }
-        g_list_free(system_players);
-    }
+    GList *players = g_list_concat(session_players, system_players);
+    g_list_free(system_players);
 
-    return session_players;
+    return players;
 }
 
 /**
