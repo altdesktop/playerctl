@@ -66,8 +66,8 @@ struct _PlayerctlPlayerName {
     GBusType bus_type;
 };
 
-void playerctl_player_name_free(PlayerctlPlayerName *event);
-PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *event);
+void playerctl_player_name_free(PlayerctlPlayerName *name);
+PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *name);
 GType playerctl_player_name_get_type(void);
 
 struct _PlayerctlPlayerManager {

@@ -919,7 +919,7 @@ static void name_appeared_callback(PlayerctlPlayerManager *manager,
 
     GError *error = NULL;
     // TODO bus type
-    PlayerctlPlayer *player = playerctl_player_new(name->name, &error);
+    PlayerctlPlayer *player = playerctl_player_new_for_bus(name->name, name->bus_type, &error);
     if (error != NULL) {
         exit_status = 1;
         g_printerr("Could not connect to player: %s\n", error->message);

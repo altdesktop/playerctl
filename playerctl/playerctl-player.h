@@ -25,6 +25,7 @@
 #endif
 
 #include <glib-object.h>
+#include <gio/gio.h>
 #include <playerctl/playerctl-enum-types.h>
 
 /**
@@ -65,6 +66,10 @@ struct _PlayerctlPlayerClass {
 GType playerctl_player_get_type(void);
 
 PlayerctlPlayer *playerctl_player_new(const gchar *player_name, GError **err);
+
+PlayerctlPlayer *playerctl_player_new_for_bus(const gchar *player_name,
+                                              GBusType bus_type,
+                                              GError **err);
 
 /**
  * PlayerctlPlaybackStatus:

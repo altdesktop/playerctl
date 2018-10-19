@@ -47,7 +47,8 @@ static guint connection_signals[LAST_SIGNAL] = {0};
 struct _PlayerctlPlayerManagerPrivate {
     gboolean initted;
     GError *init_error;
-    GDBusProxy *proxy;
+    GDBusProxy *session_proxy;
+    GDBusProxy *system_proxy;
     GList *player_names;
     GList *players;
     GCompareDataFunc sort_func;
@@ -101,7 +102,8 @@ static void playerctl_player_manager_dispose(GObject *gobject) {
     PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(gobject);
 
     g_clear_error(&manager->priv->init_error);
-    g_clear_object(&manager->priv->proxy);
+    g_clear_object(&manager->priv->session_proxy);
+    g_clear_object(&manager->priv->system_proxy);
 
     G_OBJECT_CLASS(playerctl_player_manager_parent_class)->dispose(gobject);
 }
@@ -307,6 +309,17 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
         return;
     }
 
+    GBusType bus_type = 0;
+    if (proxy == manager->priv->session_proxy) {
+        bus_type = G_BUS_TYPE_SESSION;
+    } else if (proxy == manager->priv->system_proxy) {
+        bus_type = G_BUS_TYPE_SYSTEM;
+    } else {
+        g_error("got unknown proxy in callback (this is a bug in playerctl)");
+        g_variant_unref(name_variant);
+        return;
+    }
+
     GVariant *previous_owner_variant = g_variant_get_child_value(parameters, 1);
     const gchar *previous_owner = g_variant_get_string(previous_owner_variant, NULL);
 
@@ -318,7 +331,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
         // the name has vanished
         player_entry =
             pctl_player_name_find(manager->priv->player_names, player_id,
-                                  G_BUS_TYPE_SESSION);
+                                  bus_type);
         if (player_entry != NULL) {
             PlayerctlPlayerName *player_name = player_entry->data;
             manager->priv->player_names =
@@ -332,11 +345,11 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
         // the name has appeared
         player_entry =
             pctl_player_name_find(manager->priv->players, player_id,
-                                  G_BUS_TYPE_SESSION);
+                                  bus_type);
         if (player_entry == NULL) {
             PlayerctlPlayerName *player_name = g_slice_new0(PlayerctlPlayerName);
             player_name->name = g_strdup(player_id);
-            player_name->bus_type = G_BUS_TYPE_SESSION;
+            player_name->bus_type = bus_type;
 
             manager->priv->player_names = g_list_prepend(manager->priv->player_names, player_name);
             g_signal_emit(manager, connection_signals[NAME_APPEARED], 0,
@@ -360,9 +373,19 @@ static gboolean playerctl_player_manager_initable_init(GInitable *initable,
         return TRUE;
     }
 
-    // TODO system bus
-    manager->priv->proxy =
+    manager->priv->session_proxy =
         g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
+                                      G_DBUS_PROXY_FLAGS_NONE, NULL,
+                                      "org.freedesktop.DBus",
+                                      "/org/freedesktop/DBus",
+                                      "org.freedesktop.DBus", NULL,
+                                      &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return FALSE;
+    }
+    manager->priv->system_proxy =
+        g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SYSTEM,
                                       G_DBUS_PROXY_FLAGS_NONE, NULL,
                                       "org.freedesktop.DBus",
                                       "/org/freedesktop/DBus",
@@ -379,7 +402,10 @@ static gboolean playerctl_player_manager_initable_init(GInitable *initable,
         return FALSE;
     }
 
-    g_signal_connect(G_DBUS_PROXY(manager->priv->proxy), "g-signal",
+    g_signal_connect(G_DBUS_PROXY(manager->priv->session_proxy), "g-signal",
+                     G_CALLBACK(dbus_name_owner_changed_callback),
+                     manager);
+    g_signal_connect(G_DBUS_PROXY(manager->priv->system_proxy), "g-signal",
                      G_CALLBACK(dbus_name_owner_changed_callback),
                      manager);
 
