@@ -24,6 +24,11 @@
 #include <glib-object.h>
 
 /**
+ * SECTION: playerctl-player-name
+ * @short_description: A box that contains connection information for a player.
+ */
+
+/**
  * PlayerctlSource
  * @PLAYERCTL_SOURCE_NONE: Only for unitialized players. Source will be chosen automatically.
  * @PLAYERCTL_SOURCE_DBUS_SESSION: The player is on the DBus session bus.

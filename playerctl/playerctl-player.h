@@ -30,7 +30,7 @@
 
 /**
  * SECTION: playerctl-player
- * @short_description: A class to control an MPRIS player
+ * @short_description: A class to control a media player.
  */
 #define PLAYERCTL_TYPE_PLAYER (playerctl_player_get_type())
 #define PLAYERCTL_PLAYER(obj) \
@@ -71,8 +71,8 @@ PlayerctlPlayer *playerctl_player_new_for_source(const gchar *player_name,
                                                  PlayerctlSource source,
                                                  GError **err);
 
-PlayerctlPlayer *playerctl_player_new_for_name(PlayerctlPlayerName *player_name,
-                                               GError **err);
+PlayerctlPlayer *playerctl_player_new_from_name(PlayerctlPlayerName *player_name,
+                                                GError **err);
 
 /**
  * PlayerctlPlaybackStatus:

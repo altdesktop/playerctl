@@ -29,7 +29,7 @@
 
 /**
  * SECTION: playerctl-player-manager
- * @short_description: A class watch for player names appearing and vanishing
+ * @short_description: A class to watch for players appearing and vanishing.
  */
 #define PLAYERCTL_TYPE_PLAYER_MANAGER (playerctl_player_manager_get_type())
 #define PLAYERCTL_PLAYER_MANAGER(obj) \

@@ -92,9 +92,17 @@ playerctl status --format "STATUS: {{ uc(status) }}"
 | `duration` | int             | Convert the duration to hh:mm:ss format.                |
 | `emoji`    | status, volume  | Try to convert the variable to an emoji representation. |
 
+### Following changes
+
+You can pass the `--follow` flag to query commands to block, wait for players to connect, and print the query whenever it changes. If players are passed with `--player`, players earlier in the list will be preferred in the order they appear unless `--all-players` is passed. When no player can support the query, such as when all the players exit, a newline will be printed. For example, to be notified of information about the latest currently playing track for your media players, use:
+
+```bash
+playerctl metadata --format '{{ playerName }}: {{ artist }} - {{ title }} {{ duration(position) }}|{{ duration(mpris:length) }}' --follow
+```
+
 ## Using the Library
 
-To use a scripting library, find your favorite language from [this list](https://wiki.gnome.org/Projects/GObjectIntrospection/Users) and install the bindings library. Documentation for the library is hosted [here](https://dubstepdish.com/playerctl).
+To use a scripting library, find your favorite language from [this list](https://wiki.gnome.org/Projects/GObjectIntrospection/Users) and install the bindings library. Documentation for the library is hosted [here](https://dubstepdish.com/playerctl). For examples on how to use the library, see the [examples](https://github.com/acrisci/playerctl/blob/master/examples) folder.
 
 ### Example Python Script
 
@@ -123,9 +131,9 @@ def on_pause(player, status):
     print('Paused the song: {}'.format(player.get_title()))
 
 
-player.on('status::playing', on_play)
-player.on('status::paused', on_pause)
-player.on('metadata', on_metadata)
+player.connect('status::playing', on_play)
+player.connect('status::paused', on_pause)
+player.connect('metadata', on_metadata)
 
 # start playing some music
 player.play()
@@ -138,6 +146,8 @@ if player.get_artist() == 'Lana Del Rey':
 main = GLib.MainLoop()
 main.run()
 ```
+
+For a more complete example which is capable of listening to when players start and exit, see [player-manager.py](https://github.com/acrisci/playerctl/blob/master/examples/player-manager.py) from the official examples.
 
 ## Installing
 

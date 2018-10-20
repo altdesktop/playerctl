@@ -375,6 +375,12 @@ static void playerctl_player_manager_initable_iface_init(GInitableIface *iface) 
     iface->init = playerctl_player_manager_initable_init;
 }
 
+/**
+ * playerctl_player_manager_new:
+ * @err: (allow-none): The location of a #GError or %NULL.
+ *
+ * Returns:(transfer full): A new #PlayerctlPlayerManager.
+ */
 PlayerctlPlayerManager *playerctl_player_manager_new(GError **err) {
     GError *tmp_error = NULL;
 

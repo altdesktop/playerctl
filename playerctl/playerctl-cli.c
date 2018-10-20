@@ -917,7 +917,7 @@ static void name_appeared_callback(PlayerctlPlayerManager *manager,
 
     GError *error = NULL;
     PlayerctlPlayer *player =
-        playerctl_player_new_for_name(name, &error);
+        playerctl_player_new_from_name(name, &error);
     if (error != NULL) {
         exit_status = 1;
         g_printerr("Could not connect to player: %s\n", error->message);
@@ -1104,7 +1104,7 @@ int main(int argc, char *argv[]) {
         has_selected = TRUE;
 
         PlayerctlPlayer *player =
-            playerctl_player_new_for_name(name, &error);
+            playerctl_player_new_from_name(name, &error);
         if (error != NULL) {
             g_printerr("Could not connect to player: %s\n", error->message);
             exit_status = 1;

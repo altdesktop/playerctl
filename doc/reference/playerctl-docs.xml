@@ -16,8 +16,10 @@
   </bookinfo>
 
   <chapter>
-    <title>Player</title>
+    <title>Playerctl</title>
         <xi:include href="xml/playerctl-player.xml"/>
+        <xi:include href="xml/playerctl-player-manager.xml"/>
+        <xi:include href="xml/playerctl-player-name.xml"/>
 
   </chapter>
   <chapter id="object-tree">

@@ -30,6 +30,7 @@ gnome.gtkdoc(
     'playerctl.h',
     'playerctl-generated.h',
     'playerctl-common.h',
+    'playerctl-formatter.h',
   ],
   install: true,
 )
