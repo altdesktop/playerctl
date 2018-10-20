@@ -273,7 +273,7 @@ static gboolean playercmd_previous(PlayerctlPlayer *player, gchar **argv, gint a
 
 static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
                                gchar **output, GError **error) {
-    const gchar *uri = *argv;
+    const gchar *uri = argv[1];
     GError *tmp_error = NULL;
 
     gboolean can_control = FALSE;
@@ -1124,8 +1124,11 @@ int main(int argc, char *argv[]) {
                 goto end;
             }
             if (result) {
-                printf("%s", output);
-                g_free(output);
+                if (output != NULL) {
+                    printf("%s", output);
+                    fflush(stdout);
+                    g_free(output);
+                }
 
                 if (!select_all_players) {
                     g_object_unref(player);
