@@ -831,14 +831,13 @@ static int handle_list_all_flag() {
         return 0;
     }
 
-    GList *next = player_names;
-    while (next != NULL) {
-        gchar *name = next->data;
-        printf("%s\n", name);
-        next = next->next;
+    GList *l = NULL;
+    for (l = player_names; l != NULL; l = l->next) {
+        PlayerctlPlayerName *name = l->data;
+        printf("%s\n", name->instance);
     }
 
-    g_list_free_full(player_names, g_free);
+    pctl_player_name_list_destroy(player_names);
     return 0;
 }
 
