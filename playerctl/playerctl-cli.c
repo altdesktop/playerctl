@@ -18,17 +18,15 @@
  */
 
 #include <stdbool.h>
-#include <gio/gio.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <inttypes.h>
-#include "playerctl.h"
+#include <playerctl/playerctl.h>
 #include "playerctl-common.h"
 #include "playerctl-formatter.h"
-#include "playerctl-player-manager.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
@@ -918,8 +916,8 @@ static void name_appeared_callback(PlayerctlPlayerManager *manager,
     }
 
     GError *error = NULL;
-    // TODO bus type
-    PlayerctlPlayer *player = playerctl_player_new_for_bus(name->name, name->bus_type, &error);
+    PlayerctlPlayer *player =
+        playerctl_player_new_for_name(name, &error);
     if (error != NULL) {
         exit_status = 1;
         g_printerr("Could not connect to player: %s\n", error->message);
@@ -1105,7 +1103,8 @@ int main(int argc, char *argv[]) {
         }
         has_selected = TRUE;
 
-        PlayerctlPlayer *player = playerctl_player_new(name->name, &error);
+        PlayerctlPlayer *player =
+            playerctl_player_new_for_name(name, &error);
         if (error != NULL) {
             g_printerr("Could not connect to player: %s\n", error->message);
             exit_status = 1;

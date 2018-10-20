@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with playerctl If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright © 2014, Tony Crisci
+ * Copyright © 2014, Tony Crisci and contributors
  */
 
 #ifndef __PLAYERCTL_H__
@@ -22,6 +22,8 @@
 
 #define __PLAYERCTL_INSIDE__
 
+#include <playerctl/playerctl-enum-types.h>
+#include <playerctl/playerctl-player-name.h>
 #include <playerctl/playerctl-player.h>
 #include <playerctl/playerctl-player-manager.h>
 #include <playerctl/playerctl-version.h>

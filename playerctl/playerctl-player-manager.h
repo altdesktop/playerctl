@@ -26,7 +26,6 @@
 
 #include <playerctl/playerctl-player.h>
 #include <glib-object.h>
-#include <gio/gio.h>
 
 /**
  * SECTION: playerctl-player-manager
@@ -49,26 +48,6 @@
 typedef struct _PlayerctlPlayerManager PlayerctlPlayerManager;
 typedef struct _PlayerctlPlayerManagerClass PlayerctlPlayerManagerClass;
 typedef struct _PlayerctlPlayerManagerPrivate PlayerctlPlayerManagerPrivate;
-
-#define PLAYERCTL_TYPE_PLAYER_NAME (playerctl_player_name_get_type())
-
-typedef struct _PlayerctlPlayerName PlayerctlPlayerName;
-
-/**
- * PlayerctlPlayerName:
- * @name: the name of the player that has appeared or vanished.
- *
- * Event container for when names of players appear or disapear as the
- * controllable media player applications open and close.
- */
-struct _PlayerctlPlayerName {
-    gchar *name;
-    GBusType bus_type;
-};
-
-void playerctl_player_name_free(PlayerctlPlayerName *name);
-PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *name);
-GType playerctl_player_name_get_type(void);
 
 struct _PlayerctlPlayerManager {
     /* Parent instance structure */

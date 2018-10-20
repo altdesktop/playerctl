@@ -109,10 +109,41 @@ gchar *pctl_print_gvariant(GVariant *value) {
     return g_string_free(printed, FALSE);
 }
 
+GBusType pctl_source_to_bus_type(PlayerctlSource source) {
+    switch (source) {
+    case PLAYERCTL_SOURCE_DBUS_SESSION:
+        return G_BUS_TYPE_SESSION;
+    case PLAYERCTL_SOURCE_DBUS_SYSTEM:
+        return G_BUS_TYPE_SYSTEM;
+    default:
+        return G_BUS_TYPE_NONE;
+    }
+}
+
+PlayerctlSource pctl_bus_type_to_source(GBusType bus_type) {
+    switch (bus_type) {
+    case G_BUS_TYPE_SESSION:
+        return PLAYERCTL_SOURCE_DBUS_SESSION;
+    case G_BUS_TYPE_SYSTEM:
+        return PLAYERCTL_SOURCE_DBUS_SYSTEM;
+    default:
+        g_warning("could not convert bus type to source: %d\n", bus_type);
+        return PLAYERCTL_SOURCE_NONE;
+    }
+}
+
+PlayerctlPlayerName *pctl_player_name_new(const gchar *name,
+                                          PlayerctlSource source) {
+    PlayerctlPlayerName *player_name = g_slice_new(PlayerctlPlayerName);
+    player_name->name = g_strdup(name);
+    player_name->source = source;
+    return player_name;
+}
+
 
 gint pctl_player_name_compare(PlayerctlPlayerName *name_a,
                               PlayerctlPlayerName *name_b) {
-    if (name_a->bus_type != name_b->bus_type) {
+    if (name_a->source != name_b->source) {
         return 1;
     }
     return g_strcmp0(name_a->name, name_b->name);
@@ -120,7 +151,7 @@ gint pctl_player_name_compare(PlayerctlPlayerName *name_a,
 
 gint pctl_player_name_instance_compare(PlayerctlPlayerName *name,
                                        PlayerctlPlayerName *instance) {
-    if (name->bus_type != instance->bus_type) {
+    if (name->source != instance->source) {
         return 1;
     }
     return pctl_player_name_string_instance_compare(name->name, instance->name);
@@ -138,20 +169,20 @@ gint pctl_player_name_string_instance_compare(gchar *name, gchar *instance) {
     }
 }
 
-GList *pctl_player_name_find(GList *list, gchar *player_id, GBusType bus_type) {
+GList *pctl_player_name_find(GList *list, gchar *player_id, PlayerctlSource source) {
     PlayerctlPlayerName player_name = {
         .name = player_id,
-        .bus_type = bus_type,
+        .source = source,
     };
 
     return g_list_find_custom(list, &player_name,
                               (GCompareFunc)pctl_player_name_compare);
 }
 
-GList *pctl_player_name_find_instance(GList *list, gchar *player_id, GBusType bus_type) {
+GList *pctl_player_name_find_instance(GList *list, gchar *player_id, PlayerctlSource source) {
     PlayerctlPlayerName player_name = {
         .name = player_id,
-        .bus_type = bus_type,
+        .source = source,
     };
 
     return g_list_find_custom(list, &player_name,

@@ -15,10 +15,13 @@ playerctl_generated = gnome.gdbus_codegen(
 headers = [
   'playerctl.h',
   'playerctl-player.h',
+  'playerctl-player-manager.h',
+  'playerctl-player-name.h',
   playerctl_version_header,
 ]
 
 playerctl_sources = [
+  'playerctl-player-name.c',
   'playerctl-formatter.c',
   'playerctl-player.c',
   'playerctl-common.c',
@@ -80,6 +83,8 @@ if get_option('introspection')
     playerctl_lib.get_shared_lib(),
     sources: [
       enums,
+      'playerctl-player-name.c',
+      'playerctl-player-name.h',
       'playerctl-player-manager.c',
       'playerctl-player-manager.h',
       'playerctl-player.c',
@@ -87,7 +92,7 @@ if get_option('introspection')
     ],
     nsversion: '1.0',
     namespace: 'Playerctl',
-    includes : ['GObject-2.0', 'Gio-2.0'],
+    includes: ['GObject-2.0'],
     install: true,
   )
 endif
@@ -99,5 +104,6 @@ pkgconfig.generate(
   name: 'Playerctl',
   filebase: 'playerctl-1.0',
   description: 'A C library for MPRIS players',
-  requires: ['gobject-2.0', 'gio-2.0'],
+  requires: ['gobject-2.0'],
+  requires_private: 'gio-2.0',
 )

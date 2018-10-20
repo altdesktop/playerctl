@@ -36,7 +36,7 @@ enum {
 
     PROP_PLAYER_NAME,
     PROP_PLAYER_ID,
-    PROP_BUS_TYPE,
+    PROP_SOURCE,
     PROP_PLAYBACK_STATUS,
     PROP_LOOP_STATUS,
     PROP_SHUFFLE,
@@ -88,7 +88,7 @@ struct _PlayerctlPlayerPrivate {
     OrgMprisMediaPlayer2Player *proxy;
     gchar *player_name;
     gchar *bus_name;
-    GBusType bus_type;
+    PlayerctlSource source;
     GError *init_error;
     gboolean initted;
     GVariant *metadata;
@@ -331,8 +331,8 @@ static void playerctl_player_set_property(GObject *object, guint property_id,
         self->priv->player_name = g_strdup(g_value_get_string(value));
         break;
 
-    case PROP_BUS_TYPE:
-        self->priv->bus_type = g_value_get_enum(value);
+    case PROP_SOURCE:
+        self->priv->source = g_value_get_enum(value);
         break;
 
     case PROP_VOLUME:
@@ -363,8 +363,8 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
         g_value_set_string(value, self->priv->bus_name + strlen(MPRIS_PREFIX));
         break;
 
-    case PROP_BUS_TYPE:
-        g_value_set_enum(value,self->priv->bus_type);
+    case PROP_SOURCE:
+        g_value_set_enum(value,self->priv->source);
         break;
 
     case PROP_PLAYBACK_STATUS:
@@ -555,9 +555,9 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
         NULL, /* default */
         G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
-    obj_properties[PROP_BUS_TYPE] = g_param_spec_enum("bus-type",
-            "Player bus type", "The bus this player is located on",
-            g_bus_type_get_type(),
+    obj_properties[PROP_SOURCE] = g_param_spec_enum("source",
+            "Player source", "The source of this player",
+            playerctl_source_get_type(),
             G_BUS_TYPE_NONE,
             G_PARAM_CONSTRUCT_ONLY | G_PARAM_READWRITE |
             G_PARAM_STATIC_STRINGS);
@@ -805,9 +805,8 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
     size_t offset = strlen(MPRIS_PREFIX);
     for (gsize i = 0; i < reply_count; i += 1) {
         if (g_str_has_prefix(names[i], MPRIS_PREFIX)) {
-            PlayerctlPlayerName *player_name = g_slice_new(PlayerctlPlayerName);
-            player_name->name = g_strdup(names[i] + offset);
-            player_name->bus_type = bus_type;
+            PlayerctlPlayerName *player_name =
+                pctl_player_name_new(names[i] + offset, pctl_bus_type_to_source(bus_type));
             players = g_list_append(players, player_name);
         }
     }
@@ -850,7 +849,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
         return bus_name;
     }
 
-    GList *exact_match = pctl_player_name_find(names, name, bus_type);
+    GList *exact_match = pctl_player_name_find(names, name, pctl_bus_type_to_source(bus_type));
     if (exact_match != NULL) {
         PlayerctlPlayerName *name = exact_match->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->name);
@@ -858,7 +857,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
         return bus_name;
     }
 
-    GList *instance_match = pctl_player_name_find_instance(names, name, bus_type);
+    GList *instance_match = pctl_player_name_find_instance(names, name, pctl_bus_type_to_source(bus_type));
     if (instance_match != NULL) {
         gchar *name = instance_match->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
@@ -895,11 +894,11 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
 
     g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
 
-    if (player->priv->bus_type != G_BUS_TYPE_NONE) {
-        // the bus name was specified
+    if (player->priv->source != PLAYERCTL_SOURCE_NONE) {
+        // the source was specified
         player->priv->bus_name =
             bus_name_for_player_name(player->priv->player_name,
-                                     player->priv->bus_type,
+                                     pctl_source_to_bus_type(player->priv->source),
                                      &tmp_error);
         if (tmp_error) {
             g_propagate_error(err, tmp_error);
@@ -911,7 +910,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
             return FALSE;
         }
     } else {
-        // the bus name was not specified
+        // the source was not specified
         const GBusType bus_types[] = { G_BUS_TYPE_SESSION, G_BUS_TYPE_SYSTEM };
         for (int i = 0; i < LENGTH(bus_types); ++i) {
             player->priv->bus_name =
@@ -923,7 +922,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
             }
 
             if (player->priv->bus_name != NULL) {
-                player->priv->bus_type = bus_types[i];
+                player->priv->source = pctl_bus_type_to_source(bus_types[i]);
                 break;
             }
         }
@@ -943,7 +942,8 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
     g_strfreev(split);
 
     player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
-        player->priv->bus_type, G_DBUS_PROXY_FLAGS_NONE, player->priv->bus_name,
+        pctl_source_to_bus_type(player->priv->source),
+        G_DBUS_PROXY_FLAGS_NONE, player->priv->bus_name,
         "/org/mpris/MediaPlayer2", NULL, &tmp_error);
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);
@@ -1041,9 +1041,9 @@ PlayerctlPlayer *playerctl_player_new(const gchar *player_name, GError **err) {
 }
 
 /**
- * playerctl_player_new_for_bus:
+ * playerctl_player_new_for_source:
  * @player_name: (allow-none): The name to use to find the bus name of the player
- * @bus_type: The bus to find the player on.
+ * @source: The source where the player name is.
  * @err: The location of a GError or NULL
  *
  * Allocates a new #PlayerctlPlayer and tries to connect to the bus name
@@ -1052,15 +1052,41 @@ PlayerctlPlayer *playerctl_player_new(const gchar *player_name, GError **err) {
  * Returns:(transfer full): A new #PlayerctlPlayer connected to an instance of
  * the player or NULL if an error occurred
  */
-PlayerctlPlayer *playerctl_player_new_for_bus(const gchar *player_name,
-                                              GBusType bus_type,
+PlayerctlPlayer *playerctl_player_new_for_source(const gchar *player_name,
+                                              PlayerctlSource source,
                                               GError **err) {
     GError *tmp_error = NULL;
     PlayerctlPlayer *player;
 
     player = g_initable_new(PLAYERCTL_TYPE_PLAYER, NULL, &tmp_error,
                             "player-name", player_name,
-                            "bus-type", bus_type, NULL);
+                            "source", source, NULL);
+
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return NULL;
+    }
+
+    return player;
+}
+
+/**
+ * playerctl_player_new_for_name:
+ * @player_name: The name type to use to find the player
+ *
+ * Allocates a new #PlayerctlPlayer and tries to connect to the bus name
+ * "org.mpris.MediaPlayer2.[name]"
+ *
+ * Returns:(transfer full): A new #PlayerctlPlayer connected to an instance of
+ * the player or NULL if an error occurred
+ */
+PlayerctlPlayer *playerctl_player_new_for_name(PlayerctlPlayerName *player_name, GError **err) {
+    GError *tmp_error = NULL;
+    PlayerctlPlayer *player;
+
+    player = g_initable_new(PLAYERCTL_TYPE_PLAYER, NULL, &tmp_error,
+                            "player-name", player_name->name,
+                            "source", player_name->source, NULL);
 
     if (tmp_error != NULL) {
         g_propagate_error(err, tmp_error);

@@ -14,14 +14,14 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with playerctl If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright © 2014, Tony Crisci
+ * Copyright © 2014, Tony Crisci and contributors
  */
 
 #ifndef __PLAYERCTL_FORMATTER_H__
 #define __PLAYERCTL_FORMATTER_H__
 
 #include <glib.h>
-#include <playerctl/playerctl-player.h>
+#include <playerctl/playerctl.h>
 
 typedef struct _PlayerctlFormatter PlayerctlFormatter;
 typedef struct _PlayerctlFormatterPrivate PlayerctlFormatterPrivate;

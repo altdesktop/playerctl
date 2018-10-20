@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with playerctl If not, see <http://www.gnu.org/licenses/>.
  *
- * Copyright © 2014, Tony Crisci
+ * Copyright © 2014, Tony Crisci and contributors
  */
 
 #ifndef __PLAYERCTL_PLAYER_H__
@@ -25,7 +25,7 @@
 #endif
 
 #include <glib-object.h>
-#include <gio/gio.h>
+#include <playerctl/playerctl-player-name.h>
 #include <playerctl/playerctl-enum-types.h>
 
 /**
@@ -67,9 +67,12 @@ GType playerctl_player_get_type(void);
 
 PlayerctlPlayer *playerctl_player_new(const gchar *player_name, GError **err);
 
-PlayerctlPlayer *playerctl_player_new_for_bus(const gchar *player_name,
-                                              GBusType bus_type,
-                                              GError **err);
+PlayerctlPlayer *playerctl_player_new_for_source(const gchar *player_name,
+                                                 PlayerctlSource source,
+                                                 GError **err);
+
+PlayerctlPlayer *playerctl_player_new_for_name(PlayerctlPlayerName *player_name,
+                                               GError **err);
 
 /**
  * PlayerctlPlaybackStatus:

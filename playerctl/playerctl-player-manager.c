@@ -19,9 +19,10 @@
 
 #include <gio/gio.h>
 #include <glib-object.h>
-#include "playerctl/playerctl-common.h"
+#include "playerctl/playerctl-player-name.h"
 #include "playerctl/playerctl-player-manager.h"
-#include <playerctl/playerctl-player.h>
+#include "playerctl/playerctl-common.h"
+#include "playerctl/playerctl-player.h"
 
 enum {
     PROP_0,
@@ -117,49 +118,6 @@ static void playerctl_player_manager_finalize(GObject *gobject) {
 
     G_OBJECT_CLASS(playerctl_player_manager_parent_class)->finalize(gobject);
 }
-
-
-/**
- * playerctl_player_name_copy:
- * @name: a #PlayerctlPlayerName
- *
- * Creates a dynamically allocated name name container as a copy of
- * @name.
- *
- * Returns: (transfer full): a newly-allocated copy of @name
- */
-PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *name) {
-    PlayerctlPlayerName *retval;
-
-    g_return_val_if_fail(name != NULL, NULL);
-
-    retval = g_slice_new0(PlayerctlPlayerName);
-    *retval = *name;
-
-    retval->bus_type = name->bus_type;
-    retval->name = g_strdup(name->name);
-
-    return retval;
-}
-
-/**
- * playerctl_player_name_free:
- * @name: (allow-none): a #PlayerctlPlayerName
- *
- * Frees @name. If @name is %NULL, it simply returns.
- */
-void playerctl_player_name_free(PlayerctlPlayerName *name) {
-    if (name == NULL) {
-        return;
-    }
-
-    g_free(name->name);
-    g_slice_free(PlayerctlPlayerName, name);
-}
-
-G_DEFINE_BOXED_TYPE(PlayerctlPlayerName, playerctl_player_name,
-    playerctl_player_name_copy, playerctl_player_name_free);
-
 
 static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
@@ -331,7 +289,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
         // the name has vanished
         player_entry =
             pctl_player_name_find(manager->priv->player_names, player_id,
-                                  bus_type);
+                                  pctl_bus_type_to_source(bus_type));
         if (player_entry != NULL) {
             PlayerctlPlayerName *player_name = player_entry->data;
             manager->priv->player_names =
@@ -345,11 +303,10 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
         // the name has appeared
         player_entry =
             pctl_player_name_find(manager->priv->players, player_id,
-                                  bus_type);
+                                  pctl_bus_type_to_source(bus_type));
         if (player_entry == NULL) {
-            PlayerctlPlayerName *player_name = g_slice_new0(PlayerctlPlayerName);
-            player_name->name = g_strdup(player_id);
-            player_name->bus_type = bus_type;
+            PlayerctlPlayerName *player_name =
+                pctl_player_name_new(player_id, pctl_bus_type_to_source(bus_type));
 
             manager->priv->player_names = g_list_prepend(manager->priv->player_names, player_name);
             g_signal_emit(manager, connection_signals[NAME_APPEARED], 0,
