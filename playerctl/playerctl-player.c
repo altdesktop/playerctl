@@ -70,14 +70,6 @@ enum {
     LAST_SIGNAL
 };
 
-static gboolean bus_name_is_valid(gchar *bus_name) {
-    if (bus_name == NULL) {
-        return FALSE;
-    }
-
-    return g_str_has_prefix(bus_name, MPRIS_PREFIX);
-}
-
 static GParamSpec *obj_properties[N_PROPERTIES] = {
     NULL,
 };
@@ -87,7 +79,7 @@ static guint connection_signals[LAST_SIGNAL] = {0};
 struct _PlayerctlPlayerPrivate {
     OrgMprisMediaPlayer2Player *proxy;
     gchar *player_name;
-    gchar *bus_name;
+    gchar *instance;
     PlayerctlSource source;
     GError *init_error;
     gboolean initted;
@@ -331,6 +323,11 @@ static void playerctl_player_set_property(GObject *object, guint property_id,
         self->priv->player_name = g_strdup(g_value_get_string(value));
         break;
 
+    case PROP_PLAYER_INSTANCE:
+        g_free(self->priv->instance);
+        self->priv->instance = g_strdup(g_value_get_string(value));
+        break;
+
     case PROP_SOURCE:
         self->priv->source = g_value_get_enum(value);
         break;
@@ -356,11 +353,7 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
         break;
 
     case PROP_PLAYER_INSTANCE:
-        if (!bus_name_is_valid(self->priv->bus_name)) {
-            return;
-        }
-
-        g_value_set_string(value, self->priv->bus_name + strlen(MPRIS_PREFIX));
+        g_value_set_string(value, self->priv->instance);
         break;
 
     case PROP_SOURCE:
@@ -531,7 +524,7 @@ static void playerctl_player_finalize(GObject *gobject) {
     PlayerctlPlayer *self = PLAYERCTL_PLAYER(gobject);
 
     g_free(self->priv->player_name);
-    g_free(self->priv->bus_name);
+    g_free(self->priv->instance);
 
     G_OBJECT_CLASS(playerctl_player_parent_class)->finalize(gobject);
 }
@@ -553,7 +546,7 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
     obj_properties[PROP_PLAYER_INSTANCE] = g_param_spec_string(
         "player-instance", "Player instance", "An instance name that identifies this player on the bus",
         NULL, /* default */
-        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+        G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
     obj_properties[PROP_SOURCE] = g_param_spec_enum("source",
             "Player source", "The source of this player",
@@ -918,11 +911,24 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
 
     g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
 
-    // TODO: In the manager, we already know the name is on the bus. Try not to
-    // list the names again in that case.
-    if (player->priv->source != PLAYERCTL_SOURCE_NONE) {
+    if (player->priv->instance != NULL && player->priv->player_name != NULL) {
+        g_set_error(err, playerctl_player_error_quark(), 3,
+                    "A player cannot be constructed with both name and instance");
+        return FALSE;
+    }
+
+    if (player->priv->instance != NULL && player->priv->source == PLAYERCTL_SOURCE_NONE) {
+        g_set_error(err, playerctl_player_error_quark(), 3,
+                    "A player cannot be constructed with an instance and no source");
+        return FALSE;
+    }
+
+    gchar *bus_name = NULL;
+    if (player->priv->instance != NULL) {
+        bus_name = g_strdup_printf("%s%s", MPRIS_PREFIX, player->priv->instance);
+    } if (player->priv->source != PLAYERCTL_SOURCE_NONE) {
         // the source was specified
-        player->priv->bus_name =
+        bus_name =
             bus_name_for_player_name(player->priv->player_name,
                                      pctl_source_to_bus_type(player->priv->source),
                                      &tmp_error);
@@ -930,31 +936,25 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
             g_propagate_error(err, tmp_error);
             return FALSE;
         }
-        if (player->priv->bus_name == NULL) {
-            g_set_error(err, playerctl_player_error_quark(), 1,
-                    "Player not found");
-            return FALSE;
-        }
     } else {
         // the source was not specified
         const GBusType bus_types[] = { G_BUS_TYPE_SESSION, G_BUS_TYPE_SYSTEM };
         for (int i = 0; i < LENGTH(bus_types); ++i) {
-            player->priv->bus_name =
+            bus_name =
                 bus_name_for_player_name(player->priv->player_name,
                         bus_types[i], &tmp_error);
             if (tmp_error != NULL) {
                 g_propagate_error(err, tmp_error);
                 return FALSE;
             }
-
-            if (player->priv->bus_name != NULL) {
+            if (bus_name != NULL) {
                 player->priv->source = pctl_bus_type_to_source(bus_types[i]);
                 break;
             }
         }
     }
 
-    if (player->priv->bus_name == NULL) {
+    if (bus_name == NULL) {
         g_set_error(err, playerctl_player_error_quark(), 1,
                     "Player not found");
         return FALSE;
@@ -962,19 +962,22 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
 
     /* org.mpris.MediaPlayer2.{NAME}[.instance{NUM}] */
     int offset = strlen(MPRIS_PREFIX);
-    gchar **split = g_strsplit(player->priv->bus_name + offset, ".instance", 2);
+    gchar **split = g_strsplit(bus_name + offset, ".instance", 2);
     g_free(player->priv->player_name);
     player->priv->player_name = g_strdup(split[0]);
     g_strfreev(split);
 
     player->priv->proxy = org_mpris_media_player2_player_proxy_new_for_bus_sync(
         pctl_source_to_bus_type(player->priv->source),
-        G_DBUS_PROXY_FLAGS_NONE, player->priv->bus_name,
+        G_DBUS_PROXY_FLAGS_NONE, bus_name,
         "/org/mpris/MediaPlayer2", NULL, &tmp_error);
     if (tmp_error != NULL) {
+        g_free(bus_name);
         g_propagate_error(err, tmp_error);
         return FALSE;
     }
+
+    g_free(bus_name);
 
     // init the cache
     player->priv->cached_position =
@@ -1111,7 +1114,7 @@ PlayerctlPlayer *playerctl_player_new_from_name(PlayerctlPlayerName *player_name
     PlayerctlPlayer *player;
 
     player = g_initable_new(PLAYERCTL_TYPE_PLAYER, NULL, &tmp_error,
-                            "player-name", player_name->instance,
+                            "player-instance", player_name->instance,
                             "source", player_name->source, NULL);
 
     if (tmp_error != NULL) {
