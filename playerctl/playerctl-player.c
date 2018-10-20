@@ -35,7 +35,7 @@ enum {
     PROP_0,
 
     PROP_PLAYER_NAME,
-    PROP_PLAYER_ID,
+    PROP_PLAYER_INSTANCE,
     PROP_SOURCE,
     PROP_PLAYBACK_STATUS,
     PROP_LOOP_STATUS,
@@ -355,7 +355,7 @@ static void playerctl_player_get_property(GObject *object, guint property_id,
         g_value_set_string(value, self->priv->player_name);
         break;
 
-    case PROP_PLAYER_ID:
+    case PROP_PLAYER_INSTANCE:
         if (!bus_name_is_valid(self->priv->bus_name)) {
             return;
         }
@@ -550,8 +550,8 @@ static void playerctl_player_class_init(PlayerctlPlayerClass *klass) {
         NULL, /* default */
         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
-    obj_properties[PROP_PLAYER_ID] = g_param_spec_string(
-        "player-id", "Player ID", "An ID that identifies this player on the bus",
+    obj_properties[PROP_PLAYER_INSTANCE] = g_param_spec_string(
+        "player-instance", "Player instance", "An instance name that identifies this player on the bus",
         NULL, /* default */
         G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
@@ -868,7 +868,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
 
     if (name == NULL) {
         PlayerctlPlayerName *name = names->data;
-        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->name);
+        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->instance);
         pctl_player_name_list_destroy(names);
         return bus_name;
     }
@@ -876,7 +876,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
     GList *exact_match = pctl_player_name_find(names, name, pctl_bus_type_to_source(bus_type));
     if (exact_match != NULL) {
         PlayerctlPlayerName *name = exact_match->data;
-        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->name);
+        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->instance);
         g_list_free_full(names, (GDestroyNotify)playerctl_player_name_free);
         return bus_name;
     }
@@ -918,6 +918,8 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
 
     g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
 
+    // TODO: In the manager, we already know the name is on the bus. Try not to
+    // list the names again in that case.
     if (player->priv->source != PLAYERCTL_SOURCE_NONE) {
         // the source was specified
         player->priv->bus_name =
@@ -1109,7 +1111,7 @@ PlayerctlPlayer *playerctl_player_new_from_name(PlayerctlPlayerName *player_name
     PlayerctlPlayer *player;
 
     player = g_initable_new(PLAYERCTL_TYPE_PLAYER, NULL, &tmp_error,
-                            "player-name", player_name->name,
+                            "player-name", player_name->instance,
                             "source", player_name->source, NULL);
 
     if (tmp_error != NULL) {

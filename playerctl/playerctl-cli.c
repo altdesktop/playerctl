@@ -911,7 +911,7 @@ static gboolean name_is_selected(gchar *name) {
 
 static void name_appeared_callback(PlayerctlPlayerManager *manager,
         PlayerctlPlayerName *name, gpointer *data) {
-    if (!name_is_selected(name->name)) {
+    if (!name_is_selected(name->instance)) {
         return;
     }
 
@@ -1098,7 +1098,7 @@ int main(int argc, char *argv[]) {
     GList *l = NULL;
     for (l = available_players; l != NULL; l = l->next) {
         PlayerctlPlayerName *name = l->data;
-        if (!name_is_selected(name->name)) {
+        if (!name_is_selected(name->instance)) {
             continue;
         }
         has_selected = TRUE;

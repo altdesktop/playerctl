@@ -14,7 +14,7 @@ def on_metadata(player, metadata, manager):
 
 def init_player(name):
     # choose if you want to manage the player based on the name
-    if name.name.startswith('vlc'):
+    if name.name in ['vlc', 'cmus']:
         player = Playerctl.Player.new_from_name(name)
         player.connect('playback-status::playing', on_play, manager)
         player.connect('metadata', on_metadata, manager)
@@ -24,7 +24,7 @@ def on_name_appeared(manager, name):
     init_player(name)
 
 def on_player_vanished(manager, player):
-    print('player has exited: {}'.format(player.props.player_id))
+    print('player has exited: {}'.format(player.props.player_name))
 
 manager.connect('name-appeared', on_name_appeared)
 manager.connect('player-vanished', on_player_vanished)

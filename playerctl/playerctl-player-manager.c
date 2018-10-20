@@ -228,17 +228,17 @@ static void manager_remove_managed_player_by_name(PlayerctlPlayerManager *manage
     GList *l = NULL;
     for (l = manager->priv->players; l != NULL; l = l->next) {
         PlayerctlPlayer *player = PLAYERCTL_PLAYER(l->data);
-        gchar *id = NULL;
-        g_object_get(player, "player-id", &id, NULL);
+        gchar *instance = NULL;
+        g_object_get(player, "player-instance", &instance, NULL);
         // TODO match bus type
-        if (g_strcmp0(id, player_name->name) == 0) {
+        if (g_strcmp0(instance, player_name->instance) == 0) {
             manager->priv->players = g_list_remove_link(manager->priv->players, l);
             g_signal_emit(manager, connection_signals[PLAYER_VANISHED], 0, player);
             g_list_free_full(l, g_object_unref);
-            g_free(id);
+            g_free(instance);
             break;
         }
-        g_free(id);
+        g_free(instance);
     }
 }
 

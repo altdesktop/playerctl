@@ -37,6 +37,7 @@ PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *name) {
     *retval = *name;
 
     retval->source = name->source;
+    retval->instance = g_strdup(name->instance);
     retval->name = g_strdup(name->name);
 
     return retval;
@@ -53,6 +54,7 @@ void playerctl_player_name_free(PlayerctlPlayerName *name) {
         return;
     }
 
+    g_free(name->instance);
     g_free(name->name);
     g_slice_free(PlayerctlPlayerName, name);
 }

@@ -132,10 +132,13 @@ PlayerctlSource pctl_bus_type_to_source(GBusType bus_type) {
     }
 }
 
-PlayerctlPlayerName *pctl_player_name_new(const gchar *name,
+PlayerctlPlayerName *pctl_player_name_new(const gchar *instance,
                                           PlayerctlSource source) {
     PlayerctlPlayerName *player_name = g_slice_new(PlayerctlPlayerName);
-    player_name->name = g_strdup(name);
+    gchar **split = g_strsplit(instance, ".instance", 2);
+    player_name->name = g_strdup(split[0]);
+    g_strfreev(split);
+    player_name->instance = g_strdup(instance);
     player_name->source = source;
     return player_name;
 }
@@ -146,7 +149,7 @@ gint pctl_player_name_compare(PlayerctlPlayerName *name_a,
     if (name_a->source != name_b->source) {
         return 1;
     }
-    return g_strcmp0(name_a->name, name_b->name);
+    return g_strcmp0(name_a->instance, name_b->instance);
 }
 
 gint pctl_player_name_instance_compare(PlayerctlPlayerName *name,
@@ -154,7 +157,7 @@ gint pctl_player_name_instance_compare(PlayerctlPlayerName *name,
     if (name->source != instance->source) {
         return 1;
     }
-    return pctl_player_name_string_instance_compare(name->name, instance->name);
+    return pctl_player_name_string_instance_compare(name->instance, instance->instance);
 }
 
 gint pctl_player_name_string_instance_compare(gchar *name, gchar *instance) {
@@ -171,7 +174,7 @@ gint pctl_player_name_string_instance_compare(gchar *name, gchar *instance) {
 
 GList *pctl_player_name_find(GList *list, gchar *player_id, PlayerctlSource source) {
     PlayerctlPlayerName player_name = {
-        .name = player_id,
+        .instance = player_id,
         .source = source,
     };
 
@@ -181,7 +184,7 @@ GList *pctl_player_name_find(GList *list, gchar *player_id, PlayerctlSource sour
 
 GList *pctl_player_name_find_instance(GList *list, gchar *player_id, PlayerctlSource source) {
     PlayerctlPlayerName player_name = {
-        .name = player_id,
+        .instance = player_id,
         .source = source,
     };
 

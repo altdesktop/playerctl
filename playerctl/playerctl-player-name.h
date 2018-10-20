@@ -61,6 +61,7 @@ GType playerctl_player_name_get_type(void);
  */
 struct _PlayerctlPlayerName {
     gchar *name;
+    gchar *instance;
     PlayerctlSource source;
 };
 

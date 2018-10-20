@@ -403,12 +403,12 @@ static GVariantDict *get_default_template_context(PlayerctlPlayer *player, GVari
         g_variant_dict_insert_value(context, "playerName", player_name_variant);
         g_free(player_name);
     }
-    if (!g_variant_dict_contains(context, "playerId")) {
-        gchar *player_id = NULL;
-        g_object_get(player, "player-id", &player_id, NULL);
-        GVariant *player_id_variant = g_variant_new_string(player_id);
-        g_variant_dict_insert_value(context, "playerId", player_id_variant);
-        g_free(player_id);
+    if (!g_variant_dict_contains(context, "playerInstance")) {
+        gchar *instance = NULL;
+        g_object_get(player, "player-instance", &instance, NULL);
+        GVariant *player_instance_variant = g_variant_new_string(instance);
+        g_variant_dict_insert_value(context, "playerInstance", player_instance_variant);
+        g_free(instance);
     }
     if (!g_variant_dict_contains(context, "shuffle")) {
         gboolean shuffle = FALSE;
