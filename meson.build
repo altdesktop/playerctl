@@ -1,7 +1,7 @@
 project(
   'playerctl',
   'c',
-  version: '0.6.1',
+  version: '2.0.0-rc1',
   meson_version: '>=0.46.0'
 )
 
@@ -27,7 +27,7 @@ version_conf.set(
 )
 version_conf.set(
   'PLAYERCTL_MICRO_VERSION',
-  version_array[2].to_int(),
+  version_array[2].split('-')[0].to_int(),
 )
 
 gobject_dep = dependency('gobject-2.0', version: '>=2.38')
