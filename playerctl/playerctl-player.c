@@ -170,9 +170,12 @@ static void playerctl_player_properties_changed_callback(
             g_free(self->priv->cached_track_id);
             self->priv->cached_track_id = track_id;
             track_id_invalidated = TRUE;
+        } else {
+            g_free(track_id);
         }
 
         g_signal_emit(self, connection_signals[METADATA], 0, metadata);
+        g_variant_unref(metadata);
     }
 
     if (track_id_invalidated) {
@@ -258,6 +261,8 @@ static void playerctl_player_properties_changed_callback(
         } else {
             g_warning("got unknown playback state: %s", status_str);
         }
+
+        g_variant_unref(playback_status);
     }
 }
 
@@ -523,6 +528,7 @@ static void playerctl_player_finalize(GObject *gobject) {
 
     g_free(self->priv->player_name);
     g_free(self->priv->instance);
+    g_free(self->priv->cached_track_id);
 
     G_OBJECT_CLASS(playerctl_player_parent_class)->finalize(gobject);
 }
@@ -976,8 +982,8 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
 
     gchar *bus_name = NULL;
     if (player->priv->instance != NULL) {
-        bus_name = g_strdup_printf("%s%s", MPRIS_PREFIX, player->priv->instance);
-    } if (player->priv->source != PLAYERCTL_SOURCE_NONE) {
+        bus_name = g_strdup_printf(MPRIS_PREFIX "%s", player->priv->instance);
+    } else if (player->priv->source != PLAYERCTL_SOURCE_NONE) {
         // the source was specified
         bus_name =
             bus_name_for_player_name(player->priv->player_name,
@@ -1363,7 +1369,7 @@ static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
         return NULL;
     }
 
-    g_variant_iter_init (&iter, metadata);
+    g_variant_iter_init(&iter, metadata);
     while ((child = g_variant_iter_next_value(&iter))) {
         GVariant *key_variant = g_variant_get_child_value(child, 0);
         const gchar *key = g_variant_get_string(key_variant, 0);

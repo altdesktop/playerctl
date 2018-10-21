@@ -90,6 +90,7 @@ static void cli_print_output(gchar *output) {
 
     printf("%s", output);
     fflush(stdout);
+    g_free(last_output);
     last_output = output;
 }
 
