@@ -19,7 +19,16 @@ the MPRIS interface specification should be able to be controlled using \fBplaye
 .SH OPTIONS
 .TP
 \fB\-p\fR, \fB\-\-player\fR=\fI\,NAME\/\fR
-The name of the player to control (default: first available player)
+The name or comma-separated list of the players to control (default: first available player)
+.TP
+\fB\-i\fR, \fB\-\-ignore\-player\fR=\fI\,NAME\/\fR
+The name or comma-separated list of the players to ignore
+.TP
+\fB\-f\fR, \fB\-\-format\fR=\fI\,FORMAT\/\fR
+A format string for printing properties and metadata
+.TP
+\fB\-F\fR, \fB\-\-follow\fR=\fI\,FORMAT\/\fR
+Block and output the updated query when it changes
 .TP
 \fB\-l\fR, \fB\-\-list\-all\fR
 List the names of running players that can be controlled
@@ -66,6 +75,41 @@ volume by \fILEVEL\fR.
 .TP
 \fBmetadata\fR [\fIKEY\fR]
 Print available metadata information for the current track. When \fIKEY\fR is specified, print the value of \fIKEY\fR.
+.TP
+\fBopen\fR [\fIURI\fR]
+Open the given \fIURI\fR in the player. The \fIURI\fR may be the name of a file or an external URL.
+.TP
+\fBshuffle\fR [{\fIOn\fR|\fIOff\fR}]
+Print the shuffle status of the player. With the shuffle status specified, set shuffle to either \fIOn\fR or \fIOff\fR.
+.TP
+\fBloop\fR [{\fINone\fR|\fITrack\fR|\fIPlaylist\fR}]
+Print the loop status of the player. With the loop status specified, set the loop status to either \fINone\fR to not loop, \fITrack\fR to loop the current track, or \fIPlaylist\fR to loop the current playlist.
+.SH FORMAT STRINGS
+A format string can be given with the \fB--format\fR argument to print properties and metadata in a particular format. Variable names between curly braces in the form of \fB{{\fR \fIVARIABLE\fR \fB}}\fR will be expanded to their values. The available variables are the names of the commands that print properties or any of the metadata keys that can be viewed with the \fBmetadata\fR command. The name of the player is also available with the \fBplayerName\fR variable.
+
+Several helper functions are available in the template language to transform expanded values which can be called in the form \fB{{\fR \fIHELPER\fR(\fIVARIABLE\fR) \fB}}\fR. The available helper functions are:
+.TP
+\fBlc\fR
+Convert the value to lowercase
+.TP
+\fBuc\fR
+Convert the value to uppercase
+.TP
+\fBduration\fR
+When called on a duration such as \fBposition\fR or \fBmpris:length\fR, convert the duration to \fBhh:mm:ss\fR form
+.TP
+\fBemoji\fR
+Convert the property to an emoji representation. This is only supported for \fBvolume\fR and \fBstatus\fR.
+.SH EXAMPLES
+.TP
+To print the artist, title, and playback status as an emoji:
+
+\fBplayerctl metadata --format '{{artist}} - {{title}} {{emoji(status)}}'\fR
+
+.TP
+To print the player name, playback status in lowercase, and position and length in human readable form:
+
+\fBplayerctl metadata --format '{{playerName}}: {{lc(status)}} {{duration(position)}}|{{duration(mpris:length)}}'
 .SH SEE ALSO
 .TP
 Online API documentation: https://dubstepdish.com/playerctl
