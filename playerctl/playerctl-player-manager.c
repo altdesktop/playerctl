@@ -129,9 +129,9 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
     gobject_class->finalize = playerctl_player_manager_finalize;
 
     /**
-     * PlayerctlPlayerManager:players: (transfer none) (type GList(PlayerctlPlayer)):
+     * PlayerctlPlayerManager:players: (transfer none) (type GList(PlayerctlPlayer))
      *
-     * A list of players that are currently managed by this class.
+     * A list of players that are currently connected and managed by this class.
      */
     obj_properties[PROP_PLAYERS] =
        g_param_spec_pointer("players",
@@ -140,9 +140,9 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
     /**
-     * PlayerctlPlayerManager:player-names: (transfer none) (type GList(PlayerctlPlayerName)):
+     * PlayerctlPlayerManager:player-names: (transfer none) (type GList(PlayerctlPlayerName))
      *
-     * A list of player names that are currently available to control.
+     * A list of fully qualified player names that are currently available to control.
      */
     obj_properties[PROP_PLAYER_NAMES] =
        g_param_spec_pointer("player-names",
@@ -156,7 +156,13 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
     /**
     * PlayerctlPlayerManager::name-appeared:
     * @self: the #PlayerctlPlayerManager on which the signal was emitted
-    * @name: A #PlayerctlPlayerName containing information about the name appearing.
+    * @name: A #PlayerctlPlayerName containing information about the name that
+    * has appeared.
+    *
+    * Emitted when a new name has appeared and is available to connect to. Use
+    * playerctl_player_new_from_name() to connect to the player and
+    * playerctl_player_manager_manage_player() to add it to the managed list of
+    * players.
     */
     connection_signals[NAME_APPEARED] =
         g_signal_new("name-appeared",
@@ -170,6 +176,18 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                      1,
                      PLAYERCTL_TYPE_PLAYER_NAME);
 
+    /**
+     * PlayerctlPlayerManager::name-vanished:
+     * @self: the #PlayerctlPlayerManager on which this signal was emitted.
+     * @name: The #PlayerctlPlayerName containing connection information about
+     * the name that is going away.
+     *
+     * Emitted when the name has vanished and is no longer available to be
+     * controlled by playerctl. If the player is managed, it will automatically
+     * be removed from the list of players and the
+     * #PlayerctlPlayerManager::player-vanished signal will be emitted
+     * automatically.
+     */
     connection_signals[NAME_VANISHED] =
         g_signal_new("name-vanished",
                      PLAYERCTL_TYPE_PLAYER_MANAGER,
@@ -182,6 +200,14 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                      1,
                      PLAYERCTL_TYPE_PLAYER_NAME);
 
+    /**
+     * PlayerctlPlayerManager::player-appeared:
+     * @self: The #PlayerctlPlayerManager on which this event was emitted.
+     * @player: The #PlayerctlPlayer that will be managed by this manager
+     *
+     * Emitted when a new player will be managed by this manager through a call
+     * to playerctl_player_manager_manage_player().
+     */
     connection_signals[PLAYER_APPEARED] =
         g_signal_new("player-appeared",
                      PLAYERCTL_TYPE_PLAYER_MANAGER,
@@ -194,6 +220,16 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
                      1,
                      PLAYERCTL_TYPE_PLAYER);
 
+    /**
+     * PlayerctlPlayerManager::player-vanished:
+     * @self: The #PlayerctlPlayerManager on which this event was emitted.
+     * @player: The #PlayerctlPlayer that will no longer be managed by this
+     * manager
+     *
+     * Emitted when a player has disconnected and will no longer be managed by
+     * this manager. The player is removed from the list of players
+     * automatically.
+     */
     connection_signals[PLAYER_VANISHED] =
         g_signal_new("player-vanished",
                      PLAYERCTL_TYPE_PLAYER_MANAGER,
@@ -377,7 +413,13 @@ static void playerctl_player_manager_initable_iface_init(GInitableIface *iface) 
 
 /**
  * playerctl_player_manager_new:
- * @err: (allow-none): The location of a #GError or %NULL.
+ * @err:(allow-none): The location of a GError or NULL.
+ *
+ * Create a new player manager that contains a list of player names available
+ * in the #PlayerctlPlayerManager:player-names property. You can create new
+ * players from the names with the playerctl_player_new_from_name() function
+ * and then start managing them with the
+ * playerctl_player_manager_manage_player() function.
  *
  * Returns:(transfer full): A new #PlayerctlPlayerManager.
  */
@@ -394,6 +436,18 @@ PlayerctlPlayerManager *playerctl_player_manager_new(GError **err) {
     return manager;
 }
 
+/**
+ * playerctl_player_manager_set_sort_func:
+ * @manager: A #PlayerctlPlayerManager.
+ * @sort_func: The compare function to be used to sort the
+ * #PlayerctlPlayerManager:players.
+ * @sort_data:(allow-none): User data for the sort function.
+ * @notify:(allow-none): A function to notify when the sort function will no
+ * longer be used.
+ *
+ * Keeps the #PlayerctlPlayerManager:players list of this manager in sorted order which is useful for
+ * using this list as a priority queue.
+ */
 void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
                                           GCompareDataFunc sort_func,
                                           gpointer *sort_data,
@@ -407,6 +461,16 @@ void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
         g_list_sort_with_data(manager->priv->players, sort_func, sort_data);
 }
 
+/**
+ * playerctl_player_manager_move_player_to_top:
+ * @manager: A #PlayerctlPlayerManager
+ * @player: A #PlayerctlPlayer in the list of #PlayerctlPlayerManager:players
+ *
+ * Moves the player to the top of the list of #PlayerctlPlayerManager:players. If this manager has a
+ * sort function set with playerctl_player_manager_set_sort_func(), the list of
+ * players will be sorted afterward, but will be on top of equal players in the
+ * sorted order.
+ */
 void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager,
                                                PlayerctlPlayer *player) {
     GList *l;
@@ -428,6 +492,18 @@ void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager
     }
 }
 
+/**
+ * playerctl_player_manager_manage_player:
+ * @manager: A #PlayerctlPlayerManager
+ * @player: A #PlayerctlPlayer to manage
+ *
+ * Add the given player to the list of managed players. Takes a reference to
+ * the player (so you can unref it after you call this function). The player
+ * will automatically be unreffed and removed from the list of
+ * #PlayerctlPlayerManager:players when
+ * it disconnects and the #PlayerctlPlayerManager::player-vanished signal will
+ * be emitted on the manager.
+ */
 void playerctl_player_manager_manage_player(PlayerctlPlayerManager *manager,
                                             PlayerctlPlayer *player) {
     if (player == NULL) {

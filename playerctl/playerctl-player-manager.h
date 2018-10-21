@@ -30,6 +30,31 @@
 /**
  * SECTION: playerctl-player-manager
  * @short_description: A class to watch for players appearing and vanishing.
+ *
+ * The #PlayerctlPlayerManager is a class to watch for players appearing and
+ * vanishing. When a player opens and is available to control by `playerctl`,
+ * the #PlayerctlPlayerManager::name-appeared event will be emitted on the
+ * manager during the main loop. You can inspect this #PlayerctlPlayerName to
+ * see if you want to manage it. If you do, create a #PlayerctlPlayer from it
+ * with the playerctl_player_new_from_name() function. The manager is also
+ * capable of keeping an up-to-date list of players you want it to manage in
+ * the #PlayerctlPlayerManager:players list. These players are connected and
+ * should be able to be controlled. Managing players is optional, and you can
+ * do so manually if you like.
+ *
+ * When the player disconnects, the #PlayerctlPlayerManager::name-vanished
+ * event will be emitted. If the player is managed and is going to be removed
+ * from the list, the #PlayerctlPlayerManager::player-vanished event will also
+ * be emitted. After this event, the player will be cleaned up and removed from
+ * the manager.
+ * 
+ * The manager has other features such as being able to keep the players in a
+ * sorted order and moving a player to the top of the list. The
+ * #PlayerctlPlayerManager:player-names will always be in the order that they
+ * were known to appear after the manager was created.
+ *
+ * For examples on how to use the manager, see the `examples` folder in the git
+ * repository.
  */
 #define PLAYERCTL_TYPE_PLAYER_MANAGER (playerctl_player_manager_get_type())
 #define PLAYERCTL_PLAYER_MANAGER(obj) \

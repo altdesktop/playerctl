@@ -45,7 +45,7 @@ PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *name) {
 
 /**
  * playerctl_player_name_free:
- * @name: (allow-none): a #PlayerctlPlayerName
+ * @name:(allow-none): a #PlayerctlPlayerName
  *
  * Frees @name. If @name is %NULL, it simply returns.
  */

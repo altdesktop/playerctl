@@ -31,6 +31,34 @@
 /**
  * SECTION: playerctl-player
  * @short_description: A class to control a media player.
+ *
+ * The #PlayerctlPlayer represents a proxy connection to a media player through
+ * an IPC interface that is capable of performing commands and executing
+ * queries on the player for properties and metadata.
+ *
+ * If you know the name of your player and that it is running, you can use
+ * playerctl_player_new() giving the player name to connect to it. The player
+ * names given are the same as you can get with the binary `playerctl
+ * --list-all` command. Using this function will get you the first instance of
+ *  the player it can find, or the exact instance if you pass the instance as
+ *  the player name.
+ *
+ * If you would like to connect to a player dynamically, you can list players
+ * to be controlled with playerctl_list_players() or use the
+ * #PlayerctlPlayerManager class and read the list of player name containers in
+ * the #PlayerctlPlayerManager:player-names property or listen to the
+ * #PlayerctlPlayerManager::name-appeared event. If you have a
+ * #PlayerctlPlayerName, you can use the playerctl_player_new_from_name()
+ * function to create a #PlayerctlPlayer from this name.
+ *
+ * Once you have a player, you can give it commands to play, pause, stop, open
+ * a file, etc with the provided functions listed below. You can also query for
+ * properties such as the playback status, position, and shuffle status. Each
+ * of these has an event that will be emitted when these properties change
+ * during a main loop.
+ *
+ * For examples on how to use the #PlayerctlPlayer, see the `examples`
+ * directory in the git repository.
  */
 #define PLAYERCTL_TYPE_PLAYER (playerctl_player_get_type())
 #define PLAYERCTL_PLAYER(obj) \
@@ -76,9 +104,9 @@ PlayerctlPlayer *playerctl_player_new_from_name(PlayerctlPlayerName *player_name
 
 /**
  * PlayerctlPlaybackStatus:
- * @PLAYERCTL_STATUS_PLAYING: A track is currently playing.
- * @PLAYERCTL_STATUS_PAUSED: A track is currently paused.
- * @PLAYERCTL_STATUS_STOPPED: There is no track currently playing.
+ * @PLAYERCTL_PLAYBACK_STATUS_PLAYING: A track is currently playing.
+ * @PLAYERCTL_PLAYBACK_STATUS_PAUSED: A track is currently paused.
+ * @PLAYERCTL_PLAYBACK_STATUS_STOPPED: There is no track currently playing.
  *
  * Playback status enumeration for a #PlayerctlPlayer
  *
@@ -95,7 +123,7 @@ typedef enum {
  * @PLAYERCTL_LOOP_STATUS_TRACK: The current track will start again from the beginning once it has finished playing.
  * @PLAYERCTL_LOOP_STATUS_PLAYLIST: The playback loops through a list of tracks.
  *
- * Playback status enumeration for a #PlayerctlPlayer
+ * Loop status enumeration for a #PlayerctlPlayer
  *
  */
 typedef enum {

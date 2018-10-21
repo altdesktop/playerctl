@@ -25,7 +25,21 @@
 
 /**
  * SECTION: playerctl-player-name
- * @short_description: A box that contains connection information for a player.
+ * @short_description: Contains connection information that fully qualifies a
+ * potential connection to a player.
+ *
+ * Contains connection information that fully qualifies a potential connection
+ * to a player. You should not have to construct one of these directly. You can
+ * list the names that are available to control from the
+ * playerctl_list_players() function or use the
+ * #PlayerctlPlayerManager:player-names property from a
+ * #PlayerctlPlayerManager.
+ *
+ * Once you have gotten a player name like this, you can check the type of
+ * player with the "name" property to see if you are interested in connecting
+ * to it. If you are, you can pass it directly to the
+ * playerctl_player_new_from_name() function to get a #PlayerctlPlayer that is
+ * connected to this name and ready to command and query.
  */
 
 /**
@@ -53,8 +67,9 @@ GType playerctl_player_name_get_type(void);
 
 /**
  * PlayerctlPlayerName:
- * @name: the name of the player that has appeared or vanished.
- * @source: the source of the player name
+ * @name: the name of the type of player.
+ * @instance: the complete name and instance of the player.
+ * @source: the source of the player name.
  *
  * Event container for when names of players appear or disapear as the
  * controllable media player applications open and close.
