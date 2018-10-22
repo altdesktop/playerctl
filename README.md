@@ -149,6 +149,14 @@ main.run()
 
 For a more complete example which is capable of listening to when players start and exit, see [player-manager.py](https://github.com/acrisci/playerctl/blob/master/examples/player-manager.py) from the official examples.
 
+## Troubleshooting
+
+Some players like Spotify require certain DBus environment variables to be set which are normally set within the session manager. If you're not using a session manager or it does not set these variables automatically (like `xinit`), launch your desktop environment wrapped in a `dbus-launch` command. For example, in your `.xinitrc` file, use this to start your WM:
+
+```
+exec dbus-launch --exit-with-session i3
+```
+
 ## Installing
 
 First, check and see if the library is available from your package manager (if it is not, get someone to host a package for you) and also check the [releases](https://github.com/acrisci/playerctl/releases) page on github.
