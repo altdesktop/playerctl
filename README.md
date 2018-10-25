@@ -154,7 +154,7 @@ For a more complete example which is capable of listening to when players start 
 Some players like Spotify require certain DBus environment variables to be set which are normally set within the session manager. If you're not using a session manager or it does not set these variables automatically (like `xinit`), launch your desktop environment wrapped in a `dbus-launch` command. For example, in your `.xinitrc` file, use this to start your WM:
 
 ```
-exec dbus-launch --exit-with-session i3
+exec dbus-launch --autolaunch=$(cat /var/lib/dbus/machine-id) i3
 ```
 
 ## Installing
