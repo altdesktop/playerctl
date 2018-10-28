@@ -173,6 +173,9 @@ gchar *playerctl_player_get_title(PlayerctlPlayer *self, GError **err);
 
 gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err);
 
+void playerctl_player_set_volume(PlayerctlPlayer *self, gdouble volume,
+                                 GError **err);
+
 gint64 playerctl_player_get_position(PlayerctlPlayer *self, GError **err);
 
 void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position,

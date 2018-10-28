@@ -369,6 +369,7 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
 
 static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint argc,
                                  gchar **output, GError **error) {
+    GError *tmp_error = NULL;
     const gchar *volume = argv[1];
     gdouble level;
 
@@ -412,12 +413,15 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
             return FALSE;
         }
 
-        g_object_set(player, "volume", level, NULL);
+        playerctl_player_set_volume(player, level, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return FALSE;
+        }
     } else {
         g_object_get(player, "volume", &level, NULL);
 
         if (formatter != NULL) {
-            GError *tmp_error = NULL;
             GVariantDict *context =
                 playerctl_formatter_default_template_context(formatter, player, NULL);
             gchar *formatted =

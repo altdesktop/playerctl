@@ -1527,6 +1527,31 @@ gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err) {
 }
 
 /**
+ * playerctl_player_set_volume
+ * @self: a #PlayerctlPlayer
+ * @volume: the volume level from 0.0 to 1.0
+ * @err:(allow-none): the location of a GError or NULL
+ *
+ * Sets the volume level for the player from 0.0 for no volume to 1.0 for
+ * maximum volume. Passing negative numbers should set the volume to 0.0.
+ */
+void playerctl_player_set_volume(PlayerctlPlayer *self, gdouble volume,
+                                 GError **err) {
+    GError *tmp_error = NULL;
+
+    g_return_if_fail(self != NULL);
+    g_return_if_fail(err == NULL || *err == NULL);
+
+    if (self->priv->init_error != NULL) {
+        g_propagate_error(err, g_error_copy(self->priv->init_error));
+        return;
+    }
+
+    // TODO better error handling
+    org_mpris_media_player2_player_set_volume(self->priv->proxy, volume);
+}
+
+/**
  * playerctl_player_get_position
  * @self: a #PlayerctlPlayer
  * @err:(allow-none): the location of a GError or NULL
