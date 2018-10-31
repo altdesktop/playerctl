@@ -97,15 +97,7 @@ Convert the value to uppercase
 .TP
 \fBduration\fR
 When called on a duration such as \fBposition\fR or \fBmpris:length\fR, convert the duration to \fBhh:mm:ss\fR form
-.TP
-\fBemoji\fR
-Convert the property to an emoji representation. This is only supported for \fBvolume\fR and \fBstatus\fR.
 .SH EXAMPLES
-.TP
-To print the artist, title, and playback status as an emoji:
-
-\fBplayerctl metadata --format '{{artist}} - {{title}} {{emoji(status)}}'\fR
-
 .TP
 To print the player name, playback status in lowercase, and position and length in human readable form:
 

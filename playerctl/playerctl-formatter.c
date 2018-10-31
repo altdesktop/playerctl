@@ -267,6 +267,7 @@ static gchar *helperfn_duration(gchar *key, GVariant *value) {
 }
 
 static gchar *helperfn_emoji(gchar *key, GVariant *value) {
+    g_warning("The emoji() helper function is undocumented and experimental and will change in a future release.");
     if (g_strcmp0(key, "status") == 0 &&
             g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
         const gchar *status_str = g_variant_get_string(value, NULL);
@@ -303,6 +304,7 @@ struct template_helper {
     {"lc", &helperfn_lc},
     {"uc", &helperfn_uc},
     {"duration", &helperfn_duration},
+    // EXPERIMENTAL
     {"emoji", &helperfn_emoji},
 };
 
