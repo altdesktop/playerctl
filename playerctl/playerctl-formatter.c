@@ -266,33 +266,69 @@ static gchar *helperfn_duration(gchar *key, GVariant *value) {
     return g_string_free(formatted, FALSE);
 }
 
-static gchar *helperfn_emoji(gchar *key, GVariant *value) {
-    if (g_strcmp0(key, "status") == 0 &&
+static gchar *helperfn_replace(gchar *key, GVariant *value) {
+    char *copy = (char *)malloc(strlen(key) + 1);
+    strcpy(copy, key);
+    char *token = strtok(copy, ",");
+    char *tokens[4];
+    int i = 0;
+    while (token != NULL && i < 4) {
+        tokens[i] = token;
+        token = strtok(NULL, ",");
+        i++;
+    }
+    if (g_strcmp0(tokens[0], "status") == 0 &&
             g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
         const gchar *status_str = g_variant_get_string(value, NULL);
         PlayerctlPlaybackStatus status = 0;
         if (pctl_parse_playback_status(status_str, &status)) {
             switch (status) {
             case PLAYERCTL_PLAYBACK_STATUS_PLAYING:
-                return g_strdup("▶️");
+                if (tokens[1] != NULL) {
+                    return g_strdup(tokens[1]);
+                } else {
+                    return g_strdup("▶️");
+                }
             case PLAYERCTL_PLAYBACK_STATUS_STOPPED:
-                return g_strdup("⏹️");
+                if (tokens[3] != NULL) {
+                    return g_strdup(tokens[3]);
+                } else {
+                    return g_strdup("⏹️");
+                }
             case PLAYERCTL_PLAYBACK_STATUS_PAUSED:
-                return g_strdup("⏸️");
+                if (tokens[2] != NULL) {
+                    return g_strdup(tokens[2]);
+                } else {
+                    return g_strdup("⏸️");
+                }
             }
         }
-    } else if (g_strcmp0(key, "volume") == 0 &&
+    } else if (g_strcmp0(tokens[0], "volume") == 0 &&
             g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
         const gdouble volume = g_variant_get_double(value);
         if (volume < 0.3333) {
-            return g_strdup("🔈");
+            if (tokens[1] != NULL) {
+                return g_strdup(tokens[1]);
+            } else {
+                return g_strdup("🔈");
+            }
         } else if (volume < 0.6666) {
-            return g_strdup("🔉");
+            if (tokens[2] != NULL) {
+                return g_strdup(tokens[2]);
+            } else {
+                return g_strdup("🔉");
+            }
         } else {
-            return g_strdup("🔊");
+            if (tokens[3] != NULL) {
+                return g_strdup(tokens[3]);
+            } else {
+                return g_strdup("🔊");
+            }
         }
     }
 
+    free(copy);
+    copy=NULL;
     return pctl_print_gvariant(value);
 }
 
@@ -303,7 +339,7 @@ struct template_helper {
     {"lc", &helperfn_lc},
     {"uc", &helperfn_uc},
     {"duration", &helperfn_duration},
-    {"emoji", &helperfn_emoji},
+    {"replace", &helperfn_replace},
 };
 
 static gchar *expand_format(GList *tokens, GVariantDict *context, GError **error) {
@@ -345,6 +381,12 @@ static gchar *expand_format(GList *tokens, GVariantDict *context, GError **error
             for (gsize i = 0; i < LENGTH(helpers); ++i) {
                 if (g_strcmp0(helpers[i].name, fn_name) == 0) {
                     GVariant *value = g_variant_dict_lookup_value(context, arg_name, NULL);
+                    if (g_strcmp0(fn_name, "replace") == 0) {
+                        char *copy = (char *)malloc(strlen(arg_name) + 1);
+                        strcpy(copy, arg_name);
+                        char *tmp_arg_name = strtok(copy, ",");
+                        value = g_variant_dict_lookup_value(context, tmp_arg_name, NULL);
+                    }
                     if (value != NULL) {
                         gchar *result = helpers[i].func(arg_name, value);
                         if (result != NULL) {
