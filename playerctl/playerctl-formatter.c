@@ -296,6 +296,36 @@ static gchar *helperfn_emoji(gchar *key, GVariant *value) {
     return pctl_print_gvariant(value);
 }
 
+static gchar *helperfn_fa(gchar *key, GVariant *value) {
+    if (g_strcmp0(key, "status") == 0 &&
+            g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
+        const gchar *status_str = g_variant_get_string(value, NULL);
+        PlayerctlPlaybackStatus status = 0;
+        if (pctl_parse_playback_status(status_str, &status)) {
+            switch (status) {
+            case PLAYERCTL_PLAYBACK_STATUS_PLAYING:
+                return g_strdup("️");
+            case PLAYERCTL_PLAYBACK_STATUS_STOPPED:
+                return g_strdup("️");
+            case PLAYERCTL_PLAYBACK_STATUS_PAUSED:
+                return g_strdup("");
+            }
+        }
+    } else if (g_strcmp0(key, "volume") == 0 &&
+            g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
+        const gdouble volume = g_variant_get_double(value);
+        if (volume < 0.3333) {
+            return g_strdup("");
+        } else if (volume < 0.6666) {
+            return g_strdup("");
+        } else {
+            return g_strdup("");
+        }
+    }
+
+    return pctl_print_gvariant(value);
+}
+
 struct template_helper {
     const gchar *name;
     gchar *(*func)(gchar *key, GVariant *value);
@@ -304,6 +334,7 @@ struct template_helper {
     {"uc", &helperfn_uc},
     {"duration", &helperfn_duration},
     {"emoji", &helperfn_emoji},
+    {"fa", &helperfn_fa},
 };
 
 static gchar *expand_format(GList *tokens, GVariantDict *context, GError **error) {
