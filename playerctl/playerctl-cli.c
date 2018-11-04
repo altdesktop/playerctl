@@ -790,11 +790,10 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
     if (command_arg == NULL && !print_version_and_exit &&
         !list_all_players_and_exit) {
         gchar *help = g_option_context_get_help(context, TRUE, NULL);
-        g_set_error(error, playerctl_cli_error_quark(), 1,
-                    "No command entered\n\n%s", help);
+        printf("%s\n", help);
         g_option_context_free(context);
         g_free(help);
-        return FALSE;
+        exit(1);
     }
 
     g_option_context_free(context);
