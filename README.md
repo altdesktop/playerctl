@@ -30,6 +30,7 @@ Here is a list of available commands:
 | **`metadata [KEY...]`**      | Print the metadata for the current track. If KEY is passed, print only those values from the metadata. |
 | **`open [URI]`**             | Command for the player to open a given URI. Can be either a file path or a remote URL.                 |
 | **`loop [STATUS]`**          | Print or set the loop status. Either "None", "Track", or "Playlist".                                   |
+| **`shuffle [STATUS]`**       | Print or set the shuffle status. Either "On", "Off".                                                   |
 
 ### Selecting Players to Control
 
@@ -51,7 +52,7 @@ playerctl --player=vlc play
 playerctl --all-players stop
 
 # Command VLC to go to the next track if it's running. If it's not, send the
-command to Spotify.
+# command to Spotify.
 playerctl --player=vlc,spotify next
 
 # Get the status of the first player that is not Gwenview.
