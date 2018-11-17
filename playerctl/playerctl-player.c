@@ -1537,7 +1537,8 @@ gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err) {
  */
 void playerctl_player_set_volume(PlayerctlPlayer *self, gdouble volume,
                                  GError **err) {
-    GError *tmp_error = NULL;
+    // TODO better error handling
+    //GError *tmp_error = NULL;
 
     g_return_if_fail(self != NULL);
     g_return_if_fail(err == NULL || *err == NULL);
@@ -1546,8 +1547,6 @@ void playerctl_player_set_volume(PlayerctlPlayer *self, gdouble volume,
         g_propagate_error(err, g_error_copy(self->priv->init_error));
         return;
     }
-
-    // TODO better error handling
     org_mpris_media_player2_player_set_volume(self->priv->proxy, volume);
 }
 
