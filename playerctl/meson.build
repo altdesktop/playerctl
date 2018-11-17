@@ -48,11 +48,11 @@ deps = [
 ]
 
 playerctl_lib = both_libraries(
-  'playerctl-1.0',
+  'playerctl',
   playerctl_sources, enums,
   dependencies: deps,
   include_directories: configuration_inc,
-  version: '0.0.0',
+  version: playerctl_version,
   install: true,
 )
 
@@ -95,7 +95,7 @@ if get_option('introspection')
       'playerctl-player.c',
       'playerctl-player.h',
     ],
-    nsversion: '1.0',
+    nsversion: playerctl_major_version + '.0',
     namespace: 'Playerctl',
     includes: ['GObject-2.0'],
     install: true,
@@ -107,7 +107,7 @@ pkgconfig.generate(
   subdirs: 'playerctl',
   version: meson.project_version(),
   name: 'Playerctl',
-  filebase: 'playerctl-1.0',
+  filebase: 'playerctl',
   description: 'A C library for MPRIS players',
   requires: ['gobject-2.0'],
   requires_private: 'gio-2.0',

@@ -29,7 +29,7 @@ fpm_deb() {
     cd ${PROJECT_ROOT}
     meson ${DEB_DIR}/build --prefix=/usr --libdir=/usr/lib
     DESTDIR=${DEB_DIR}/install ninja -C ${DEB_DIR}/build install
-	VERSION=`LD_LIBRARY_PATH=${DEB_DIR}/install/usr/lib ${DEB_DIR}/install/usr/bin/playerctl -v | sed s/^v//`
+	VERSION=`LD_LIBRARY_PATH=${DEB_DIR}/install/usr/lib ${DEB_DIR}/install/usr/bin/playerctl -v | sed s/^v// | sed s/-.*//`
 
     cd ${DEB_DIR}/install
 
@@ -51,7 +51,7 @@ function fpm_rpm() {
     cd ${PROJECT_ROOT}
     meson ${RPM_DIR}/build --prefix=/usr --libdir=/usr/lib64
     DESTDIR=${RPM_DIR}/install ninja -C ${RPM_DIR}/build install
-	VERSION=`LD_LIBRARY_PATH=${RPM_DIR}/install/usr/lib64 ${RPM_DIR}/install/usr/bin/playerctl -v | sed s/^v//`
+	VERSION=`LD_LIBRARY_PATH=${RPM_DIR}/install/usr/lib64 ${RPM_DIR}/install/usr/bin/playerctl -v | sed s/^v// | sed s/-.*//`
 
     cd ${RPM_DIR}/install
 

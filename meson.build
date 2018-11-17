@@ -10,8 +10,9 @@ pkgconfig = import('pkgconfig')
 
 version_conf = configuration_data()
 
-playerctl_version = meson.project_version()
+playerctl_version = meson.project_version().split('-')[0]
 version_array = playerctl_version.split('.')
+playerctl_major_version = version_array[0]
 
 version_conf.set(
   'PLAYERCTL_VERSION',
@@ -19,7 +20,7 @@ version_conf.set(
 )
 version_conf.set(
   'PLAYERCTL_MAJOR_VERSION',
-  version_array[0].to_int(),
+  playerctl_major_version.to_int(),
 )
 version_conf.set(
   'PLAYERCTL_MINOR_VERSION',
@@ -27,7 +28,7 @@ version_conf.set(
 )
 version_conf.set(
   'PLAYERCTL_MICRO_VERSION',
-  version_array[2].split('-')[0].to_int(),
+  version_array[2].to_int(),
 )
 
 gobject_dep = dependency('gobject-2.0', version: '>=2.38')
