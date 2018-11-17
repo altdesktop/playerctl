@@ -35,7 +35,12 @@ add_global_arguments(
   language: 'c',
 )
 
-enums = gnome.mkenums_simple('playerctl-enum-types', sources: headers, install: true)
+enums = gnome.mkenums_simple(
+  'playerctl-enum-types',
+  sources: headers,
+  install_header: true,
+  install_dir: join_paths(get_option('includedir'), 'playerctl')
+)
 
 deps = [
   gobject_dep,
