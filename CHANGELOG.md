@@ -1,5 +1,55 @@
 # Changelog
 
+## Version 2.0.1
+
+Version 2.0.1 includes new major features and breaking changes to the library and CLI.
+
+**CLI**
+
+* Add `--ignore-player` flag to ignore specific players (#2)
+* Add `--follow` flag to block and print updated values when they change (#37, #98, #101)
+* The `--player` command acts on the first player without `--all-players` (breaking) (#54)
+* Accept multiple keys for `metadata [key]` command (#68)
+* `metadata` command has tabular output. (breaking) (#72)
+* Add `--format [fmt]` for metadata formatting (#73)
+* Add `duration()` template formatter for formatting durations (#75)
+* Print player name and instance with format strings (#90)
+* Add command to get and set `shuffle` status (#92)
+* Add a command to get and set `loop` status (#99)
+* Add the `open` command to open a URI with the player (#79)
+* Fix some errors with utf8 printing (#80)
+* Skip players from selection when they don't support a command (determined by the `can-*` properties)
+* Select all player instances with the `--player` and `--ignore-player` command
+* Print help information to stdout (not stderr) when no arguments are passed
+
+**Library**
+
+* add `playerctl_list_players()` to public api for listing players (#47)
+* Implement the "seeked" signal on the player (#94)
+* Add the "volume" signal on the player (#95)
+* Deprecate the "play", "pause", and "stopped" signal for a single "status" signal (#96)
+* Add the `PlayerctlPlayerManager()` class (#100)
+* Cache and compute the position property (#102)
+* Remove chaining abilities from the library (breaking)
+* Library query functions return `NULL` instead of empty string when properties aren't found (breaking)
+* Deprecate `status` property in favor of the `playback-status` property as an enum
+* Add library functions for `shuffle` and `loop` status (#92, #99)
+* Deprecate setting volume via the object properties interface
+* Fix the "exit" signal
+* Add properties "can-control", "can-play", "can-pause", "can-seek", "can-go-next", "can-go-previous"
+* Add the "source" property to determine the source of the player (session or system bus)
+* Change first keyword arg for `playerctl_player_new()` from `name` to `player_name` (breaking)
+* Add `playerctl_player_new_for_source()` to select players based on the source (session or system bus)
+* Add `playerctl_player_new_from_name()` to create a player from a PlayerManager name
+* `playerctl_player_new()` selects an instance of the `player_name` if found
+* Add documentation for the entire public library API
+
+**Build**
+
+* Remove autotools and switch to the meson build system (breaking) (#57)
+* Fix various compiler warnings (#97)
+* Remove library version from pkg-config name and add it to the so in the standard way (new pkg-config name is just `playerctl`).
+
 ## Version 0.6.1
 
 Version 0.6.1 includes bug fixes and some minor features.
