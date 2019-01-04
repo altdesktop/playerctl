@@ -27,7 +27,7 @@ The name or comma-separated list of the players to ignore
 \fB\-f\fR, \fB\-\-format\fR=\fI\,FORMAT\/\fR
 A format string for printing properties and metadata
 .TP
-\fB\-F\fR, \fB\-\-follow\fR=\fI\,FORMAT\/\fR
+\fB\-F\fR, \fB\-\-follow\fR
 Block and output the updated query when it changes
 .TP
 \fB\-l\fR, \fB\-\-list\-all\fR
