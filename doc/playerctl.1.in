@@ -1,4 +1,4 @@
-.TH PLAYERCTL "1" "April 2018" "playerctl @PLAYERCTL_VERSION@" "User Commands"
+.TH PLAYERCTL "1" "@PLAYERCTL_RELEASE_MONTH@" "playerctl @PLAYERCTL_VERSION@" "User Commands"
 .SH NAME
 \fBplayerctl\fR \- utility to control media players via MPRIS
 .SH SYNOPSIS
