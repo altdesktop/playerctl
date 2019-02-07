@@ -95,6 +95,7 @@ if get_option('introspection')
       'playerctl-player.c',
       'playerctl-player.h',
     ],
+    extra_args : [ '-DPLAYERCTL_COMPILATION' ],
     nsversion: playerctl_major_version + '.0',
     namespace: 'Playerctl',
     includes: ['GObject-2.0'],
