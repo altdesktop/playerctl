@@ -285,14 +285,29 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
     }
 
     if (uri) {
-        playerctl_player_open(player,
-                              g_file_get_uri(g_file_new_for_commandline_arg(uri)),
-                              &tmp_error);
+        GFile *file = g_file_new_for_commandline_arg(uri);
+        gboolean exists = g_file_query_exists(file, NULL);
+        gchar *full_uri = NULL;
+
+        if (exists) {
+            // it's a file, so pass the absolute path of the file
+            full_uri = g_file_get_uri(file);
+        } else {
+            // it may be some other scheme, just pass the uri directly
+            full_uri = g_strdup(uri);
+        }
+
+        playerctl_player_open(player, full_uri, &tmp_error);
+
+        g_free(full_uri);
+        g_object_unref(file);
+
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
             return FALSE;
         }
     }
+
     return TRUE;
 }
 
