@@ -1011,41 +1011,46 @@ static void player_vanished_callback(PlayerctlPlayerManager *manager,
     }
 }
 
-gint player_compare_func(gconstpointer a, gconstpointer b, gpointer *user_data) {
+gint player_name_string_compare_func(gconstpointer a, gconstpointer b) {
+    const gchar *name_a = a;
+    const gchar *name_b = b;
+
+    if (g_strcmp0(name_a, name_b) == 0) {
+        return 0;
+    }
+
+    GList *l = NULL;
+    for (l = player_names; l != NULL; l = l->next) {
+        gchar *name = l->data;
+
+        if (g_strcmp0(name_a, name) == 0) {
+            return -1;
+        } else if (g_strcmp0(name_b, name) == 0) {
+            return 1;
+        } else if (pctl_player_name_string_instance_compare(name, name_a) == 0) {
+            return -1;
+        } else if (pctl_player_name_string_instance_compare(name, name_b) == 0) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+gint player_name_compare_func(gconstpointer a, gconstpointer b) {
+    const PlayerctlPlayerName *name_a = a;
+    const PlayerctlPlayerName *name_b = b;
+    return player_name_string_compare_func(name_a->instance, name_b->instance);
+}
+
+gint player_compare_func(gconstpointer a, gconstpointer b) {
     PlayerctlPlayer *player_a = PLAYERCTL_PLAYER(a);
     PlayerctlPlayer *player_b = PLAYERCTL_PLAYER(b);
     gchar *name_a = NULL;
     gchar *name_b = NULL;
     g_object_get(player_a, "player-name", &name_a, NULL);
     g_object_get(player_b, "player-name", &name_b, NULL);
-    gboolean compared = FALSE;
-    gint result = 1;
-
-    if (g_strcmp0(name_a, name_b) == 0) {
-        compared = TRUE;
-        result = 0;
-        goto end;
-    }
-
-    GList *l = NULL;
-    for (l = player_names; l != NULL; l = l->next) {
-        gchar *name = l->data;
-        if (pctl_player_name_string_instance_compare(name_a, name) == 0) {
-            compared = TRUE;
-            result = -1;
-            goto end;
-        }
-        if (pctl_player_name_string_instance_compare(name_b, name) == 0) {
-            compared = TRUE;
-            result = 1;
-            goto end;
-        }
-    }
-
-end:
-    if (!compared) {
-        g_warning("could not put players %s and %s in sorted order", name_a, name_b);
-    }
+    gint result = player_name_string_compare_func(name_a, name_b);
     g_free(name_a);
     g_free(name_b);
     return result;
@@ -1111,6 +1116,9 @@ int main(int argc, char *argv[]) {
 
     GList *available_players = NULL;
     g_object_get(manager, "player-names", &available_players, NULL);
+    available_players = g_list_copy(available_players);
+    available_players = g_list_sort(available_players, (GCompareFunc)player_name_compare_func);
+
 
     gboolean has_selected = FALSE;
     GList *l = NULL;
@@ -1192,6 +1200,9 @@ int main(int argc, char *argv[]) {
     }
 
 end:
+    if (available_players != NULL) {
+        g_list_free(available_players);
+    }
     playercmd_args_destroy(playercmd_args);
     if (manager != NULL) {
         g_object_unref(manager);

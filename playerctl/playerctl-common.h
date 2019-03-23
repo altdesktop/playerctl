@@ -48,7 +48,7 @@ gint pctl_player_name_compare(PlayerctlPlayerName *name_a,
 
 gint pctl_player_name_instance_compare(PlayerctlPlayerName *name, PlayerctlPlayerName *instance);
 
-gint pctl_player_name_string_instance_compare(gchar *name, gchar *instance);
+gint pctl_player_name_string_instance_compare(const gchar *name, const gchar *instance);
 
 GList *pctl_player_name_find(GList *list, gchar *player_id, PlayerctlSource source);
 

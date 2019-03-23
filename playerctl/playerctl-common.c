@@ -160,7 +160,7 @@ gint pctl_player_name_instance_compare(PlayerctlPlayerName *name,
     return pctl_player_name_string_instance_compare(name->instance, instance->instance);
 }
 
-gint pctl_player_name_string_instance_compare(gchar *name, gchar *instance) {
+gint pctl_player_name_string_instance_compare(const gchar *name, const gchar *instance) {
     gboolean exact_match = (g_strcmp0(name, instance) == 0);
     gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
             g_str_has_prefix(instance + strlen(name), ".instance"));
