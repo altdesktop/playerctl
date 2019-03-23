@@ -1161,6 +1161,7 @@ int main(int argc, char *argv[]) {
 
     if (!follow && !has_selected) {
         g_printerr("No players found\n");
+        exit_status = 1;
         goto end;
     }
 
