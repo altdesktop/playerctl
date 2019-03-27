@@ -1,5 +1,23 @@
 # Changelog
 
+## Version 2.0.2
+
+Version 2.0.2 contains some minor bugfixes for the CLI and build system.
+
+The author would like to inform you as part of my effort to improve media player integration on the Linux Desktop, I have fixed many bugs in Electron based media players that should be available soon (see #40, #81, #35 which were closed recently).
+
+**CLI**
+
+* Regression: exit 1 when no players are found (#126, #119)
+* Regression: fix sort order for `--player` command (#112)
+* Handle nonfile uris in the `open` command (#122)
+
+**Build**
+
+* Fix documentation of the `--follow` flag (#117)
+* Update manpage release date at build time (#118)
+* fix gir build on cross compilation (#120)
+
 ## Version 2.0.1
 
 Version 2.0.1 includes new major features and breaking changes to the library and CLI.
