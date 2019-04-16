@@ -5,7 +5,7 @@ project(
   meson_version: '>=0.46.0'
 )
 
-release_month = 'March 2019'
+release_date = 'April 16, 2019'
 
 gnome = import('gnome')
 pkgconfig = import('pkgconfig')
@@ -33,8 +33,8 @@ version_conf.set(
   version_array[2].to_int(),
 )
 version_conf.set(
-  'PLAYERCTL_RELEASE_MONTH',
-  release_month,
+  'PLAYERCTL_RELEASE_DATE',
+  release_date,
 )
 
 gobject_dep = dependency('gobject-2.0', version: '>=2.38')
