@@ -115,7 +115,7 @@ appended,
 increase or decrease the player's volume by
 .Ar LEVEL .
 .It Cm metadata Op Ar KEY
-Print available metadata information for the current track.
+Print available metadata properties for the current track.
 When
 .Ar KEY is
 specified,
@@ -176,23 +176,19 @@ to 1.0
 .Pq 100% .
 .El
 .Pp
-Variables set by
+Each property listed in the
 .Cm metadata
-are as follows:
+command are also set as variables.
+It is recommended to check this list for each player,
+as different players may not set the same properties.
+The most common properties are as follows:
 .Bl -tag -width Ds
-.It Va album
+.It Va album , xesam:album
 The album of the current track.
-.It Va artist
+.It Va artist , xesam:artist
 The artist of the current track.
-.It Va xesam:contentCreated
-The release date of the current track.
-.It Va mpris:length
-The total length of the current track,
-in microseconds.
-.It Va title
+.It Va title , xesam:title
 The title of the current track.
-.It Va mpris:trackid
-The ID of the current track.
 .El
 .Pp
 Helper functions are also available to transform expanded variables into
@@ -219,15 +215,6 @@ Can only be called with
 .Va position
 or
 .Va mpris:length .
-.It Fn emoji var
-Convert the variable
-.Va var
-to a suitable Unicode rune,
-a.k.a Emoji.
-This is an experimental function and currently can only be callled with
-.Va status
-and
-.Va volume .
 .El
 .Pp
 References to unknown functions will cause
