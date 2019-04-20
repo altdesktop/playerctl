@@ -5,7 +5,7 @@ project(
   meson_version: '>=0.46.0'
 )
 
-release_date = 'April 16, 2019'
+release_date = 'March 26, 2019'
 
 gnome = import('gnome')
 pkgconfig = import('pkgconfig')
