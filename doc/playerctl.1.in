@@ -181,6 +181,9 @@ Each property listed in the
 command are also set as variables.
 It is recommended to check this list for each player,
 as different players may not set the same properties.
+See the
+.%T MPRIS v2 metadata guidelines
+for a list of all properties in the MPRIS specification.
 The most common properties are as follows:
 .Bl -tag -width Ds
 .It Va album , xesam:album
@@ -233,10 +236,17 @@ $ playerctl metadata --format '{{playerName}}: {{lc(status)}} '\e
 \&'{{duration(position)}}|{{duration(mpris:length)}}'
 .Ed
 .Sh SEE ALSO
+.Rs
+.%T MPRIS v2 metadata guidelines
+.%D September 18, 2013
+.%I freedesktop.org
+.%U https://freedesktop.org/wiki/Specifications/mpris-spec/metadata/
+.Re
+.Pp
 .Lk https://github.com/acrisci/playerctl "playerctl homepage" ,
 .Lk https://dubstepdish.com/playerctl "playerctl API documentation" ,
 .Lk https://wiki.gnome.org/Projects/GObjectIntrospection/Users \
-    "GObject Introspection language bindings" .
+    "GObject introspection language bindings"
 .Sh AUTHORS
 .An -nosplit
 The
