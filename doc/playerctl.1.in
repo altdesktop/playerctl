@@ -115,12 +115,13 @@ appended,
 increase or decrease the player's volume by
 .Ar LEVEL .
 .It Cm metadata Op Ar KEY
-Print available metadata properties for the current track.
-When
-.Ar KEY is
-specified,
-print the value of
-.Ar KEY .
+Print all metadata properties for the current track set by the current
+player.
+If
+.Ar KEY
+is specified only the value of
+.Ar KEY
+is printed.
 .It Cm open Ar URI
 Open
 .Ar URI
@@ -130,7 +131,7 @@ may be the name of a file or an external URL.
 .It Cm shuffle Op Ic On | Off
 Print the shuffle status of the player.
 With the shuffle status specified,
-set shuffle to either
+set the shuffle status to either
 .Ic On
 or
 .Ic Off .
