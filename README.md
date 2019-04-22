@@ -205,6 +205,14 @@ export GI_TYPELIB_PATH="$DESTDIR/${PREFIX}/lib/:$GI_TYPELIB_PATH"
 export PATH="$DESTDIR/${PREFIX}/bin:$PATH"
 ```
 
+
+## Resources
+
+Check out the following articles and resources about playerctl:
+
+* [2 new apps for music tweakers on Fedora Workstation - Fedora Magazine](https://fedoramagazine.org/2-new-apps-for-music-tweakers-on-fedora-workstation/ "2 new apps for music tweakers on Fedora Workstation")
+
+
 ## License
 
 This work is available under the GNU Lesser General Public License (See COPYING).
