@@ -162,6 +162,20 @@ exec dbus-launch --autolaunch=$(cat /var/lib/dbus/machine-id) i3
 
 First, check and see if the library is available from your package manager (if it is not, get someone to host a package for you) and also check the [releases](https://github.com/acrisci/playerctl/releases) page on github.
 
+### Fedora
+
+`playerctl` is available for Fedora 28 or later:
+
+```
+sudo dnf install playerctl
+```
+
+### Mageia, openSUSE
+
+`playerctl` is available for Mageia and openSUSE via [this COPR repository](https://copr.fedorainfracloud.org/coprs/jflory7/playerctl/). First, install the repository file for your distribution from COPR. Then, install `playerctl` with your package manager of choice.
+
+### Compile from source
+
 Using the cli and library requires [GLib](https://developer.gnome.org/glib/) (which is a dependency of almost all of these players as well, so you probably already have it). You can use the library in almost any programming language with the associated [introspection binding library](https://wiki.gnome.org/Projects/GObjectIntrospection/Users).
 
 Additionally, you also need the following build dependencies:
