@@ -7,6 +7,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl aFhlV
+.Op Fl f Ar FORMAT
 .Op Fl i Ar NAME
 .Op Fl p Ar NAME
 .Cm command
@@ -46,13 +47,13 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl a , -all-players
 Apply command to all available players.
+.It Fl F , -follow
+Block and output the updated query when it changes.
 .It Fl f Ar FORMAT , Fl -format Ar FORMAT
 Set the output of the current command to
 .Ar FORMAT .
 See
 .Sx Format Strings .
-.It Fl F , -follow
-Block and output the updated query when it changes.
 .It Fl h , -help
 Print this help, then exit.
 .It Fl i Ar NAME , Fl -ignore-player Ar NAME
