@@ -1,0 +1,10 @@
+language: minimal
+sudo: required
+dist: xenial
+services:
+  - docker
+before_install:
+  - cd test; docker build -t playerctl-test .
+script:
+  - docker run -it playerctl-test .
+

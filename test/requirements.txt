@@ -1,0 +1,2 @@
+dbus-next==0.0.1
+pytest-asyncio
