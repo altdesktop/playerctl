@@ -1,0 +1,5 @@
+dbus-next==0.0.1
+meson
+pytest
+pytest-timeout
+pytest-asyncio
