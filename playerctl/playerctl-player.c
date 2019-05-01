@@ -859,6 +859,15 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
         "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &tmp_error);
 
     if (tmp_error != NULL) {
+        if (tmp_error->domain == G_IO_ERROR && tmp_error->code == G_IO_ERROR_NOT_FOUND) {
+            // XXX: This means the dbus socket address is not found which may
+            // mean that the bus is not running or the address was set
+            // incorrectly. I think we can pass through here because it is true
+            // that there are no names on the bus that is supposed to be at
+            // this socket path. But we need a better way of dealing with this case.
+            g_clear_error(&tmp_error);
+            return NULL;
+        }
         g_propagate_error(err, tmp_error);
         return NULL;
     }
@@ -1001,6 +1010,11 @@ static gboolean playerctl_player_initable_init(GInitable *initable,
                 bus_name_for_player_name(player->priv->player_name,
                         bus_types[i], &tmp_error);
             if (tmp_error != NULL) {
+                if (tmp_error->domain == G_IO_ERROR && tmp_error->code == G_IO_ERROR_NOT_FOUND) {
+                    // TODO the bus address was set incorrectly so log a warning
+                    g_clear_error(&tmp_error);
+                    continue;
+                }
                 g_propagate_error(err, tmp_error);
                 return FALSE;
             }
