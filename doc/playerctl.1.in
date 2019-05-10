@@ -1,123 +1,264 @@
-.TH PLAYERCTL "1" "@PLAYERCTL_RELEASE_MONTH@" "playerctl @PLAYERCTL_VERSION@" "User Commands"
-.SH NAME
-\fBplayerctl\fR \- utility to control media players via MPRIS
-.SH SYNOPSIS
-.TP
-\fBplayerctl\fR [\fIOPTION\fR] \fICOMMAND\fR
-.SH DESCRIPTION
-.RE
-\fBplayerctl\fR is a command line utility to control MPRIS-enabled media\&
-players. In addition to offering play/pause/stop control, \fBplayerctl\fR\&
-also offers previous/next track support, the ability to seek backward/forward\&
-in a track, and volume control.
-\fBplayerctl\fR also supports displaying metadata (e.g. artist/title/album) for the\&
-current track, and showing the status of the player.
-.PP
-Players that can be controlled using \fBplayerctl\fR include audacious, cmus,\&
-mopidy, mpd, quod libet, rhythmbox, vlc and xmms2. However, any player that implements\&
-the MPRIS interface specification should be able to be controlled using \fBplayerctl\fR.
-.SH OPTIONS
-.TP
-\fB\-p\fR, \fB\-\-player\fR=\fI\,NAME\/\fR
-The name or comma-separated list of the players to control (default: first available player)
-.TP
-\fB\-i\fR, \fB\-\-ignore\-player\fR=\fI\,NAME\/\fR
-The name or comma-separated list of the players to ignore
-.TP
-\fB\-f\fR, \fB\-\-format\fR=\fI\,FORMAT\/\fR
-A format string for printing properties and metadata
-.TP
-\fB\-F\fR, \fB\-\-follow\fR
-Block and output the updated query when it changes
-.TP
-\fB\-l\fR, \fB\-\-list\-all\fR
-List the names of running players that can be controlled
-.TP
-\fB\-a\fR, \fB\-\-all\-players\fR
-Apply command to all available players
-.TP
-\fB\-h\fR, \fB\-\-help\fR
-Print this help, then exit
-.TP
-\fB\-V\fR, \fB\-\-version\fR
-Print version number, then exit
-.SH COMMANDS
-.TP
-\fBstatus\fR
-Get the current status of the player
-.TP
-\fBplay\fR
-Command the player to play
-.TP
-\fBpause\fR
-Command the player to pause
-.TP
-\fBplay\-pause\fR
-Command the player to toggle between play/pause
-.TP
-\fBstop\fR
-Command the player to stop
-.TP
-\fBnext\fR
-Command the player to skip to the next track
-.TP
-\fBprevious\fR
-Command the player to skip to the previous track
-.TP
-\fBposition\fR [\fIOFFSET\fR][\fI+\fR|\fI\-\fR]
-Print the position of the current track in seconds. With \fIOFFSET\fR specified, seek to \fIOFFSET\fR seconds from the start of the current track.
-With the optional [\fI+\fR|\fI\-\fR] appended, seek forward/backward \fIOFFSET\fR seconds from the current position.
-.TP
-\fBvolume\fR [\fILEVEL\fR][\fI+\fR|\fI\-\fR]
-Print the player's volume scaled from 0.0 (0%) to 1.0 (100%). With \fILEVEL\fR specified, set
-the player's volume to \fILEVEL\fR. With the optional [\fI+\fR|\fI\-\fR] appended, increase/decrease the player's
-volume by \fILEVEL\fR.
-.TP
-\fBmetadata\fR [\fIKEY\fR]
-Print available metadata information for the current track. When \fIKEY\fR is specified, print the value of \fIKEY\fR.
-.TP
-\fBopen\fR [\fIURI\fR]
-Open the given \fIURI\fR in the player. The \fIURI\fR may be the name of a file or an external URL.
-.TP
-\fBshuffle\fR [{\fIOn\fR|\fIOff\fR}]
-Print the shuffle status of the player. With the shuffle status specified, set shuffle to either \fIOn\fR or \fIOff\fR.
-.TP
-\fBloop\fR [{\fINone\fR|\fITrack\fR|\fIPlaylist\fR}]
-Print the loop status of the player. With the loop status specified, set the loop status to either \fINone\fR to not loop, \fITrack\fR to loop the current track, or \fIPlaylist\fR to loop the current playlist.
-.SH FORMAT STRINGS
-A format string can be given with the \fB--format\fR argument to print properties and metadata in a particular format. Variable names between curly braces in the form of \fB{{\fR \fIVARIABLE\fR \fB}}\fR will be expanded to their values. The available variables are the names of the commands that print properties or any of the metadata keys that can be viewed with the \fBmetadata\fR command. The name of the player is also available with the \fBplayerName\fR variable.
-
-Several helper functions are available in the template language to transform expanded values which can be called in the form \fB{{\fR \fIHELPER\fR(\fIVARIABLE\fR) \fB}}\fR. The available helper functions are:
-.TP
-\fBlc\fR
-Convert the value to lowercase
-.TP
-\fBuc\fR
-Convert the value to uppercase
-.TP
-\fBduration\fR
-When called on a duration such as \fBposition\fR or \fBmpris:length\fR, convert the duration to \fBhh:mm:ss\fR form
-.SH EXAMPLES
-.TP
-To print the player name, playback status in lowercase, and position and length in human readable form:
-
-\fBplayerctl metadata --format '{{playerName}}: {{lc(status)}} {{duration(position)}}|{{duration(mpris:length)}}'
-.SH SEE ALSO
-.TP
-Online API documentation: https://dubstepdish.com/playerctl
-.TP
-GObject Introspection language bindings: https://wiki.gnome.org/Projects/GObjectIntrospection/Users
-.SH REPORTING BUGS
-.TP
-Please review and report bugs to https://github.com/acrisci/playerctl/issues
-.SH AVAILABILITY
-.TP
-The latest version of \fBplayerctl\fR is available at https://github.com/acrisci/playerctl
-.SH AUTHOR
-.TP
-This  manual  page was created by Nick Morrott <knowledgejunkie@gmail.com> for the Debian GNU/Linux system, but may be used by others.
-.SH COPYRIGHT
-.TP
-Copyright © 2014, Tony Crisci.
-.TP
-This work is made available under the GNU Lesser General Public License 3.0.
+.Dd @PLAYERCTL_RELEASE_DATE@
+.Dt PLAYERCTL 1
+.Os
+.Sh NAME
+.Nm playerctl
+.Nd control media players via MPRIS
+.Sh SYNOPSIS
+.Nm
+.Op Fl aFhlV
+.Op Fl f Ar FORMAT
+.Op Fl i Ar NAME
+.Op Fl p Ar NAME
+.Cm command
+.Sh DESCRIPTION
+The
+.Nm
+utility controls MPRIS-enabled media players.
+In addition to offering play, pause and stop control,
+.Nm
+also offers previous and next track support,
+the ability to seek backwards and forwards in a track,
+and volume control.
+.Nm
+also supports displaying metadata
+.Pq e.g., artist, title, album
+for the current track,
+and showing the status of the player.
+.Pp
+Players that can be controlled using
+.Nm
+include
+.Xr audacious 1 ,
+.Xr cmus 1 ,
+.Xr mopidy 1 ,
+.Xr mpd 1 ,
+.Xr quodlibet 1 ,
+.Xr rhythmbox 1 ,
+.Xr vlc 1
+and
+.Xr xmms2 1 .
+However,
+any player that implements the MPRIS interface specification
+can be controlled using
+.Nm .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl a , -all-players
+Apply command to all available players.
+.It Fl F , -follow
+Block and output the updated query when it changes.
+.It Fl f Ar FORMAT , Fl -format Ar FORMAT
+Set the output of the current command to
+.Ar FORMAT .
+See
+.Sx Format Strings .
+.It Fl h , -help
+Print this help, then exit.
+.It Fl i Ar NAME , Fl -ignore-player Ar NAME
+Ignore the specific player
+.Ar NAME .
+Multiple players can be specified in a comma-separated list.
+.It Fl l , -list-all
+List the names of running players that can be controlled.
+.It Fl p Ar NAME , Fl -player Ar NAME
+Control the specific player
+.Ar NAME .
+Multiple players can be specified in a comma-separated list.
+Defaults to the first available player.
+.It Fl V , -version
+Print version number, then exit.
+.El
+.Pp
+The commands are as follows:
+.Bl -tag -width Ds
+.It Cm status
+Get the current status of the player.
+.It Cm play
+Command the player to play.
+.It Cm pause
+Command the player to pause.
+.It Cm play-pause
+Command the player to toggle between play and pause.
+.It Cm stop
+Command the player to stop.
+.It Cm next
+Command the player to skip to the next track.
+.It Cm previous
+Command the player to skip to the previous track.
+.It Cm position Op Ar OFFSET Ns Op Ar + Ns | Ns Ar -
+Print the position of the current track in seconds.
+With
+.Ar OFFSET
+specified, seek to
+.Ar OFFSET
+seconds from the start of the current track.
+With the optional
+.Op Ar + Ns | Ns Ar -
+appended,
+seek forward or backward
+.Ar OFFSET
+seconds from the current position.
+.It Cm volume Op Ar LEVEL Ns Op + Ns | Ns Ar -
+Print the player's volume scaled from 0.0
+.Pq 0%
+to 1.0
+.Pq 100% .
+With
+.Ar LEVEL
+specified,
+set the player's volume to
+.Ar LEVEL .
+With the optional
+.Op Ar + Ns | Ns Ar -
+appended,
+increase or decrease the player's volume by
+.Ar LEVEL .
+.It Cm metadata Op Ar KEY
+Print all metadata properties for the current track set by the current
+player.
+If
+.Ar KEY
+is specified only the value of
+.Ar KEY
+is printed.
+.It Cm open Ar URI
+Open
+.Ar URI
+in the player.
+.Ar URI
+may be the name of a file or an external URL.
+.It Cm shuffle Op Ic On | Off
+Print the shuffle status of the player.
+With the shuffle status specified,
+set the shuffle status to either
+.Ic On
+or
+.Ic Off .
+.It Cm loop Op Ic None | Track | Playlist
+Print the loop status of the player.
+With the loop status specified,
+set the loop status to
+.Ic None
+.Pq disable looping ,
+.Ic Track
+.Pq loop the current track ,
+or
+.Ic Playlist
+.Pq loop the current playlist .
+.El
+.Ss Format Strings
+The output of the
+.Cm position ,
+.Cm metadata ,
+.Cm status
+and
+.Cm volume
+commands can be controlled using a format string.
+Variables set by these commands can be included in the format string
+by enclosing them in curly braces,
+i.e:
+.Brq Brq Va var .
+These will then be expanded on output.
+.Pp
+Each command has access to the following variables:
+.Bl -tag -width Ds
+.It Va playerName
+The name of the current player.
+.It Va position
+The time position of the current track,
+in microseconds.
+.It Va status
+The status of the current player.
+.It Va volume
+The player's volume scaled from 0.0
+.Pq 0%
+to 1.0
+.Pq 100% .
+.El
+.Pp
+Each property listed in the
+.Cm metadata
+command are also set as variables.
+It is recommended to check this list for each player,
+as different players may not set the same properties.
+See the
+.%T MPRIS v2 metadata guidelines
+for a list of all properties in the MPRIS specification.
+The most common properties are as follows:
+.Bl -tag -width Ds
+.It Va album , xesam:album
+The album of the current track.
+.It Va artist , xesam:artist
+The artist of the current track.
+.It Va title , xesam:title
+The title of the current track.
+.El
+.Pp
+Helper functions are also available to transform expanded variables into
+other representations.
+They are called in the form
+.Brq Brq Fn func var .
+The helper functions are as follows:
+.Bl -tag -width Ds
+.It Fn lc str
+Convert string
+.Va str
+to lowercase.
+.It Fn uc str
+Convert string
+.Va str
+to uppercase.
+.It Fn duration time
+Reformat the microsecond timestamp
+.Va time
+in
+.Ql hh:mm:ss
+form.
+Can only be called with
+.Va position
+or
+.Va mpris:length .
+.El
+.Pp
+References to unknown functions will cause
+.Nm
+to exit with an error.
+References to unknown variables will be expanded to empty strings.
+Text not enclosed in braces will be printed verbatim.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+Print the player name,
+playback status in lowercase,
+and position and length in human readable form:
+.Bd -literal -offset indent
+$ playerctl metadata --format '{{playerName}}: {{lc(status)}} '\e
+\&'{{duration(position)}}|{{duration(mpris:length)}}'
+.Ed
+.Sh SEE ALSO
+.Rs
+.%T MPRIS v2 metadata guidelines
+.%D September 18, 2013
+.%I freedesktop.org
+.%U https://freedesktop.org/wiki/Specifications/mpris-spec/metadata/
+.Re
+.Pp
+.Lk https://github.com/acrisci/playerctl "playerctl homepage" ,
+.Lk https://dubstepdish.com/playerctl "playerctl API documentation" ,
+.Lk https://wiki.gnome.org/Projects/GObjectIntrospection/Users \
+    "GObject introspection language bindings"
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility is maintained by
+.An Tony Crisci Aq Mt tony@dubstepdish.com
+and is made available under the GNU Lesser General Public License 3.0.
+.Pp
+This reference was written by
+.An Nick Morrott Aq Mt knowledgejunkie@gmail.com
+for the Debian GNU/Linux project.
+It was later updated and expanded by
+.An Stephen Gregoratto Aq Mt dev@sgregoratto.me .
