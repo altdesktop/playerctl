@@ -1,13 +1,13 @@
 from dbus_next.service import ServiceInterface, dbus_property, method, signal
 from dbus_next import PropertyAccess, RequestNameReply
-from dbus_next.aio import session_bus
+from dbus_next.aio import MessageBus
 
 import asyncio
 
 
 async def setup_buses(*names):
     async def setup(name):
-        bus = await session_bus()
+        bus = await MessageBus().connect()
         reply = await bus.request_name(f'org.mpris.MediaPlayer2.{name}')
         assert reply == RequestNameReply.PRIMARY_OWNER
         bus.export('/org/mpris/MediaPlayer2', MprisPlayer())

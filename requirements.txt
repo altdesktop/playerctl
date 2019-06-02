@@ -1,4 +1,4 @@
-dbus-next==0.0.1
+dbus-next==0.1.1
 meson
 pytest
 pytest-timeout
