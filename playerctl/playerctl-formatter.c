@@ -266,6 +266,15 @@ static gchar *helperfn_duration(gchar *key, GVariant *value) {
     return g_string_free(formatted, FALSE);
 }
 
+/* Calls g_markup_escape_text to replace the text with appropriately escaped
+characters for XML */
+static gchar *helperfn_markup_escape(gchar *key, GVariant *value) {
+    gchar *printed = pctl_print_gvariant(value);
+    gchar *escaped = g_markup_escape_text(printed, -1);
+    g_free(printed);
+    return escaped;
+}
+
 static gchar *helperfn_emoji(gchar *key, GVariant *value) {
     g_warning("The emoji() helper function is undocumented and experimental and will change in a future release.");
     if (g_strcmp0(key, "status") == 0 &&
@@ -304,6 +313,7 @@ struct template_helper {
     {"lc", &helperfn_lc},
     {"uc", &helperfn_uc},
     {"duration", &helperfn_duration},
+    {"markup_escape", &helperfn_markup_escape},
     // EXPERIMENTAL
     {"emoji", &helperfn_emoji},
 };
