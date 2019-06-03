@@ -5,9 +5,9 @@ from dbus_next.aio import MessageBus
 import asyncio
 
 
-async def setup_buses(*names):
+async def setup_buses(*names, bus_address=None):
     async def setup(name):
-        bus = await MessageBus().connect()
+        bus = await MessageBus(bus_address=bus_address).connect()
         reply = await bus.request_name(f'org.mpris.MediaPlayer2.{name}')
         assert reply == RequestNameReply.PRIMARY_OWNER
         bus.export('/org/mpris/MediaPlayer2', MprisPlayer())

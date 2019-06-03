@@ -37,10 +37,10 @@ async def test_basics():
 
 
 @pytest.mark.asyncio
-async def test_list_names():
-    [bus1, bus2, bus3] = await setup_buses('basics1', 'basics2', 'basics3')
+async def test_list_names(bus_address):
+    [bus1, bus2, bus3] = await setup_buses('basics1', 'basics2', 'basics3', bus_address=bus_address)
 
-    result = await playerctl('--list-all')
+    result = await playerctl('--list-all', bus_address)
     assert result.ret == 0, result.stderr
     players = result.stdout.splitlines()
     assert 'basics1' in players
