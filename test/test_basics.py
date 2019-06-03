@@ -1,5 +1,5 @@
 from .mpris import setup_buses
-from .playerctl import playerctl
+from .playerctl import PlayerctlCli
 
 import asyncio
 import pytest
@@ -7,19 +7,21 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_basics():
-    result = await playerctl('--help')
-    assert result.ret == 0, result.stderr
+    playerctl = PlayerctlCli()
+
+    result = await playerctl.run('--help')
+    assert result.returncode == 0, result.stderr
     assert result.stdout
     assert not result.stderr
 
     # with no players
-    result = await playerctl('--list-all')
-    assert result.ret == 0, result.stderr
+    result = await playerctl.run('--list-all')
+    assert result.returncode == 0, result.stderr
     assert not result.stdout
     assert result.stderr
 
-    result = await playerctl('--version')
-    assert result.ret == 0, result.stderr
+    result = await playerctl.run('--version')
+    assert result.returncode == 0, result.stderr
     assert result.stdout
     assert not result.stderr
 
@@ -28,10 +30,10 @@ async def test_basics():
                 'metadata', 'loop', 'loop None', 'shuffle', 'shuffle On',
                 'open https://google.com')
 
-    results = await asyncio.gather(*(playerctl(cmd) for cmd in commands))
+    results = await asyncio.gather(*(playerctl.run(cmd) for cmd in commands))
 
     for result in results:
-        assert result.ret == 1
+        assert result.returncode == 1
         assert not result.stdout
         assert result.stderr == 'No players found'
 
@@ -39,9 +41,10 @@ async def test_basics():
 @pytest.mark.asyncio
 async def test_list_names(bus_address):
     [bus1, bus2, bus3] = await setup_buses('basics1', 'basics2', 'basics3', bus_address=bus_address)
+    playerctl = PlayerctlCli(bus_address)
 
-    result = await playerctl('--list-all', bus_address)
-    assert result.ret == 0, result.stderr
+    result = await playerctl.run('--list-all')
+    assert result.returncode == 0, result.stderr
     players = result.stdout.splitlines()
     assert 'basics1' in players
     assert 'basics2' in players

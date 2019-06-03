@@ -1,5 +1,5 @@
 from .mpris import setup_buses, get_interfaces
-from .playerctl import playerctl
+from .playerctl import PlayerctlCli
 
 import asyncio
 import pytest
@@ -15,7 +15,9 @@ async def test_commands(bus_address):
     def get_called(cmd):
         return getattr(interface, f'{cmd.replace("-", "_")}_called')
 
-    results = await asyncio.gather(*(playerctl(f'-p commands {cmd}', bus_address)
+    playerctl = PlayerctlCli(bus_address)
+
+    results = await asyncio.gather(*(playerctl.run(f'-p commands {cmd}')
                                      for cmd in commands))
 
     for i, result in enumerate(results):
