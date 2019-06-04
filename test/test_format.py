@@ -13,13 +13,25 @@ async def test_format(bus_address):
     assert reply == RequestNameReply.PRIMARY_OWNER
     mpris = MprisPlayer()
     bus.export('/org/mpris/MediaPlayer2', mpris)
-    TITLE = 'a title'
-    ARTIST = 'an artist'
+    TITLE = 'A Title'
+    ARTIST = 'An Artist'
     mpris.metadata = {
         'xesam:title': Variant('s', TITLE),
-        'xesam:artist': Variant('as', [ARTIST])
+        'xesam:artist': Variant('as', [ARTIST]),
+        'xesam:escapeme': Variant('s', '<hi>'),
+        'mpris:length': Variant('x', 100000)
     }
+
     playerctl = PlayerctlCli(bus_address)
 
     cmd = await playerctl.run('metadata --format "{{artist}} - {{title}}"')
     assert cmd.stdout == f'{ARTIST} - {TITLE}'
+
+    cmd = await playerctl.run('metadata --format "{{markup_escape(xesam:escapeme)}}"')
+    assert cmd.stdout == '&lt;hi&gt;'
+
+    cmd = await playerctl.run('metadata --format "{{lc(artist)}}"')
+    assert cmd.stdout == ARTIST.lower()
+
+    cmd = await playerctl.run('metadata --format "{{uc(title)}}"')
+    assert cmd.stdout == TITLE.upper()

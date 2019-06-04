@@ -16,6 +16,5 @@ RUN pip3 install -r requirements.txt
 
 ADD . /app
 
-RUN find -name __pycache__ | xargs rm -r || true
 RUN meson --prefix=/usr build && ninja -C build && ninja -C build install
 CMD ["dbus-run-session", "python3", "-m", "pytest", "-s"]
