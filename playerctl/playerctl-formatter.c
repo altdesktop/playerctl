@@ -10,8 +10,8 @@
 G_DEFINE_QUARK(playerctl-formatter-error-quark, playerctl_formatter_error);
 
 enum token_type {
-    TOKEN_PASSTHROUGH,
     TOKEN_VARIABLE,
+    TOKEN_STRING,
     TOKEN_FUNCTION,
 };
 
@@ -22,10 +22,9 @@ struct token {
 };
 
 enum parser_state {
-    STATE_INSIDE = 0,
-    STATE_PARAMS_OPEN,
-    STATE_PARAMS_CLOSED,
-    STATE_PASSTHROUGH,
+    STATE_EXPRESSION = 0,
+    STATE_IDENTIFIER,
+    STATE_STRING,
 };
 
 struct _PlayerctlFormatterPrivate {
@@ -79,7 +78,109 @@ static gboolean token_list_contains_key(GList *tokens, const gchar *key) {
     return FALSE;
 }
 
+static gboolean is_identifier_char(gchar c) {
+    return g_ascii_isalnum(c) || c == '_' || c == ':' || c == '-';
+}
+
+static struct token *tokenize_expression(const gchar *format, gint pos, gint *end, GError **error) {
+    GError *tmp_error = NULL;
+    int len = strlen(format);
+    char buf[1028];
+    int buf_len = 0;
+
+    enum parser_state state = STATE_EXPRESSION;
+
+    for (int i = pos; i < len; ++i) {
+        switch (state) {
+        case STATE_EXPRESSION:
+            if (format[i] == ' ') {
+                continue;
+            } else if (format[i] == '"') {
+                state = STATE_STRING;
+                continue;
+            } else if (!is_identifier_char(format[i])) {
+                // TODO return NULL to indicate there is no expression
+                g_set_error(error, playerctl_formatter_error_quark(), 1,
+                            "unexpected \"%c\", expected expression (position  %d)", format[i], i);
+                return NULL;
+            } else {
+                state = STATE_IDENTIFIER;
+                buf[buf_len++] = format[i];
+                continue;
+            }
+            break;
+
+        case STATE_STRING:
+            if (format[i] == '"') {
+                struct token *ret = token_create(TOKEN_STRING);
+                buf[buf_len] = '\0';
+                ret->data = g_strdup(buf);
+
+                i++;
+                while (i < len && format[i] == ' ') {
+                    i++;
+                }
+                *end = i;
+                //printf("string: '%s'\n", ret->data);
+                return ret;
+            } else {
+                buf[buf_len++] = format[i];
+            }
+            break;
+
+        case STATE_IDENTIFIER:
+            if (format[i] == '(') {
+                struct token *ret = token_create(TOKEN_FUNCTION);
+                buf[buf_len] = '\0';
+                ret->data = g_strdup(buf);
+                i += 1;
+                //printf("function: '%s'\n", ret->data);
+                ret->arg = tokenize_expression(format, i, end, &tmp_error);
+
+                while (*end < len && format[*end] == ' ') {
+                    *end += 1;
+                }
+
+                if (tmp_error != NULL) {
+                    token_destroy(ret);
+                    g_propagate_error(error, tmp_error);
+                    return NULL;
+                }
+
+                if (format[*end] != ')') {
+                    g_set_error(error, playerctl_formatter_error_quark(), 1,
+                                "expecting \")\" (position %d)", *end);
+                }
+
+                *end += 1;
+
+                return ret;
+            } else if (!is_identifier_char(format[i])) {
+                struct token *ret = token_create(TOKEN_VARIABLE);
+                buf[buf_len] = '\0';
+                ret->data = g_strdup(buf);
+                while (i < len && format[i] == ' ') {
+                    i++;
+                }
+                *end = i;
+                //printf("variable: '%s' end='%c'\n", ret->data, format[*end]);
+                return ret;
+            } else {
+                buf[buf_len] = format[i];
+                ++buf_len;
+            }
+            break;
+        }
+    }
+
+
+    g_set_error(error, playerctl_formatter_error_quark(), 1,
+                "unexpected end of format string");
+    return NULL;
+}
+
 static GList *tokenize_format(const char *format, GError **error) {
+    GError *tmp_error = NULL;
     GList *tokens = NULL;
 
     if (format == NULL) {
@@ -96,133 +197,50 @@ static GList *tokenize_format(const char *format, GError **error) {
         return NULL;
     }
 
-    enum parser_state state = STATE_PASSTHROUGH;
     for (int i = 0; i < len; ++i) {
         if (format[i] == '{' && i < len + 1 && format[i+1] == '{') {
-            if (state == STATE_INSIDE) {
-                g_set_error(error, playerctl_formatter_error_quark(), 1,
-                            "unexpected token: \"{{\" (position %d)", i);
-                token_list_destroy(tokens);
-                return NULL;
-            }
-            if (buf_len != 0) {
-                struct token *token = token_create(TOKEN_PASSTHROUGH);
+            if (buf_len > 0) {
                 buf[buf_len] = '\0';
+                buf_len = 0;
+                struct token *token = token_create(TOKEN_STRING);
                 token->data = g_strdup(buf);
+                //printf("passthrough: '%s'\n", token->data);
                 tokens = g_list_append(tokens, token);
             }
-            i += 1;
-            buf_len = 0;
-            state = STATE_INSIDE;
-        } else if (format[i] == '}' && i < len + 1 && format[i+1] == '}' && state != STATE_PASSTHROUGH) {
-            if (state == STATE_PARAMS_OPEN) {
-                g_set_error(error, playerctl_formatter_error_quark(), 1,
-                            "unexpected token: \"}}\" (expected closing parens: \")\" at position %d)", i);
-                token_list_destroy(tokens);
-                return NULL;
-            }
 
-            if (state != STATE_PARAMS_CLOSED) {
-                buf[buf_len] = '\0';
-                gchar *name = g_strstrip(g_strdup(buf));
-                if (strlen(name) == 0) {
-                    g_set_error(error, playerctl_formatter_error_quark(), 1,
-                                "got empty template expression at position %d", i);
-                    token_list_destroy(tokens);
-                    g_free(name);
-                    return NULL;
-                }
-
-                struct token *token = token_create(TOKEN_VARIABLE);
-                token->data = name;
-                tokens = g_list_append(tokens, token);
-            } else if (buf_len > 0) {
-                for (int k = 0; k < buf_len; ++k) {
-                    if (buf[k] != ' ') {
-                        g_set_error(error, playerctl_formatter_error_quark(), 1,
-                                    "got unexpected input after closing parens at position %d", i - buf_len + k);
-                        token_list_destroy(tokens);
-                        return NULL;
-                    }
-                }
-            }
-
-            i += 1;
-            buf_len = 0;
-            state = STATE_PASSTHROUGH;
-        } else if (format[i] == '(' && state != STATE_PASSTHROUGH) {
-            if (state == STATE_PARAMS_OPEN) {
-                g_set_error(error, playerctl_formatter_error_quark(), 1,
-                            "unexpected token: \"(\" at position %d", i);
+            i += 2;
+            int end = 0;
+            struct token *token = tokenize_expression(format, i, &end, &tmp_error);
+            if (tmp_error != NULL) {
                 token_list_destroy(tokens);
+                g_propagate_error(error, tmp_error);
                 return NULL;
             }
-            if (state == STATE_PARAMS_CLOSED) {
-                g_set_error(error, playerctl_formatter_error_quark(), 1,
-                            "unexpected token: \"(\" at position %d", i);
-                token_list_destroy(tokens);
-                return NULL;
-            }
-            buf[buf_len] = '\0';
-            gchar *name = g_strstrip(g_strdup(buf));
-            if (strlen(name) == 0) {
-                g_set_error(error, playerctl_formatter_error_quark(), 1,
-                        "expected a function name to call at position %d", i);
-                token_list_destroy(tokens);
-                g_free(name);
-                return NULL;
-            }
-            struct token *token = token_create(TOKEN_FUNCTION);
-            token->data = name;
             tokens = g_list_append(tokens, token);
-            buf_len = 0;
-            state = STATE_PARAMS_OPEN;
-        } else if (format[i] == ')' && state != STATE_PASSTHROUGH) {
-            if (state != STATE_PARAMS_OPEN) {
-                g_set_error(error, playerctl_formatter_error_quark(), 1,
-                            "unexpected token: \")\" at position %d", i);
-                token_list_destroy(tokens);
-                return NULL;
-            }
-            buf[buf_len] = '\0';
-            gchar *name = g_strstrip(g_strdup(buf));
-            if (strlen(name) == 0) {
-                g_set_error(error, playerctl_formatter_error_quark(), 1,
-                            "expected a function parameter at position %d", i);
-                token_list_destroy(tokens);
-                g_free(name);
-                return NULL;
-            }
-            struct token *token = token_create(TOKEN_VARIABLE);
-            token->data = name;
+            i = end;
 
-            struct token *fn_token = g_list_last(tokens)->data;
-            assert(fn_token != NULL);
-            assert(fn_token->type == TOKEN_FUNCTION);
-            assert(fn_token->arg == NULL);
-            fn_token->arg = token;
-            buf_len = 0;
-            state = STATE_PARAMS_CLOSED;
+            while (i < len && format[i] == ' ') {
+                i++;
+            }
+
+            if (i >= len || format[i] != '}' || format[i+1] != '}') {
+                token_list_destroy(tokens);
+                g_set_error(error, playerctl_formatter_error_quark(), 1,
+                            "expecting \"}}\" (position %d)", i);
+                return NULL;
+            }
+            i += 1;
+
+        } else if (format[i] == '}' && i < len + 1 && format[i+1] == '}') {
+            assert(FALSE && "TODO");
         } else {
             buf[buf_len++] = format[i];
         }
     }
 
-    if (state == STATE_INSIDE || state == STATE_PARAMS_CLOSED) {
-        g_set_error(error, playerctl_formatter_error_quark(), 1,
-                    "unmatched opener \"{{\" (expected a matching \"}}\" at the end)");
-        token_list_destroy(tokens);
-        return NULL;
-    } else if (state == STATE_PARAMS_OPEN) {
-        g_set_error(error, playerctl_formatter_error_quark(), 1,
-                    "unmatched opener \"(\" (expected a matching \")\")");
-        token_list_destroy(tokens);
-        return NULL;
-    }
-
     if (buf_len > 0) {
         buf[buf_len] = '\0';
-        struct token *token = token_create(TOKEN_PASSTHROUGH);
+        struct token *token = token_create(TOKEN_STRING);
         token->data = g_strdup(buf);
         tokens = g_list_append(tokens, token);
     }
@@ -238,6 +256,10 @@ static gchar *helperfn_lc(gchar *key, GVariant *value) {
 }
 
 static gchar *helperfn_uc(gchar *key, GVariant *value) {
+    if (value == NULL) {
+        return g_strdup("");
+    }
+
     gchar *printed = pctl_print_gvariant(value);
     gchar *printed_uc = g_utf8_strup(printed, -1);
     g_free(printed);
@@ -245,6 +267,10 @@ static gchar *helperfn_uc(gchar *key, GVariant *value) {
 }
 
 static gchar *helperfn_duration(gchar *key, GVariant *value) {
+    if (value == NULL) {
+        return g_strdup("");
+    }
+
     // mpris durations are represented as int64 in microseconds
     if (!g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_INT64)) {
         return NULL;
@@ -269,6 +295,10 @@ static gchar *helperfn_duration(gchar *key, GVariant *value) {
 /* Calls g_markup_escape_text to replace the text with appropriately escaped
 characters for XML */
 static gchar *helperfn_markup_escape(gchar *key, GVariant *value) {
+    if (value == NULL) {
+        return g_strdup("");
+    }
+
     gchar *printed = pctl_print_gvariant(value);
     gchar *escaped = g_markup_escape_text(printed, -1);
     g_free(printed);
@@ -277,6 +307,10 @@ static gchar *helperfn_markup_escape(gchar *key, GVariant *value) {
 
 static gchar *helperfn_emoji(gchar *key, GVariant *value) {
     g_warning("The emoji() helper function is undocumented and experimental and will change in a future release.");
+    if (value == NULL) {
+        return g_strdup("");
+    }
+
     if (g_strcmp0(key, "status") == 0 &&
             g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
         const gchar *status_str = g_variant_get_string(value, NULL);
@@ -318,73 +352,78 @@ struct template_helper {
     {"emoji", &helperfn_emoji},
 };
 
-static gchar *expand_format(GList *tokens, GVariantDict *context, GError **error) {
-    GString *expanded;
+static GVariant *expand_token(struct token *token, GVariantDict *context, GError **error) {
+    GError *tmp_error = NULL;
 
-    expanded = g_string_new("");
-    GList *next = tokens;
-    while (next != NULL) {
-        struct token *token = next->data;
-        switch (token->type) {
-        case TOKEN_PASSTHROUGH:
-            expanded = g_string_append(expanded, token->data);
-            break;
-        case TOKEN_VARIABLE:
-        {
-            gchar *name = token->data;
-            if (g_variant_dict_contains(context, name)) {
-                GVariant *value = g_variant_dict_lookup_value(context, name, NULL);
-                if (value != NULL) {
-                    gchar *value_str = pctl_print_gvariant(value);
-                    expanded = g_string_append(expanded, value_str);
-                    g_variant_unref(value);
-                    g_free(value_str);
-                }
-            }
-            break;
+    switch (token->type) {
+    case TOKEN_STRING:
+        return g_variant_new("s", token->data);
+
+    case TOKEN_VARIABLE:
+        if (g_variant_dict_contains(context, token->data)) {
+            return g_variant_dict_lookup_value(context, token->data, NULL);
+        } else {
+            return NULL;
         }
-        case TOKEN_FUNCTION:
+
+    case TOKEN_FUNCTION:
         {
-            // XXX: functions must have an argument and that argument must be a
-            // variable (enforced in the tokenization step)
             assert(token->arg != NULL);
-            assert(token->arg->type == TOKEN_VARIABLE);
-
-            gboolean found = FALSE;
-            gchar *fn_name = token->data;
-            gchar *arg_name = token->arg->data;
-
-            for (gsize i = 0; i < LENGTH(helpers); ++i) {
-                if (g_strcmp0(helpers[i].name, fn_name) == 0) {
-                    GVariant *value = g_variant_dict_lookup_value(context, arg_name, NULL);
-                    if (value != NULL) {
-                        gchar *result = helpers[i].func(arg_name, value);
-                        if (result != NULL) {
-                            expanded = g_string_append(expanded, result);
-                            g_free(result);
-                        }
-                        g_variant_unref(value);
-                    }
-                    found = TRUE;
-                    break;
-                }
+            gchar *arg_name = NULL;
+            if (token->type == TOKEN_VARIABLE) {
+                arg_name = token->data;
             }
 
-            if (!found) {
-                g_set_error(error, playerctl_formatter_error_quark(), 1,
-                            "unknown template function: %s", fn_name);
-                token_list_destroy(tokens);
-                g_string_free(expanded, TRUE);
+            GVariant *value = expand_token(token->arg, context, &tmp_error);
+
+            if (tmp_error != NULL) {
+                g_propagate_error(error, tmp_error);
                 return NULL;
             }
 
-            break;
-        }
-        }
+            for (gsize i = 0; i < LENGTH(helpers); ++i) {
+                if (g_strcmp0(helpers[i].name, token->data) == 0) {
+                    gchar *result = helpers[i].func(arg_name, value);
+                    if (value != NULL) {
+                        g_variant_unref(value);
+                    }
+                    return g_variant_new("s", result);
+                }
+            }
 
-        next = next->next;
+            if (value != NULL) {
+                g_variant_unref(value);
+            }
+            g_set_error(error, playerctl_formatter_error_quark(), 1,
+                        "unknown template function: %s", token->data);
+            return NULL;
+        }
     }
 
+    assert(FALSE && "not reached");
+    return NULL;
+}
+
+static gchar *expand_format(GList *tokens, GVariantDict *context, GError **error) {
+    GError *tmp_error = NULL;
+    GString *expanded;
+
+    expanded = g_string_new("");
+    GList *t = tokens;
+    for (t = tokens; t != NULL; t = t->next) {
+        GVariant *value = expand_token(t->data, context, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return NULL;
+        }
+
+        if (value != NULL) {
+            gchar *result = pctl_print_gvariant(value);
+            expanded = g_string_append(expanded, result);
+            g_free(result);
+            g_variant_unref(value);
+        }
+    }
     return g_string_free(expanded, FALSE);
 }
 

@@ -35,3 +35,15 @@ async def test_format(bus_address):
 
     cmd = await playerctl.run('metadata --format "{{uc(title)}}"')
     assert cmd.stdout == TITLE.upper()
+
+    cmd = await playerctl.run('metadata --format "{{uc(lc(title))}}"')
+    assert cmd.stdout == TITLE.upper()
+
+    cmd = await playerctl.run('metadata --format \'{{uc("Hi")}}\'')
+    assert cmd.stdout == "HI"
+
+    cmd = await playerctl.run('metadata --format "{{mpris:length}}"')
+    assert cmd.stdout == "100000"
+
+    cmd = await playerctl.run('metadata --format \'@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@\'')
+    assert cmd.stdout == '@HI - HO . a title@'
