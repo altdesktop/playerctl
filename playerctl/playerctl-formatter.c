@@ -255,8 +255,6 @@ static GList *tokenize_format(const char *format, GError **error) {
             }
             i += 1;
 
-        } else if (format[i] == '}' && i < len + 1 && format[i + 1] == '}') {
-            assert(FALSE && "TODO");
         } else {
             buf[buf_len++] = format[i];
         }
@@ -365,6 +363,29 @@ static gchar *helperfn_markup_escape(struct token *token, GVariant **args, int n
     return escaped;
 }
 
+static gchar *helperfn_default(struct token *token, GVariant **args, int nargs, GError **error) {
+    if (nargs != 2) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function default takes exactly two arguments (got %d)", nargs);
+        return NULL;
+    }
+
+    if (args[0] == NULL && args[1] == NULL) {
+        return g_strdup("");
+    }
+
+    if (args[0] == NULL) {
+        return pctl_print_gvariant(args[1]);
+    } else {
+        gchar *printed = pctl_print_gvariant(args[0]);
+        if (g_strcmp0(printed, "") == 0) {
+            g_free(printed);
+            return pctl_print_gvariant(args[1]);
+        }
+        return printed;
+    }
+}
+
 static gchar *helperfn_emoji(struct token *token, GVariant **args, int nargs, GError **error) {
     g_warning("The emoji() helper function is undocumented and experimental and will change in a "
               "future release.");
@@ -423,6 +444,7 @@ struct template_helper {
     {"uc", &helperfn_uc},
     {"duration", &helperfn_duration},
     {"markup_escape", &helperfn_markup_escape},
+    {"default", &helperfn_default},
     // EXPERIMENTAL
     {"emoji", &helperfn_emoji},
 };

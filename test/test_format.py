@@ -51,3 +51,17 @@ async def test_format(bus_address):
         'metadata --format \'@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@\''
     )
     assert cmd.stdout == '@HI - HO . a title@'
+
+    cmd = await playerctl.run(
+        'metadata --format \'{{default(xesam:missing, artist)}}\'')
+    assert cmd.stdout == ARTIST
+
+    cmd = await playerctl.run(
+        'metadata --format \'{{default(title, artist)}}\'')
+    assert cmd.stdout == TITLE
+
+    cmd = await playerctl.run('metadata --format \'{{default("", "ok")}}\'')
+    assert cmd.stdout == 'ok'
+
+    cmd = await playerctl.run('metadata --format \'{{default("ok", "not")}}\'')
+    assert cmd.stdout == 'ok'
