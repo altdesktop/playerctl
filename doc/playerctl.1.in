@@ -210,6 +210,11 @@ to lowercase.
 Convert string
 .Va str
 to uppercase.
+.It Fn markup_escape str
+Escape XML characters in string
+.Va str .
+.It Fn default any any
+Print the first value if it is is present, or else print the second.
 .It Fn duration time
 Reformat the microsecond timestamp
 .Va time
