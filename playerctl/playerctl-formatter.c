@@ -7,6 +7,8 @@
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
+#define MAX_ARGS 32
+
 // clang-format off
 G_DEFINE_QUARK(playerctl-formatter-error-quark, playerctl_formatter_error);
 // clang-format on
@@ -20,7 +22,7 @@ enum token_type {
 struct token {
     enum token_type type;
     gchar *data;
-    struct token *arg;
+    GList *args;
 };
 
 enum parser_state {
@@ -39,12 +41,14 @@ static struct token *token_create(enum token_type type) {
     return token;
 }
 
+static void token_list_destroy(GList *tokens);
+
 static void token_destroy(struct token *token) {
     if (token == NULL) {
         return;
     }
 
-    token_destroy(token->arg);
+    token_list_destroy(token->args);
     g_free(token->data);
     free(token);
 }
@@ -58,6 +62,10 @@ static void token_list_destroy(GList *tokens) {
 }
 
 static gboolean token_list_contains_key(GList *tokens, const gchar *key) {
+    if (tokens == NULL) {
+        return FALSE;
+    }
+
     GList *t = NULL;
     for (t = tokens; t != NULL; t = t->next) {
         struct token *token = t->data;
@@ -68,11 +76,7 @@ static gboolean token_list_contains_key(GList *tokens, const gchar *key) {
             }
             break;
         case TOKEN_FUNCTION:
-            if (token->arg != NULL && token->arg->type == TOKEN_VARIABLE &&
-                g_strcmp0(token->arg->data, key) == 0) {
-                return TRUE;
-            }
-            break;
+            return token_list_contains_key(token->args, key);
         default:
             break;
         }
@@ -137,24 +141,44 @@ static struct token *tokenize_expression(const gchar *format, gint pos, gint *en
                 ret->data = g_strdup(buf);
                 i += 1;
                 // printf("function: '%s'\n", ret->data);
-                ret->arg = tokenize_expression(format, i, end, &tmp_error);
 
-                while (*end < len && format[*end] == ' ') {
-                    *end += 1;
+                int nargs = 0;
+                while (TRUE) {
+                    ret->args =
+                        g_list_append(ret->args, tokenize_expression(format, i, end, &tmp_error));
+
+                    nargs++;
+
+                    if (nargs > MAX_ARGS) {
+                        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                                    "maximum args of %d exceeded", MAX_ARGS);
+                        token_destroy(ret);
+                        return NULL;
+                    }
+
+                    if (tmp_error != NULL) {
+                        token_destroy(ret);
+                        g_propagate_error(error, tmp_error);
+                        return NULL;
+                    }
+
+                    while (*end < len && format[*end] == ' ') {
+                        *end += 1;
+                    }
+
+                    if (format[*end] == ')') {
+                        *end += 1;
+                        break;
+                    } else if (format[*end] == ',') {
+                        i = *end + 1;
+                        continue;
+                    } else {
+                        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                                    "expecting \")\" (position %d)", *end);
+                        token_destroy(ret);
+                        return NULL;
+                    }
                 }
-
-                if (tmp_error != NULL) {
-                    token_destroy(ret);
-                    g_propagate_error(error, tmp_error);
-                    return NULL;
-                }
-
-                if (format[*end] != ')') {
-                    g_set_error(error, playerctl_formatter_error_quark(), 1,
-                                "expecting \")\" (position %d)", *end);
-                }
-
-                *end += 1;
 
                 return ret;
             } else if (!is_identifier_char(format[i])) {
@@ -248,14 +272,32 @@ static GList *tokenize_format(const char *format, GError **error) {
     return tokens;
 }
 
-static gchar *helperfn_lc(struct token *token, GVariant *value, GError **error) {
+static gchar *helperfn_lc(struct token *token, GVariant **args, int nargs, GError **error) {
+    if (nargs != 1) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function lc takes exactly one argument (got %d)", nargs);
+        return NULL;
+    }
+
+    GVariant *value = args[0];
+    if (value == NULL) {
+        return g_strdup("");
+    }
+
     gchar *printed = pctl_print_gvariant(value);
     gchar *printed_lc = g_utf8_strdown(printed, -1);
     g_free(printed);
     return printed_lc;
 }
 
-static gchar *helperfn_uc(struct token *token, GVariant *value, GError **error) {
+static gchar *helperfn_uc(struct token *token, GVariant **args, int nargs, GError **error) {
+    if (nargs != 1) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function uc takes exactly one argument (got %d)", nargs);
+        return NULL;
+    }
+
+    GVariant *value = args[0];
     if (value == NULL) {
         return g_strdup("");
     }
@@ -266,13 +308,22 @@ static gchar *helperfn_uc(struct token *token, GVariant *value, GError **error) 
     return printed_uc;
 }
 
-static gchar *helperfn_duration(struct token *token, GVariant *value, GError **error) {
+static gchar *helperfn_duration(struct token *token, GVariant **args, int nargs, GError **error) {
+    if (nargs != 1) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function uc takes exactly one argument (got %d)", nargs);
+        return NULL;
+    }
+
+    GVariant *value = args[0];
     if (value == NULL) {
         return g_strdup("");
     }
 
     // mpris durations are represented as int64 in microseconds
     if (!g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_INT64)) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function position can only be called on int64 values");
         return NULL;
     }
 
@@ -295,7 +346,15 @@ static gchar *helperfn_duration(struct token *token, GVariant *value, GError **e
 
 /* Calls g_markup_escape_text to replace the text with appropriately escaped
 characters for XML */
-static gchar *helperfn_markup_escape(struct token *token, GVariant *value, GError **error) {
+static gchar *helperfn_markup_escape(struct token *token, GVariant **args, int nargs,
+                                     GError **error) {
+    if (nargs != 1) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function markup_escape takes exactly one argument (got %d)", nargs);
+        return NULL;
+    }
+
+    GVariant *value = args[0];
     if (value == NULL) {
         return g_strdup("");
     }
@@ -306,9 +365,16 @@ static gchar *helperfn_markup_escape(struct token *token, GVariant *value, GErro
     return escaped;
 }
 
-static gchar *helperfn_emoji(struct token *token, GVariant *value, GError **error) {
+static gchar *helperfn_emoji(struct token *token, GVariant **args, int nargs, GError **error) {
     g_warning("The emoji() helper function is undocumented and experimental and will change in a "
               "future release.");
+    if (nargs != 1) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function markup_escape takes exactly one argument (got %d)", nargs);
+        return NULL;
+    }
+
+    GVariant *value = args[0];
     if (value == NULL) {
         return g_strdup("");
     }
@@ -351,7 +417,7 @@ static gchar *helperfn_emoji(struct token *token, GVariant *value, GError **erro
 
 struct template_helper {
     const gchar *name;
-    gchar *(*func)(struct token *token, GVariant *value, GError **error);
+    gchar *(*func)(struct token *token, GVariant **args, int nargs, GError **error);
 } helpers[] = {
     {"lc", &helperfn_lc},
     {"uc", &helperfn_uc},
@@ -376,37 +442,45 @@ static GVariant *expand_token(struct token *token, GVariantDict *context, GError
         }
 
     case TOKEN_FUNCTION: {
-        assert(token->arg != NULL);
+        // TODO lift required arg assumption
+        assert(token->args != NULL);
 
-        GVariant *value = expand_token(token->arg, context, &tmp_error);
+        GVariant *ret = NULL;
+        int nargs = 0;
+        GVariant *args[MAX_ARGS + 1];
 
-        if (tmp_error != NULL) {
-            g_propagate_error(error, tmp_error);
-            return NULL;
+        GList *t;
+        for (t = token->args; t != NULL; t = t->next) {
+            struct token *arg_token = t->data;
+            assert(nargs < MAX_ARGS);
+            args[nargs++] = expand_token(arg_token, context, &tmp_error);
+            if (tmp_error != NULL) {
+                g_propagate_error(error, tmp_error);
+                goto func_out;
+            }
         }
 
         for (gsize i = 0; i < LENGTH(helpers); ++i) {
             if (g_strcmp0(helpers[i].name, token->data) == 0) {
-                gchar *result = helpers[i].func(token, value, &tmp_error);
-                if (value != NULL) {
-                    g_variant_unref(value);
-                }
-
+                gchar *result = helpers[i].func(token, args, nargs, &tmp_error);
                 if (tmp_error != NULL) {
                     g_propagate_error(error, tmp_error);
-                    return NULL;
+                    goto func_out;
                 }
 
-                return g_variant_new("s", result);
+                ret = g_variant_new("s", result);
+                goto func_out;
             }
-        }
-
-        if (value != NULL) {
-            g_variant_unref(value);
         }
         g_set_error(error, playerctl_formatter_error_quark(), 1, "unknown template function: %s",
                     token->data);
-        return NULL;
+    func_out:
+        for (int i = 0; i < nargs; ++i) {
+            if (args[i] != NULL) {
+                g_variant_unref(args[i]);
+            }
+        }
+        return ret;
     }
     }
 
