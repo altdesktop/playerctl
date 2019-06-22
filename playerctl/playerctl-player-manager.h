@@ -24,8 +24,8 @@
 #error "Only <playerctl/playerctl.h> can be included directly."
 #endif
 
-#include <playerctl/playerctl-player.h>
 #include <glib-object.h>
+#include <playerctl/playerctl-player.h>
 
 /**
  * SECTION: playerctl-player-manager
@@ -47,7 +47,7 @@
  * from the list, the #PlayerctlPlayerManager::player-vanished event will also
  * be emitted. After this event, the player will be cleaned up and removed from
  * the manager.
- * 
+ *
  * The manager has other features such as being able to keep the players in a
  * sorted order and moving a player to the top of the list. The
  * #PlayerctlPlayerManager:player-names will always be in the order that they
@@ -61,14 +61,12 @@
     (G_TYPE_CHECK_INSTANCE_CAST((obj), PLAYERCTL_TYPE_PLAYER_MANAGER, PlayerctlPlayerManager))
 #define PLAYERCTL_IS_PLAYER_MANAGER(obj) \
     (G_TYPE_CHECK_INSTANCE_TYPE((obj), PLAYERCTL_TYPE_PLAYER_MANAGER))
-#define PLAYERCTL_PLAYER_MANAGER_CLASS(klass)                        \
-    (G_TYPE_CHECK_CLASS_CAST((klass), PLAYERCTL_TYPE_PLAYER_MANAGER, \
-                             PlayerctlPlayerManagerClass))
+#define PLAYERCTL_PLAYER_MANAGER_CLASS(klass) \
+    (G_TYPE_CHECK_CLASS_CAST((klass), PLAYERCTL_TYPE_PLAYER_MANAGER, PlayerctlPlayerManagerClass))
 #define PLAYERCTL_IS_PLAYER_MANAGER_CLASS(klass) \
     (G_TYPE_CHECK_CLASS_TYPE((klass), PLAYERCTL_TYPE_PLAYER_MANAGER))
-#define PLAYERCTL_PLAYER_MANAGER_GET_CLASS(obj)                      \
-    (G_TYPE_INSTANCE_GET_CLASS((obj), PLAYERCTL_TYPE_PLAYER_MANAGER, \
-                               PlayerctlPlayerManagerClass))
+#define PLAYERCTL_PLAYER_MANAGER_GET_CLASS(obj) \
+    (G_TYPE_INSTANCE_GET_CLASS((obj), PLAYERCTL_TYPE_PLAYER_MANAGER, PlayerctlPlayerManagerClass))
 
 typedef struct _PlayerctlPlayerManager PlayerctlPlayerManager;
 typedef struct _PlayerctlPlayerManagerClass PlayerctlPlayerManagerClass;
@@ -95,8 +93,7 @@ void playerctl_player_manager_manage_player(PlayerctlPlayerManager *manager,
                                             PlayerctlPlayer *player);
 
 void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
-                                            GCompareDataFunc sort_func,
-                                            gpointer *sort_data,
+                                            GCompareDataFunc sort_func, gpointer *sort_data,
                                             GDestroyNotify notify);
 
 void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager,

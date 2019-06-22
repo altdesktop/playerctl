@@ -36,9 +36,10 @@ void playerctl_formatter_destroy(PlayerctlFormatter *formatter);
 
 gboolean playerctl_formatter_contains_key(PlayerctlFormatter *formatter, const gchar *key);
 
-GVariantDict *playerctl_formatter_default_template_context(
-        PlayerctlFormatter *formatter, PlayerctlPlayer *player, GVariant *base);
+GVariantDict *playerctl_formatter_default_template_context(PlayerctlFormatter *formatter,
+                                                           PlayerctlPlayer *player, GVariant *base);
 
-gchar *playerctl_formatter_expand_format(PlayerctlFormatter *formatter, GVariantDict *context, GError **error);
+gchar *playerctl_formatter_expand_format(PlayerctlFormatter *formatter, GVariantDict *context,
+                                         GError **error);
 
 #endif /* __PLAYERCTL_FORMATTER_H__ */

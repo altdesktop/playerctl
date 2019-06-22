@@ -8,8 +8,8 @@ player = Playerctl.Player()
 def on_metadata(player, metadata):
     if 'xesam:artist' in metadata.keys() and 'xesam:title' in metadata.keys():
         print('Now playing:')
-        print('{artist} - {title}'.format(
-            artist=metadata['xesam:artist'][0], title=metadata['xesam:title']))
+        print('{artist} - {title}'.format(artist=metadata['xesam:artist'][0],
+                                          title=metadata['xesam:title']))
 
 
 def on_play(player, status):

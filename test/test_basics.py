@@ -40,7 +40,10 @@ async def test_basics():
 
 @pytest.mark.asyncio
 async def test_list_names(bus_address):
-    [bus1, bus2, bus3] = await setup_buses('basics1', 'basics2', 'basics3', bus_address=bus_address)
+    [bus1, bus2, bus3] = await setup_buses('basics1',
+                                           'basics2',
+                                           'basics3',
+                                           bus_address=bus_address)
     playerctl = PlayerctlCli(bus_address)
 
     result = await playerctl.run('--list-all')

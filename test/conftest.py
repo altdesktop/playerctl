@@ -2,9 +2,11 @@ from dbus_next.aio import MessageBus
 import pytest
 import asyncio
 
+
 @pytest.fixture()
 async def bus_address(scope='class'):
-    proc = await asyncio.create_subprocess_shell('dbus-launch', stdout=asyncio.subprocess.PIPE)
+    proc = await asyncio.create_subprocess_shell(
+        'dbus-launch', stdout=asyncio.subprocess.PIPE)
     stdout, __ = await proc.communicate()
     await proc.wait()
     address = None

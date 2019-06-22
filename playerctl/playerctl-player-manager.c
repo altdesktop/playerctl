@@ -17,11 +17,11 @@
  * Copyright © 2014, Tony Crisci and contributors.
  */
 
+#include "playerctl/playerctl-player-manager.h"
 #include <gio/gio.h>
 #include <glib-object.h>
-#include "playerctl/playerctl-player-name.h"
-#include "playerctl/playerctl-player-manager.h"
 #include "playerctl/playerctl-common.h"
+#include "playerctl/playerctl-player-name.h"
 #include "playerctl/playerctl-player.h"
 
 enum {
@@ -60,15 +60,13 @@ struct _PlayerctlPlayerManagerPrivate {
 static void playerctl_player_manager_initable_iface_init(GInitableIface *iface);
 
 G_DEFINE_TYPE_WITH_CODE(PlayerctlPlayerManager, playerctl_player_manager, G_TYPE_OBJECT,
-                        G_ADD_PRIVATE(PlayerctlPlayerManager) G_IMPLEMENT_INTERFACE(
-                            G_TYPE_INITABLE,
-                            playerctl_player_manager_initable_iface_init));
-
+                        G_ADD_PRIVATE(PlayerctlPlayerManager)
+                            G_IMPLEMENT_INTERFACE(G_TYPE_INITABLE,
+                                                  playerctl_player_manager_initable_iface_init));
 
 static void playerctl_player_manager_set_property(GObject *object, guint property_id,
-                                          const GValue *value,
-                                          GParamSpec *pspec) {
-    //PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(object);
+                                                  const GValue *value, GParamSpec *pspec) {
+    // PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(object);
 
     switch (property_id) {
     default:
@@ -77,8 +75,8 @@ static void playerctl_player_manager_set_property(GObject *object, guint propert
     }
 }
 
-static void playerctl_player_manager_get_property(GObject *object, guint property_id,
-                                          GValue *value, GParamSpec *pspec) {
+static void playerctl_player_manager_get_property(GObject *object, guint property_id, GValue *value,
+                                                  GParamSpec *pspec) {
     PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(object);
     switch (property_id) {
     case PROP_PLAYERS:
@@ -112,8 +110,7 @@ static void playerctl_player_manager_dispose(GObject *gobject) {
 static void playerctl_player_manager_finalize(GObject *gobject) {
     PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(gobject);
 
-    g_list_free_full(manager->priv->player_names,
-                     (GDestroyNotify)playerctl_player_name_free);
+    g_list_free_full(manager->priv->player_names, (GDestroyNotify)playerctl_player_name_free);
     g_list_free_full(manager->priv->players, g_object_unref);
 
     G_OBJECT_CLASS(playerctl_player_manager_parent_class)->finalize(gobject);
@@ -133,11 +130,9 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
      *
      * A list of players that are currently connected and managed by this class.
      */
-    obj_properties[PROP_PLAYERS] =
-       g_param_spec_pointer("players",
-                            "players",
-                            "A list of player objects managed by this manager",
-                            G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+    obj_properties[PROP_PLAYERS] = g_param_spec_pointer(
+        "players", "players", "A list of player objects managed by this manager",
+        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
     /**
      * PlayerctlPlayerManager:player-names: (transfer none) (type GList(PlayerctlPlayerName))
@@ -145,36 +140,26 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
      * A list of fully qualified player names that are currently available to control.
      */
     obj_properties[PROP_PLAYER_NAMES] =
-       g_param_spec_pointer("player-names",
-                            "player names",
-                            "A list of player names that are currently available to control.",
-                            G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
+        g_param_spec_pointer("player-names", "player names",
+                             "A list of player names that are currently available to control.",
+                             G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
 
-    g_object_class_install_properties(gobject_class, N_PROPERTIES,
-                                      obj_properties);
+    g_object_class_install_properties(gobject_class, N_PROPERTIES, obj_properties);
 
     /**
-    * PlayerctlPlayerManager::name-appeared:
-    * @self: the #PlayerctlPlayerManager on which the signal was emitted
-    * @name: A #PlayerctlPlayerName containing information about the name that
-    * has appeared.
-    *
-    * Emitted when a new name has appeared and is available to connect to. Use
-    * playerctl_player_new_from_name() to connect to the player and
-    * playerctl_player_manager_manage_player() to add it to the managed list of
-    * players.
-    */
-    connection_signals[NAME_APPEARED] =
-        g_signal_new("name-appeared",
-                     PLAYERCTL_TYPE_PLAYER_MANAGER,
-                     G_SIGNAL_RUN_LAST,
-                     0,
-                     NULL,
-                     NULL,
-                     g_cclosure_marshal_VOID__BOXED,
-                     G_TYPE_NONE,
-                     1,
-                     PLAYERCTL_TYPE_PLAYER_NAME);
+     * PlayerctlPlayerManager::name-appeared:
+     * @self: the #PlayerctlPlayerManager on which the signal was emitted
+     * @name: A #PlayerctlPlayerName containing information about the name that
+     * has appeared.
+     *
+     * Emitted when a new name has appeared and is available to connect to. Use
+     * playerctl_player_new_from_name() to connect to the player and
+     * playerctl_player_manager_manage_player() to add it to the managed list of
+     * players.
+     */
+    connection_signals[NAME_APPEARED] = g_signal_new(
+        "name-appeared", PLAYERCTL_TYPE_PLAYER_MANAGER, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+        g_cclosure_marshal_VOID__BOXED, G_TYPE_NONE, 1, PLAYERCTL_TYPE_PLAYER_NAME);
 
     /**
      * PlayerctlPlayerManager::name-vanished:
@@ -188,17 +173,9 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
      * #PlayerctlPlayerManager::player-vanished signal will be emitted
      * automatically.
      */
-    connection_signals[NAME_VANISHED] =
-        g_signal_new("name-vanished",
-                     PLAYERCTL_TYPE_PLAYER_MANAGER,
-                     G_SIGNAL_RUN_FIRST,
-                     0,
-                     NULL,
-                     NULL,
-                     g_cclosure_marshal_VOID__BOXED,
-                     G_TYPE_NONE,
-                     1,
-                     PLAYERCTL_TYPE_PLAYER_NAME);
+    connection_signals[NAME_VANISHED] = g_signal_new(
+        "name-vanished", PLAYERCTL_TYPE_PLAYER_MANAGER, G_SIGNAL_RUN_FIRST, 0, NULL, NULL,
+        g_cclosure_marshal_VOID__BOXED, G_TYPE_NONE, 1, PLAYERCTL_TYPE_PLAYER_NAME);
 
     /**
      * PlayerctlPlayerManager::player-appeared:
@@ -209,16 +186,8 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
      * to playerctl_player_manager_manage_player().
      */
     connection_signals[PLAYER_APPEARED] =
-        g_signal_new("player-appeared",
-                     PLAYERCTL_TYPE_PLAYER_MANAGER,
-                     G_SIGNAL_RUN_FIRST,
-                     0,
-                     NULL,
-                     NULL,
-                     g_cclosure_marshal_VOID__OBJECT,
-                     G_TYPE_NONE,
-                     1,
-                     PLAYERCTL_TYPE_PLAYER);
+        g_signal_new("player-appeared", PLAYERCTL_TYPE_PLAYER_MANAGER, G_SIGNAL_RUN_FIRST, 0, NULL,
+                     NULL, g_cclosure_marshal_VOID__OBJECT, G_TYPE_NONE, 1, PLAYERCTL_TYPE_PLAYER);
 
     /**
      * PlayerctlPlayerManager::player-vanished:
@@ -231,16 +200,8 @@ static void playerctl_player_manager_class_init(PlayerctlPlayerManagerClass *kla
      * automatically.
      */
     connection_signals[PLAYER_VANISHED] =
-        g_signal_new("player-vanished",
-                     PLAYERCTL_TYPE_PLAYER_MANAGER,
-                     G_SIGNAL_RUN_FIRST,
-                     0,
-                     NULL,
-                     NULL,
-                     g_cclosure_marshal_VOID__OBJECT,
-                     G_TYPE_NONE,
-                     1,
-                     PLAYERCTL_TYPE_PLAYER);
+        g_signal_new("player-vanished", PLAYERCTL_TYPE_PLAYER_MANAGER, G_SIGNAL_RUN_FIRST, 0, NULL,
+                     NULL, g_cclosure_marshal_VOID__OBJECT, G_TYPE_NONE, 1, PLAYERCTL_TYPE_PLAYER);
 }
 
 static void playerctl_player_manager_init(PlayerctlPlayerManager *manager) {
@@ -250,9 +211,8 @@ static void playerctl_player_manager_init(PlayerctlPlayerManager *manager) {
 static gchar *player_id_from_bus_name(const gchar *bus_name) {
     const size_t prefix_len = strlen(MPRIS_PREFIX);
 
-    if (bus_name == NULL ||
-            !g_str_has_prefix(bus_name, MPRIS_PREFIX) ||
-            strlen(bus_name) <= prefix_len) {
+    if (bus_name == NULL || !g_str_has_prefix(bus_name, MPRIS_PREFIX) ||
+        strlen(bus_name) <= prefix_len) {
         return NULL;
     }
 
@@ -323,30 +283,26 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
     GList *player_entry = NULL;
     if (strlen(new_owner) == 0 && strlen(previous_owner) != 0) {
         // the name has vanished
-        player_entry =
-            pctl_player_name_find(manager->priv->player_names, player_id,
-                                  pctl_bus_type_to_source(bus_type));
+        player_entry = pctl_player_name_find(manager->priv->player_names, player_id,
+                                             pctl_bus_type_to_source(bus_type));
         if (player_entry != NULL) {
             PlayerctlPlayerName *player_name = player_entry->data;
             manager->priv->player_names =
                 g_list_remove_link(manager->priv->player_names, player_entry);
             manager_remove_managed_player_by_name(manager, player_name);
-            g_signal_emit(manager, connection_signals[NAME_VANISHED], 0,
-                          player_name);
+            g_signal_emit(manager, connection_signals[NAME_VANISHED], 0, player_name);
             pctl_player_name_list_destroy(player_entry);
         }
     } else if (strlen(previous_owner) == 0 && strlen(new_owner) != 0) {
         // the name has appeared
-        player_entry =
-            pctl_player_name_find(manager->priv->players, player_id,
-                                  pctl_bus_type_to_source(bus_type));
+        player_entry = pctl_player_name_find(manager->priv->players, player_id,
+                                             pctl_bus_type_to_source(bus_type));
         if (player_entry == NULL) {
             PlayerctlPlayerName *player_name =
                 pctl_player_name_new(player_id, pctl_bus_type_to_source(bus_type));
 
             manager->priv->player_names = g_list_prepend(manager->priv->player_names, player_name);
-            g_signal_emit(manager, connection_signals[NAME_APPEARED], 0,
-                          player_name);
+            g_signal_emit(manager, connection_signals[NAME_APPEARED], 0, player_name);
         }
     }
 
@@ -357,8 +313,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
 }
 
 static gboolean playerctl_player_manager_initable_init(GInitable *initable,
-                                               GCancellable *cancellable,
-                                               GError **error) {
+                                                       GCancellable *cancellable, GError **error) {
     GError *tmp_error = NULL;
     PlayerctlPlayerManager *manager = PLAYERCTL_PLAYER_MANAGER(initable);
 
@@ -366,13 +321,9 @@ static gboolean playerctl_player_manager_initable_init(GInitable *initable,
         return TRUE;
     }
 
-    manager->priv->session_proxy =
-        g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
-                                      G_DBUS_PROXY_FLAGS_NONE, NULL,
-                                      "org.freedesktop.DBus",
-                                      "/org/freedesktop/DBus",
-                                      "org.freedesktop.DBus", NULL,
-                                      &tmp_error);
+    manager->priv->session_proxy = g_dbus_proxy_new_for_bus_sync(
+        G_BUS_TYPE_SESSION, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
+        "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &tmp_error);
     if (tmp_error != NULL) {
         if (tmp_error->domain == G_IO_ERROR && tmp_error->code == G_IO_ERROR_NOT_FOUND) {
             // TODO the bus address was set incorrectly so log a warning
@@ -382,13 +333,9 @@ static gboolean playerctl_player_manager_initable_init(GInitable *initable,
             return FALSE;
         }
     }
-    manager->priv->system_proxy =
-        g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SYSTEM,
-                                      G_DBUS_PROXY_FLAGS_NONE, NULL,
-                                      "org.freedesktop.DBus",
-                                      "/org/freedesktop/DBus",
-                                      "org.freedesktop.DBus", NULL,
-                                      &tmp_error);
+    manager->priv->system_proxy = g_dbus_proxy_new_for_bus_sync(
+        G_BUS_TYPE_SYSTEM, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus",
+        "/org/freedesktop/DBus", "org.freedesktop.DBus", NULL, &tmp_error);
     if (tmp_error != NULL) {
         if (tmp_error->domain == G_IO_ERROR && tmp_error->code == G_IO_ERROR_NOT_FOUND) {
             // TODO the bus address was set incorrectly so log a warning
@@ -407,14 +354,12 @@ static gboolean playerctl_player_manager_initable_init(GInitable *initable,
 
     if (manager->priv->session_proxy) {
         g_signal_connect(G_DBUS_PROXY(manager->priv->session_proxy), "g-signal",
-                G_CALLBACK(dbus_name_owner_changed_callback),
-                manager);
+                         G_CALLBACK(dbus_name_owner_changed_callback), manager);
     }
 
     if (manager->priv->system_proxy) {
         g_signal_connect(G_DBUS_PROXY(manager->priv->system_proxy), "g-signal",
-                G_CALLBACK(dbus_name_owner_changed_callback),
-                manager);
+                         G_CALLBACK(dbus_name_owner_changed_callback), manager);
     }
 
     manager->priv->initted = TRUE;
@@ -460,20 +405,18 @@ PlayerctlPlayerManager *playerctl_player_manager_new(GError **err) {
  * @notify:(allow-none): A function to notify when the sort function will no
  * longer be used.
  *
- * Keeps the #PlayerctlPlayerManager:players list of this manager in sorted order which is useful for
- * using this list as a priority queue.
+ * Keeps the #PlayerctlPlayerManager:players list of this manager in sorted order which is useful
+ * for using this list as a priority queue.
  */
 void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
-                                          GCompareDataFunc sort_func,
-                                          gpointer *sort_data,
-                                          GDestroyNotify notify) {
+                                            GCompareDataFunc sort_func, gpointer *sort_data,
+                                            GDestroyNotify notify) {
     // TODO figure out how to make this work with the bindings
     manager->priv->sort_func = sort_func;
     manager->priv->sort_data = sort_data;
     manager->priv->sort_notify = notify;
 
-    manager->priv->players =
-        g_list_sort_with_data(manager->priv->players, sort_func, sort_data);
+    manager->priv->players = g_list_sort_with_data(manager->priv->players, sort_func, sort_data);
 }
 
 /**
@@ -487,7 +430,7 @@ void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
  * sorted order.
  */
 void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager,
-                                               PlayerctlPlayer *player) {
+                                                 PlayerctlPlayer *player) {
     GList *l;
     for (l = manager->priv->players; l != NULL; l = l->next) {
         PlayerctlPlayer *current = PLAYERCTL_PLAYER(l->data);
@@ -496,10 +439,8 @@ void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager
             manager->priv->players = g_list_concat(l, manager->priv->players);
 
             if (manager->priv->sort_func) {
-                manager->priv->players =
-                    g_list_sort_with_data(manager->priv->players,
-                            manager->priv->sort_func,
-                            manager->priv->sort_data);
+                manager->priv->players = g_list_sort_with_data(
+                    manager->priv->players, manager->priv->sort_func, manager->priv->sort_data);
             }
 
             break;
@@ -534,10 +475,8 @@ void playerctl_player_manager_manage_player(PlayerctlPlayerManager *manager,
     }
 
     if (manager->priv->sort_func) {
-        manager->priv->players =
-            g_list_insert_sorted_with_data(manager->priv->players, player,
-                                           manager->priv->sort_func,
-                                           manager->priv->sort_data);
+        manager->priv->players = g_list_insert_sorted_with_data(
+            manager->priv->players, player, manager->priv->sort_func, manager->priv->sort_data);
     } else {
         manager->priv->players = g_list_prepend(manager->priv->players, player);
     }

@@ -23,9 +23,9 @@
 #define __PLAYERCTL_INSIDE__
 
 #include <playerctl/playerctl-enum-types.h>
+#include <playerctl/playerctl-player-manager.h>
 #include <playerctl/playerctl-player-name.h>
 #include <playerctl/playerctl-player.h>
-#include <playerctl/playerctl-player-manager.h>
 #include <playerctl/playerctl-version.h>
 
 #undef __PLAYERCTL_INSIDE__

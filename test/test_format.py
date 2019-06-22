@@ -6,6 +6,7 @@ from .playerctl import PlayerctlCli
 import pytest
 import asyncio
 
+
 @pytest.mark.asyncio
 async def test_format(bus_address):
     bus = await MessageBus(bus_address=bus_address).connect()
@@ -27,7 +28,8 @@ async def test_format(bus_address):
     cmd = await playerctl.run('metadata --format "{{artist}} - {{title}}"')
     assert cmd.stdout == f'{ARTIST} - {TITLE}'
 
-    cmd = await playerctl.run('metadata --format "{{markup_escape(xesam:escapeme)}}"')
+    cmd = await playerctl.run(
+        'metadata --format "{{markup_escape(xesam:escapeme)}}"')
     assert cmd.stdout == '&lt;hi&gt;'
 
     cmd = await playerctl.run('metadata --format "{{lc(artist)}}"')
@@ -45,5 +47,7 @@ async def test_format(bus_address):
     cmd = await playerctl.run('metadata --format "{{mpris:length}}"')
     assert cmd.stdout == "100000"
 
-    cmd = await playerctl.run('metadata --format \'@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@\'')
+    cmd = await playerctl.run(
+        'metadata --format \'@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@\''
+    )
     assert cmd.stdout == '@HI - HO . a title@'

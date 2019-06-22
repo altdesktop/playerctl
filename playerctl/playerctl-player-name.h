@@ -20,8 +20,8 @@
 #ifndef __PLAYERCTL_PLAYER_NAME_H__
 #define __PLAYERCTL_PLAYER_NAME_H__
 
-#include <glib.h>
 #include <glib-object.h>
+#include <glib.h>
 
 /**
  * SECTION: playerctl-player-name

@@ -59,5 +59,5 @@ void playerctl_player_name_free(PlayerctlPlayerName *name) {
     g_slice_free(PlayerctlPlayerName, name);
 }
 
-G_DEFINE_BOXED_TYPE(PlayerctlPlayerName, playerctl_player_name,
-    playerctl_player_name_copy, playerctl_player_name_free);
+G_DEFINE_BOXED_TYPE(PlayerctlPlayerName, playerctl_player_name, playerctl_player_name_copy,
+                    playerctl_player_name_free);

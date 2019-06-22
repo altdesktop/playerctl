@@ -20,8 +20,8 @@
 #ifndef __PLAYERCTL_COMMON_H__
 #define __PLAYERCTL_COMMON_H__
 
-#include <glib.h>
 #include <gio/gio.h>
+#include <glib.h>
 #include <playerctl/playerctl.h>
 
 #define MPRIS_PREFIX "org.mpris.MediaPlayer2."
@@ -40,11 +40,9 @@ GBusType pctl_source_to_bus_type(PlayerctlSource source);
 
 PlayerctlSource pctl_bus_type_to_source(GBusType bus_type);
 
-PlayerctlPlayerName *pctl_player_name_new(const gchar *name,
-                                          PlayerctlSource source);
+PlayerctlPlayerName *pctl_player_name_new(const gchar *name, PlayerctlSource source);
 
-gint pctl_player_name_compare(PlayerctlPlayerName *name_a,
-                              PlayerctlPlayerName *name_b);
+gint pctl_player_name_compare(PlayerctlPlayerName *name_a, PlayerctlPlayerName *name_b);
 
 gint pctl_player_name_instance_compare(PlayerctlPlayerName *name, PlayerctlPlayerName *instance);
 

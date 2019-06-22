@@ -17,10 +17,10 @@
  * Copyright © 2014, Tony Crisci and contributors.
  */
 
-#include <stdio.h>
-#include <glib.h>
-#include <strings.h>
 #include "playerctl-common.h"
+#include <glib.h>
+#include <stdio.h>
+#include <strings.h>
 
 gboolean pctl_parse_playback_status(const gchar *status_str, PlayerctlPlaybackStatus *status) {
     if (status_str == NULL) {
@@ -82,7 +82,6 @@ gboolean pctl_parse_loop_status(const gchar *status_str, PlayerctlLoopStatus *st
     }
 
     return FALSE;
-
 }
 
 gchar *pctl_print_gvariant(GVariant *value) {
@@ -132,8 +131,7 @@ PlayerctlSource pctl_bus_type_to_source(GBusType bus_type) {
     }
 }
 
-PlayerctlPlayerName *pctl_player_name_new(const gchar *instance,
-                                          PlayerctlSource source) {
+PlayerctlPlayerName *pctl_player_name_new(const gchar *instance, PlayerctlSource source) {
     PlayerctlPlayerName *player_name = g_slice_new(PlayerctlPlayerName);
     gchar **split = g_strsplit(instance, ".instance", 2);
     player_name->name = g_strdup(split[0]);
@@ -143,17 +141,14 @@ PlayerctlPlayerName *pctl_player_name_new(const gchar *instance,
     return player_name;
 }
 
-
-gint pctl_player_name_compare(PlayerctlPlayerName *name_a,
-                              PlayerctlPlayerName *name_b) {
+gint pctl_player_name_compare(PlayerctlPlayerName *name_a, PlayerctlPlayerName *name_b) {
     if (name_a->source != name_b->source) {
         return 1;
     }
     return g_strcmp0(name_a->instance, name_b->instance);
 }
 
-gint pctl_player_name_instance_compare(PlayerctlPlayerName *name,
-                                       PlayerctlPlayerName *instance) {
+gint pctl_player_name_instance_compare(PlayerctlPlayerName *name, PlayerctlPlayerName *instance) {
     if (name->source != instance->source) {
         return 1;
     }
@@ -162,8 +157,9 @@ gint pctl_player_name_instance_compare(PlayerctlPlayerName *name,
 
 gint pctl_player_name_string_instance_compare(const gchar *name, const gchar *instance) {
     gboolean exact_match = (g_strcmp0(name, instance) == 0);
-    gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
-            g_str_has_prefix(instance + strlen(name), ".instance"));
+    gboolean instance_match =
+        !exact_match && (g_str_has_prefix(instance, name) &&
+                         g_str_has_prefix(instance + strlen(name), ".instance"));
 
     if (exact_match || instance_match) {
         return 0;
@@ -178,8 +174,7 @@ GList *pctl_player_name_find(GList *list, gchar *player_id, PlayerctlSource sour
         .source = source,
     };
 
-    return g_list_find_custom(list, &player_name,
-                              (GCompareFunc)pctl_player_name_compare);
+    return g_list_find_custom(list, &player_name, (GCompareFunc)pctl_player_name_compare);
 }
 
 GList *pctl_player_name_find_instance(GList *list, gchar *player_id, PlayerctlSource source) {
@@ -188,9 +183,7 @@ GList *pctl_player_name_find_instance(GList *list, gchar *player_id, PlayerctlSo
         .source = source,
     };
 
-    return g_list_find_custom(list, &player_name,
-                              (GCompareFunc)pctl_player_name_instance_compare);
-
+    return g_list_find_custom(list, &player_name, (GCompareFunc)pctl_player_name_instance_compare);
 }
 
 void pctl_player_name_list_destroy(GList *list) {
