@@ -1,13 +1,13 @@
-#include <glib.h>
-#include <playerctl/playerctl-player.h>
 #include "playerctl/playerctl-formatter.h"
-#include "playerctl/playerctl-common.h"
-#include <inttypes.h>
 #include <assert.h>
+#include <glib.h>
+#include <inttypes.h>
+#include <playerctl/playerctl-player.h>
+#include "playerctl/playerctl-common.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
-G_DEFINE_QUARK(playerctl-formatter-error-quark, playerctl_formatter_error);
+G_DEFINE_QUARK(playerctl - formatter - error - quark, playerctl_formatter_error);
 
 enum token_type {
     TOKEN_VARIABLE,
@@ -67,7 +67,7 @@ static gboolean token_list_contains_key(GList *tokens, const gchar *key) {
             break;
         case TOKEN_FUNCTION:
             if (token->arg != NULL && token->arg->type == TOKEN_VARIABLE &&
-                    g_strcmp0(token->arg->data, key) == 0) {
+                g_strcmp0(token->arg->data, key) == 0) {
                 return TRUE;
             }
             break;
@@ -121,7 +121,7 @@ static struct token *tokenize_expression(const gchar *format, gint pos, gint *en
                     i++;
                 }
                 *end = i;
-                //printf("string: '%s'\n", ret->data);
+                // printf("string: '%s'\n", ret->data);
                 return ret;
             } else {
                 buf[buf_len++] = format[i];
@@ -134,7 +134,7 @@ static struct token *tokenize_expression(const gchar *format, gint pos, gint *en
                 buf[buf_len] = '\0';
                 ret->data = g_strdup(buf);
                 i += 1;
-                //printf("function: '%s'\n", ret->data);
+                // printf("function: '%s'\n", ret->data);
                 ret->arg = tokenize_expression(format, i, end, &tmp_error);
 
                 while (*end < len && format[*end] == ' ') {
@@ -163,7 +163,7 @@ static struct token *tokenize_expression(const gchar *format, gint pos, gint *en
                     i++;
                 }
                 *end = i;
-                //printf("variable: '%s' end='%c'\n", ret->data, format[*end]);
+                // printf("variable: '%s' end='%c'\n", ret->data, format[*end]);
                 return ret;
             } else {
                 buf[buf_len] = format[i];
@@ -173,9 +173,7 @@ static struct token *tokenize_expression(const gchar *format, gint pos, gint *en
         }
     }
 
-
-    g_set_error(error, playerctl_formatter_error_quark(), 1,
-                "unexpected end of format string");
+    g_set_error(error, playerctl_formatter_error_quark(), 1, "unexpected end of format string");
     return NULL;
 }
 
@@ -198,13 +196,13 @@ static GList *tokenize_format(const char *format, GError **error) {
     }
 
     for (int i = 0; i < len; ++i) {
-        if (format[i] == '{' && i < len + 1 && format[i+1] == '{') {
+        if (format[i] == '{' && i < len + 1 && format[i + 1] == '{') {
             if (buf_len > 0) {
                 buf[buf_len] = '\0';
                 buf_len = 0;
                 struct token *token = token_create(TOKEN_STRING);
                 token->data = g_strdup(buf);
-                //printf("passthrough: '%s'\n", token->data);
+                // printf("passthrough: '%s'\n", token->data);
                 tokens = g_list_append(tokens, token);
             }
 
@@ -223,7 +221,7 @@ static GList *tokenize_format(const char *format, GError **error) {
                 i++;
             }
 
-            if (i >= len || format[i] != '}' || format[i+1] != '}') {
+            if (i >= len || format[i] != '}' || format[i + 1] != '}') {
                 token_list_destroy(tokens);
                 g_set_error(error, playerctl_formatter_error_quark(), 1,
                             "expecting \"}}\" (position %d)", i);
@@ -231,7 +229,7 @@ static GList *tokenize_format(const char *format, GError **error) {
             }
             i += 1;
 
-        } else if (format[i] == '}' && i < len + 1 && format[i+1] == '}') {
+        } else if (format[i] == '}' && i < len + 1 && format[i + 1] == '}') {
             assert(FALSE && "TODO");
         } else {
             buf[buf_len++] = format[i];
@@ -248,14 +246,14 @@ static GList *tokenize_format(const char *format, GError **error) {
     return tokens;
 }
 
-static gchar *helperfn_lc(gchar *key, GVariant *value) {
+static gchar *helperfn_lc(struct token *token, GVariant *value, GError **error) {
     gchar *printed = pctl_print_gvariant(value);
     gchar *printed_lc = g_utf8_strdown(printed, -1);
     g_free(printed);
     return printed_lc;
 }
 
-static gchar *helperfn_uc(gchar *key, GVariant *value) {
+static gchar *helperfn_uc(struct token *token, GVariant *value, GError **error) {
     if (value == NULL) {
         return g_strdup("");
     }
@@ -266,7 +264,7 @@ static gchar *helperfn_uc(gchar *key, GVariant *value) {
     return printed_uc;
 }
 
-static gchar *helperfn_duration(gchar *key, GVariant *value) {
+static gchar *helperfn_duration(struct token *token, GVariant *value, GError **error) {
     if (value == NULL) {
         return g_strdup("");
     }
@@ -284,7 +282,8 @@ static gchar *helperfn_duration(gchar *key, GVariant *value) {
     GString *formatted = g_string_new("");
 
     if (hours != 0) {
-        g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64 ":%02" PRId64, hours, minutes, seconds);
+        g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64 ":%02" PRId64, hours, minutes,
+                               seconds);
     } else {
         g_string_append_printf(formatted, "%" PRId64 ":%02" PRId64, minutes, seconds);
     }
@@ -294,7 +293,7 @@ static gchar *helperfn_duration(gchar *key, GVariant *value) {
 
 /* Calls g_markup_escape_text to replace the text with appropriately escaped
 characters for XML */
-static gchar *helperfn_markup_escape(gchar *key, GVariant *value) {
+static gchar *helperfn_markup_escape(struct token *token, GVariant *value, GError **error) {
     if (value == NULL) {
         return g_strdup("");
     }
@@ -305,14 +304,22 @@ static gchar *helperfn_markup_escape(gchar *key, GVariant *value) {
     return escaped;
 }
 
-static gchar *helperfn_emoji(gchar *key, GVariant *value) {
-    g_warning("The emoji() helper function is undocumented and experimental and will change in a future release.");
+static gchar *helperfn_emoji(struct token *token, GVariant *value, GError **error) {
+    g_warning("The emoji() helper function is undocumented and experimental and will change in a "
+              "future release.");
     if (value == NULL) {
         return g_strdup("");
     }
 
-    if (g_strcmp0(key, "status") == 0 &&
-            g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
+    if (token->type != TOKEN_VARIABLE) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "the emoji function can only be called with a variable");
+        return NULL;
+    }
+
+    gchar *key = token->data;
+
+    if (g_strcmp0(key, "status") == 0 && g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
         const gchar *status_str = g_variant_get_string(value, NULL);
         PlayerctlPlaybackStatus status = 0;
         if (pctl_parse_playback_status(status_str, &status)) {
@@ -326,7 +333,7 @@ static gchar *helperfn_emoji(gchar *key, GVariant *value) {
             }
         }
     } else if (g_strcmp0(key, "volume") == 0 &&
-            g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
+               g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
         const gdouble volume = g_variant_get_double(value);
         if (volume < 0.3333) {
             return g_strdup("🔈");
@@ -342,7 +349,7 @@ static gchar *helperfn_emoji(gchar *key, GVariant *value) {
 
 struct template_helper {
     const gchar *name;
-    gchar *(*func)(gchar *key, GVariant *value);
+    gchar *(*func)(struct token *token, GVariant *value, GError **error);
 } helpers[] = {
     {"lc", &helperfn_lc},
     {"uc", &helperfn_uc},
@@ -366,38 +373,39 @@ static GVariant *expand_token(struct token *token, GVariantDict *context, GError
             return NULL;
         }
 
-    case TOKEN_FUNCTION:
-        {
-            assert(token->arg != NULL);
-            gchar *arg_name = NULL;
-            if (token->type == TOKEN_VARIABLE) {
-                arg_name = token->data;
-            }
+    case TOKEN_FUNCTION: {
+        assert(token->arg != NULL);
 
-            GVariant *value = expand_token(token->arg, context, &tmp_error);
+        GVariant *value = expand_token(token->arg, context, &tmp_error);
 
-            if (tmp_error != NULL) {
-                g_propagate_error(error, tmp_error);
-                return NULL;
-            }
-
-            for (gsize i = 0; i < LENGTH(helpers); ++i) {
-                if (g_strcmp0(helpers[i].name, token->data) == 0) {
-                    gchar *result = helpers[i].func(arg_name, value);
-                    if (value != NULL) {
-                        g_variant_unref(value);
-                    }
-                    return g_variant_new("s", result);
-                }
-            }
-
-            if (value != NULL) {
-                g_variant_unref(value);
-            }
-            g_set_error(error, playerctl_formatter_error_quark(), 1,
-                        "unknown template function: %s", token->data);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
             return NULL;
         }
+
+        for (gsize i = 0; i < LENGTH(helpers); ++i) {
+            if (g_strcmp0(helpers[i].name, token->data) == 0) {
+                gchar *result = helpers[i].func(token, value, &tmp_error);
+                if (value != NULL) {
+                    g_variant_unref(value);
+                }
+
+                if (tmp_error != NULL) {
+                    g_propagate_error(error, tmp_error);
+                    return NULL;
+                }
+
+                return g_variant_new("s", result);
+            }
+        }
+
+        if (value != NULL) {
+            g_variant_unref(value);
+        }
+        g_set_error(error, playerctl_formatter_error_quark(), 1, "unknown template function: %s",
+                    token->data);
+        return NULL;
+    }
     }
 
     assert(FALSE && "not reached");
@@ -430,19 +438,19 @@ static gchar *expand_format(GList *tokens, GVariantDict *context, GError **error
 static GVariantDict *get_default_template_context(PlayerctlPlayer *player, GVariant *base) {
     GVariantDict *context = g_variant_dict_new(base);
     if (!g_variant_dict_contains(context, "artist") &&
-            g_variant_dict_contains(context, "xesam:artist")) {
+        g_variant_dict_contains(context, "xesam:artist")) {
         GVariant *artist = g_variant_dict_lookup_value(context, "xesam:artist", NULL);
         g_variant_dict_insert_value(context, "artist", artist);
         g_variant_unref(artist);
     }
     if (!g_variant_dict_contains(context, "album") &&
-            g_variant_dict_contains(context, "xesam:album")) {
+        g_variant_dict_contains(context, "xesam:album")) {
         GVariant *album = g_variant_dict_lookup_value(context, "xesam:album", NULL);
         g_variant_dict_insert_value(context, "album", album);
         g_variant_unref(album);
     }
     if (!g_variant_dict_contains(context, "title") &&
-            g_variant_dict_contains(context, "xesam:title")) {
+        g_variant_dict_contains(context, "xesam:title")) {
         GVariant *title = g_variant_dict_lookup_value(context, "xesam:title", NULL);
         g_variant_dict_insert_value(context, "title", title);
         g_variant_unref(title);
@@ -526,12 +534,14 @@ gboolean playerctl_formatter_contains_key(PlayerctlFormatter *formatter, const g
     return token_list_contains_key(formatter->priv->tokens, key);
 }
 
-GVariantDict *playerctl_formatter_default_template_context(
-        PlayerctlFormatter *formatter, PlayerctlPlayer *player, GVariant *base) {
+GVariantDict *playerctl_formatter_default_template_context(PlayerctlFormatter *formatter,
+                                                           PlayerctlPlayer *player,
+                                                           GVariant *base) {
     return get_default_template_context(player, base);
 }
 
-gchar *playerctl_formatter_expand_format(PlayerctlFormatter *formatter, GVariantDict *context, GError **error) {
+gchar *playerctl_formatter_expand_format(PlayerctlFormatter *formatter, GVariantDict *context,
+                                         GError **error) {
     GError *tmp_error = NULL;
     gchar *expanded = expand_format(formatter->priv->tokens, context, &tmp_error);
     if (tmp_error != NULL) {
