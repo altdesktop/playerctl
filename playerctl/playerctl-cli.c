@@ -30,7 +30,9 @@
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
+// clang-format off
 G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
+// clang-format on
 
 /* The CLI will exit with this exit status */
 static gint exit_status = 0;

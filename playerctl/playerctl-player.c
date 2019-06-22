@@ -282,7 +282,9 @@ G_DEFINE_TYPE_WITH_CODE(PlayerctlPlayer, playerctl_player, G_TYPE_OBJECT,
                             G_TYPE_INITABLE,
                             playerctl_player_initable_iface_init));
 
+// clang-format off
 G_DEFINE_QUARK(playerctl-player-error-quark, playerctl_player_error);
+// clang-format on
 
 static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self,
                                                GError **err) {

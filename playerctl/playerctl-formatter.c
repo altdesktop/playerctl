@@ -7,7 +7,9 @@
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
-G_DEFINE_QUARK(playerctl - formatter - error - quark, playerctl_formatter_error);
+// clang-format off
+G_DEFINE_QUARK(playerctl-formatter-error-quark, playerctl_formatter_error);
+// clang-format on
 
 enum token_type {
     TOKEN_VARIABLE,
