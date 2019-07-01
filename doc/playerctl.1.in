@@ -157,9 +157,8 @@ and
 .Cm volume
 commands can be controlled using a format string.
 Variables set by these commands can be included in the format string
-by enclosing them in curly braces,
-i.e:
-.Brq Brq Va var .
+by enclosing them in curly braces:
+.Ql Brq Brq Va var .
 These will then be expanded on output.
 .Pp
 Each command has access to the following variables:
@@ -199,7 +198,7 @@ The title of the current track.
 Helper functions are also available to transform expanded variables into
 other representations.
 They are called in the form
-.Brq Brq Fn func var .
+.Ql Brq Brq Fn func var .
 The helper functions are as follows:
 .Bl -tag -width Ds
 .It Fn lc str
@@ -213,14 +212,16 @@ to uppercase.
 .It Fn markup_escape str
 Escape XML characters in string
 .Va str .
-.It Fn default any any
-Print the first value if it is is present, or else print the second.
+.It Fn default str1 str2
+Print
+.Fa str1
+if set, else print
+.Fa str2 .
 .It Fn duration time
 Reformat the microsecond timestamp
 .Va time
-in
-.Ql hh:mm:ss
-form.
+in the form
+.Ql hh:mm:ss .
 Can only be called with
 .Va position
 or
