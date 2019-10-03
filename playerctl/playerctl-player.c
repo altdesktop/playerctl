@@ -145,12 +145,14 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
 
     if (shuffle != NULL) {
         gboolean shuffle_value = g_variant_get_boolean(shuffle);
+		g_debug("Shuffle value set to %s", shuffle_value ? "true" : "false");
         g_signal_emit(self, connection_signals[SHUFFLE], 0, shuffle_value);
         g_variant_unref(shuffle);
     }
 
     if (volume != NULL) {
         gdouble volume_value = g_variant_get_double(volume);
+		g_debug("Volume set to %f", volume_value);
         g_signal_emit(self, connection_signals[VOLUME], 0, volume_value);
         g_variant_unref(volume);
     }
@@ -163,6 +165,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
             (track_id != NULL && self->priv->cached_track_id == NULL) ||
             (g_strcmp0(track_id, self->priv->cached_track_id) != 0)) {
             g_free(self->priv->cached_track_id);
+			g_debug("Track id updated to %s", track_id);
             self->priv->cached_track_id = track_id;
             track_id_invalidated = TRUE;
         } else {
@@ -212,7 +215,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
                 quark = g_quark_from_string("none");
                 break;
             }
-
+			g_debug("Loop status set to %s", g_quark_to_string(quark));
             g_signal_emit(self, connection_signals[LOOP_STATUS], quark, status);
         }
 
@@ -221,6 +224,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
 
     if (playback_status != NULL) {
         const gchar *status_str = g_variant_get_string(playback_status, NULL);
+		g_debug("Playback status set to %s", status_str);
         PlayerctlPlaybackStatus status = 0;
         GQuark quark = 0;
 
@@ -265,6 +269,7 @@ static void playerctl_player_seeked_callback(GDBusProxy *_proxy, gint64 position
                                              gpointer *user_data) {
     PlayerctlPlayer *player = PLAYERCTL_PLAYER(user_data);
     player->priv->cached_position = position;
+	g_debug("New player position %ld", position);
     clock_gettime(CLOCK_MONOTONIC, &player->priv->cached_position_monotonic);
     g_signal_emit(player, connection_signals[SEEKED], 0, position);
 }
