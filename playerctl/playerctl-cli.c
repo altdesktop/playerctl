@@ -1070,7 +1070,6 @@ int main(int argc, char *argv[]) {
         g_clear_error(&error);
         exit(1);
     }
-	g_debug("Parsed command: %s", player_cmd->name);
 
     if (format_string_arg != NULL) {
         formatter = playerctl_formatter_new(format_string_arg, &error);
@@ -1101,19 +1100,12 @@ int main(int argc, char *argv[]) {
     g_object_get(manager, "player-names", &available_players, NULL);
     available_players = g_list_copy(available_players);
     available_players = g_list_sort(available_players, (GCompareFunc)player_name_compare_func);
-	GList *p = available_players;
-	do {
-		// TODO condense this if I can
-		gpointer data = p->data;
-		PlayerctlPlayerName *name = (PlayerctlPlayerName*)data;
-		gchar* value = name->name;
-		g_debug("Found player %s", value);
-	} while ((p = p->next) != NULL);
 
     gboolean has_selected = FALSE;
     GList *l = NULL;
     for (l = available_players; l != NULL; l = l->next) {
         PlayerctlPlayerName *name = l->data;
+		g_debug("Found player %s", name->name);
         if (!name_is_selected(name->instance)) {
             continue;
         }
@@ -1131,6 +1123,7 @@ int main(int argc, char *argv[]) {
             init_managed_player(player, player_cmd);
         } else {
             gchar *output = NULL;
+			g_debug("Executing command %s", player_cmd->name);
             gboolean result = player_cmd->func(player, command_arg, num_commands, &output, &error);
             if (error != NULL) {
                 g_printerr("Could not execute command: %s\n", error->message);
