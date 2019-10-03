@@ -290,7 +290,6 @@ static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **e
     GError *tmp_error = NULL;
 
     g_main_context_iteration(NULL, FALSE);
-	g_debug("Getting player metadata");
     metadata = org_mpris_media_player2_player_dup_metadata(self->priv->proxy);
 
     if (!metadata) {
