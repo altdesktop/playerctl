@@ -117,6 +117,7 @@ static gchar *metadata_get_track_id(GVariant *metadata) {
         // XXX some players set this as a string, which is against the protocol,
         // but a lot of them do it and I don't feel like fixing it on all the
         // players in the world.
+		g_warning("mpris:trackid is a string, not a D-Bus object reference");
         track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_STRING);
     }
 
