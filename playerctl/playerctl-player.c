@@ -991,6 +991,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
             if (tmp_error != NULL) {
                 if (tmp_error->domain == G_IO_ERROR && tmp_error->code == G_IO_ERROR_NOT_FOUND) {
                     // TODO the bus address was set incorrectly so log a warning
+					g_warning("Bus address set incorrectly, cannot get bus");
                     g_clear_error(&tmp_error);
                     continue;
                 }
@@ -1028,6 +1029,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
     g_free(bus_name);
 
     // init the cache
+	g_debug("Initializing cache for player %s", player->priv->player_name);
     player->priv->cached_position =
         org_mpris_media_player2_player_get_position(player->priv->proxy);
     clock_gettime(CLOCK_MONOTONIC, &player->priv->cached_position_monotonic);
