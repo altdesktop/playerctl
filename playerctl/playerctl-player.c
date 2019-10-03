@@ -843,6 +843,7 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
             // incorrectly. I think we can pass through here because it is true
             // that there are no names on the bus that is supposed to be at
             // this socket path. But we need a better way of dealing with this case.
+			g_warning("D-Bus socket address not found, unable to list player names");
             g_clear_error(&tmp_error);
             return NULL;
         }
@@ -850,6 +851,7 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
         return NULL;
     }
 
+	g_debug("Getting list of player names from D-Bus");
     GVariant *reply = g_dbus_proxy_call_sync(proxy, "ListNames", NULL, G_DBUS_CALL_FLAGS_NONE, -1,
                                              NULL, &tmp_error);
 
