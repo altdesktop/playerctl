@@ -906,6 +906,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
     }
 
     if (name == NULL) {
+		g_debug("Getting bus name for first available player");
         PlayerctlPlayerName *name = names->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->instance);
         pctl_player_name_list_destroy(names);
@@ -914,6 +915,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
 
     GList *exact_match = pctl_player_name_find(names, name, pctl_bus_type_to_source(bus_type));
     if (exact_match != NULL) {
+		g_debug("Geting bus name for player %s by exact match", name);
         PlayerctlPlayerName *name = exact_match->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->instance);
         g_list_free_full(names, (GDestroyNotify)playerctl_player_name_free);
@@ -923,6 +925,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
     GList *instance_match =
         pctl_player_name_find_instance(names, name, pctl_bus_type_to_source(bus_type));
     if (instance_match != NULL) {
+		g_debug("Geting bus name for player %s by instance match", name);
         gchar *name = instance_match->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
         pctl_player_name_list_destroy(names);
