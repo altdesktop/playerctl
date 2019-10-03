@@ -989,7 +989,6 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
                 bus_name_for_player_name(player->priv->player_name, bus_types[i], &tmp_error);
             if (tmp_error != NULL) {
                 if (tmp_error->domain == G_IO_ERROR && tmp_error->code == G_IO_ERROR_NOT_FOUND) {
-                    // TODO the bus address was set incorrectly so log a warning
 					g_warning("Bus address set incorrectly, cannot get bus");
                     g_clear_error(&tmp_error);
                     continue;
