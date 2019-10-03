@@ -254,7 +254,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
                 g_signal_emit(self, connection_signals[PLAYBACK_STATUS], quark, status);
             }
         } else {
-            g_warning("got unknown playback state: %s", status_str);
+            g_warning("Got unknown playback state: %s", status_str);
         }
 
         g_variant_unref(playback_status);
