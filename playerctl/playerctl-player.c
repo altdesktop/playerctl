@@ -117,7 +117,7 @@ static gchar *metadata_get_track_id(GVariant *metadata) {
         // XXX some players set this as a string, which is against the protocol,
         // but a lot of them do it and I don't feel like fixing it on all the
         // players in the world.
-		g_warning("mpris:trackid is a string, not a D-Bus object reference");
+        g_warning("mpris:trackid is a string, not a D-Bus object reference");
         track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_STRING);
     }
 
@@ -145,14 +145,14 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
 
     if (shuffle != NULL) {
         gboolean shuffle_value = g_variant_get_boolean(shuffle);
-		g_debug("Shuffle value set to %s", shuffle_value ? "true" : "false");
+        g_debug("Shuffle value set to %s", shuffle_value ? "true" : "false");
         g_signal_emit(self, connection_signals[SHUFFLE], 0, shuffle_value);
         g_variant_unref(shuffle);
     }
 
     if (volume != NULL) {
         gdouble volume_value = g_variant_get_double(volume);
-		g_debug("Volume set to %f", volume_value);
+        g_debug("Volume set to %f", volume_value);
         g_signal_emit(self, connection_signals[VOLUME], 0, volume_value);
         g_variant_unref(volume);
     }
@@ -165,7 +165,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
             (track_id != NULL && self->priv->cached_track_id == NULL) ||
             (g_strcmp0(track_id, self->priv->cached_track_id) != 0)) {
             g_free(self->priv->cached_track_id);
-			g_debug("Track id updated to %s", track_id);
+            g_debug("Track id updated to %s", track_id);
             self->priv->cached_track_id = track_id;
             track_id_invalidated = TRUE;
         } else {
@@ -185,7 +185,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
         // XXX: Lots of player aren't setting status correctly when the track
         // changes so we have to get it from the interface. We should
         // definitely go fix this bug on the players.
-		g_warning("Playback status not set on track change; getting status from interface instead");
+        g_warning("Playback status not set on track change; getting status from interface instead");
         GVariant *call_reply = g_dbus_proxy_call_sync(
             G_DBUS_PROXY(self->priv->proxy), "org.freedesktop.DBus.Properties.Get",
             g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "PlaybackStatus"),
@@ -215,7 +215,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
                 quark = g_quark_from_string("none");
                 break;
             }
-			g_debug("Loop status set to %s", g_quark_to_string(quark));
+            g_debug("Loop status set to %s", g_quark_to_string(quark));
             g_signal_emit(self, connection_signals[LOOP_STATUS], quark, status);
         }
 
@@ -224,7 +224,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
 
     if (playback_status != NULL) {
         const gchar *status_str = g_variant_get_string(playback_status, NULL);
-		g_debug("Playback status set to %s", status_str);
+        g_debug("Playback status set to %s", status_str);
         PlayerctlPlaybackStatus status = 0;
         GQuark quark = 0;
 
@@ -269,7 +269,7 @@ static void playerctl_player_seeked_callback(GDBusProxy *_proxy, gint64 position
                                              gpointer *user_data) {
     PlayerctlPlayer *player = PLAYERCTL_PLAYER(user_data);
     player->priv->cached_position = position;
-	g_debug("New player position %ld", position);
+    g_debug("New player position %ld", position);
     clock_gettime(CLOCK_MONOTONIC, &player->priv->cached_position_monotonic);
     g_signal_emit(player, connection_signals[SEEKED], 0, position);
 }
@@ -295,7 +295,7 @@ static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **e
     if (!metadata) {
         // XXX: Ugly spotify workaround. Spotify does not seem to use the property
         // cache. We have to get the properties directly.
-		g_warning("Spotify does not use the D-Bus property cache, getting properties directly");
+        g_warning("Spotify does not use the D-Bus property cache, getting properties directly");
         GVariant *call_reply = g_dbus_proxy_call_sync(
             G_DBUS_PROXY(self->priv->proxy), "org.freedesktop.DBus.Properties.Get",
             g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "Metadata"),
@@ -842,7 +842,7 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
             // incorrectly. I think we can pass through here because it is true
             // that there are no names on the bus that is supposed to be at
             // this socket path. But we need a better way of dealing with this case.
-			g_warning("D-Bus socket address not found, unable to list player names");
+            g_warning("D-Bus socket address not found, unable to list player names");
             g_clear_error(&tmp_error);
             return NULL;
         }
@@ -850,7 +850,7 @@ static GList *list_player_names_on_bus(GBusType bus_type, GError **err) {
         return NULL;
     }
 
-	g_debug("Getting list of player names from D-Bus");
+    g_debug("Getting list of player names from D-Bus");
     GVariant *reply = g_dbus_proxy_call_sync(proxy, "ListNames", NULL, G_DBUS_CALL_FLAGS_NONE, -1,
                                              NULL, &tmp_error);
 
@@ -905,7 +905,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
     }
 
     if (name == NULL) {
-		g_debug("Getting bus name for first available player");
+        g_debug("Getting bus name for first available player");
         PlayerctlPlayerName *name = names->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->instance);
         pctl_player_name_list_destroy(names);
@@ -914,7 +914,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
 
     GList *exact_match = pctl_player_name_find(names, name, pctl_bus_type_to_source(bus_type));
     if (exact_match != NULL) {
-		g_debug("Geting bus name for player %s by exact match", name);
+        g_debug("Geting bus name for player %s by exact match", name);
         PlayerctlPlayerName *name = exact_match->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name->instance);
         g_list_free_full(names, (GDestroyNotify)playerctl_player_name_free);
@@ -924,7 +924,7 @@ static gchar *bus_name_for_player_name(gchar *name, GBusType bus_type, GError **
     GList *instance_match =
         pctl_player_name_find_instance(names, name, pctl_bus_type_to_source(bus_type));
     if (instance_match != NULL) {
-		g_debug("Geting bus name for player %s by instance match", name);
+        g_debug("Geting bus name for player %s by instance match", name);
         gchar *name = instance_match->data;
         bus_name = g_strdup_printf(MPRIS_PREFIX "%s", name);
         pctl_player_name_list_destroy(names);
@@ -989,7 +989,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
                 bus_name_for_player_name(player->priv->player_name, bus_types[i], &tmp_error);
             if (tmp_error != NULL) {
                 if (tmp_error->domain == G_IO_ERROR && tmp_error->code == G_IO_ERROR_NOT_FOUND) {
-					g_warning("Bus address set incorrectly, cannot get bus");
+                    g_warning("Bus address set incorrectly, cannot get bus");
                     g_clear_error(&tmp_error);
                     continue;
                 }
@@ -1027,7 +1027,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
     g_free(bus_name);
 
     // init the cache
-	g_debug("Initializing cache for player %s", player->priv->player_name);
+    g_debug("Initializing cache for player %s", player->priv->player_name);
     player->priv->cached_position =
         org_mpris_media_player2_player_get_position(player->priv->proxy);
     clock_gettime(CLOCK_MONOTONIC, &player->priv->cached_position_monotonic);

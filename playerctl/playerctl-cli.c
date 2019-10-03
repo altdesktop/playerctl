@@ -1039,7 +1039,7 @@ gint player_compare_func(gconstpointer a, gconstpointer b) {
 }
 
 int main(int argc, char *argv[]) {
-	g_debug("playerctl version %s", PLAYERCTL_VERSION_S);
+    g_debug("playerctl version %s", PLAYERCTL_VERSION_S);
     GError *error = NULL;
     guint num_commands = 0;
 
@@ -1105,7 +1105,7 @@ int main(int argc, char *argv[]) {
     GList *l = NULL;
     for (l = available_players; l != NULL; l = l->next) {
         PlayerctlPlayerName *name = l->data;
-		g_debug("Found player %s", name->name);
+        g_debug("Found player %s", name->name);
         if (!name_is_selected(name->instance)) {
             continue;
         }
@@ -1123,7 +1123,7 @@ int main(int argc, char *argv[]) {
             init_managed_player(player, player_cmd);
         } else {
             gchar *output = NULL;
-			g_debug("Executing command %s", player_cmd->name);
+            g_debug("Executing command %s", player_cmd->name);
             gboolean result = player_cmd->func(player, command_arg, num_commands, &output, &error);
             if (error != NULL) {
                 g_printerr("Could not execute command: %s\n", error->message);
