@@ -290,11 +290,13 @@ static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **e
     GError *tmp_error = NULL;
 
     g_main_context_iteration(NULL, FALSE);
+	g_debug("Getting player metadata");
     metadata = org_mpris_media_player2_player_dup_metadata(self->priv->proxy);
 
     if (!metadata) {
         // XXX: Ugly spotify workaround. Spotify does not seem to use the property
         // cache. We have to get the properties directly.
+		g_warning("Spotify does not use the D-Bus property cache, getting properties directly");
         GVariant *call_reply = g_dbus_proxy_call_sync(
             G_DBUS_PROXY(self->priv->proxy), "org.freedesktop.DBus.Properties.Get",
             g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "Metadata"),
