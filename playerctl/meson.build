@@ -32,6 +32,7 @@ playerctl_sources = [
 # Allow including playerctl.h during compilation
 add_global_arguments(
   '-DPLAYERCTL_COMPILATION',
+  '-DG_LOG_DOMAIN="playerctl"',
   language: 'c',
 )
 
