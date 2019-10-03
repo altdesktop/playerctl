@@ -182,6 +182,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
         // XXX: Lots of player aren't setting status correctly when the track
         // changes so we have to get it from the interface. We should
         // definitely go fix this bug on the players.
+		g_warning("Playback status not set on track change; getting status from interface instead");
         GVariant *call_reply = g_dbus_proxy_call_sync(
             G_DBUS_PROXY(self->priv->proxy), "org.freedesktop.DBus.Properties.Get",
             g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "PlaybackStatus"),
