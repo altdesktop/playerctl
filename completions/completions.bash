@@ -36,15 +36,18 @@ _playerctl_completions() {
 			return 0
 			;;
 		-p|--player=|-i|--ignore-player=)
-			# TODO list supported players here?
-			COMPREPLY=()
+			COMPREPLY=($(compgen -W "$(playerctl --list-all)" -- "$cur"))
 			return 0
 			;;
 		-f|--format)
 			COMPREPLY=()
 			return 0
 			;;
-		position|volume|metadata|open)
+		open)
+			compopt -o default
+			COMPREPLY=()
+			;;
+		position|volume|metadata)
 			COMPREPLY=()
 			return 0
 			;;
