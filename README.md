@@ -176,6 +176,14 @@ sudo dnf install playerctl
 
 `playerctl` is available for Mageia and openSUSE via [this COPR repository](https://copr.fedorainfracloud.org/coprs/jflory7/playerctl/). First, install the repository file for your distribution from COPR. Then, install `playerctl` with your package manager of choice.
 
+### Guix
+
+`playerctl` is available as a [Guix](https://guix.gnu.org) package which can be installed on any Linux distribution after [installing Guix](https://guix.gnu.org/manual/en/html_node/Installation.html):
+
+```
+guix install playerctl
+```
+
 ### Compile from source
 
 Using the cli and library requires [GLib](https://developer.gnome.org/glib/) (which is a dependency of almost all of these players as well, so you probably already have it). You can use the library in almost any programming language with the associated [introspection binding library](https://wiki.gnome.org/Projects/GObjectIntrospection/Users).
