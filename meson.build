@@ -43,4 +43,3 @@ glib_dep = dependency('glib-2.0')
 
 subdir('playerctl')
 subdir('doc')
-subdir('completions')
