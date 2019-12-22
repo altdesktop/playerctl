@@ -496,8 +496,8 @@ static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint ar
             status = FALSE;
         } else {
             g_set_error(error, playerctl_cli_error_quark(), 1,
-                        "Got unknown loop status: '%s' (expected 'none', "
-                        "'playlist', or 'track').",
+                        "Got unknown shuffle status: '%s' (expected 'on', "
+                        "or 'off').",
                         argv[1]);
             return FALSE;
         }
