@@ -232,10 +232,16 @@ export PATH="$DESTDIR/${PREFIX}/bin:$PATH"
 
 ## Resources
 
-Check out the following articles and resources about playerctl:
+Check out the following articles about Playerctl:
 
 * [2 new apps for music tweakers on Fedora Workstation - Fedora Magazine](https://fedoramagazine.org/2-new-apps-for-music-tweakers-on-fedora-workstation/ "2 new apps for music tweakers on Fedora Workstation")
+* [Playerctl at Version 2.0](https://dubstepdish.com/index.php/2018/10/21/playerctl-at-version-2-0/)
 
+Related projects from the maker of Playerctl:
+
+* [altdesktop/python-dbus-next](https://github.com/altdesktop/python-dbus-next) - The DBus library used in the Playerctl test suite.
+* [altdesktop/playerbm](https://github.com/altdesktop/playerbm) - A CLI bookmark utility for audiobooks and podcasts.
+* [dbusjs/mpris-service](https://github.com/dbusjs/mpris-service) - MPRIS implementation for JavaScript targeting Electron apps.
 
 ## License
 
