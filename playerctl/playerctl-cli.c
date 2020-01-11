@@ -1103,49 +1103,125 @@ int main(int argc, char *argv[]) {
 
     gboolean has_selected = FALSE;
     GList *l = NULL;
-    for (l = available_players; l != NULL; l = l->next) {
-        PlayerctlPlayerName *name = l->data;
-        g_debug("Found player %s", name->name);
-        if (!name_is_selected(name->instance)) {
-            continue;
-        }
-        has_selected = TRUE;
 
-        PlayerctlPlayer *player = playerctl_player_new_from_name(name, &error);
-        if (error != NULL) {
-            g_printerr("Could not connect to player: %s\n", error->message);
-            exit_status = 1;
-            goto end;
-        }
+    if (select_all_players) {
+        for (l = available_players; l != NULL; l = l->next) {
+            PlayerctlPlayerName *name = l->data;
+            g_debug("Found player %s", name->name);
+            if (!name_is_selected(name->instance)) {
+                continue;
+            }
+            has_selected = TRUE;
 
-        if (follow) {
-            playerctl_player_manager_manage_player(manager, player);
-            init_managed_player(player, player_cmd);
-        } else {
-            gchar *output = NULL;
-            g_debug("Executing command %s", player_cmd->name);
-            gboolean result = player_cmd->func(player, command_arg, num_commands, &output, &error);
+            PlayerctlPlayer *player = playerctl_player_new_from_name(name, &error);
             if (error != NULL) {
-                g_printerr("Could not execute command: %s\n", error->message);
+                g_printerr("Could not connect to player: %s\n", error->message);
                 exit_status = 1;
-                g_object_unref(player);
                 goto end;
             }
-            if (result) {
-                if (output != NULL) {
-                    printf("%s", output);
-                    fflush(stdout);
-                    g_free(output);
-                }
 
-                if (!select_all_players) {
+            if (follow) {
+                playerctl_player_manager_manage_player(manager, player);
+                init_managed_player(player, player_cmd);
+            } else {
+                gchar *output = NULL;
+                g_debug("Executing command %s", player_cmd->name);
+                gboolean result = player_cmd->func(player, command_arg, num_commands, &output, &error);
+                if (error != NULL) {
+                    g_printerr("Could not execute command: %s\n", error->message);
+                    exit_status = 1;
                     g_object_unref(player);
                     goto end;
                 }
+                if (result) {
+                    if (output != NULL) {
+                        printf("%s", output);
+                        fflush(stdout);
+                        g_free(output);
+                    }
+                }
+            }
+
+            g_object_unref(player);
+        }
+    } else {
+        PlayerctlPlaybackStatus selected_status = -1;
+        PlayerctlPlayer *selected_player = NULL;
+
+        // Find first playing player
+        // If there is none find first paused player
+        // If there is none find first stopped player
+        for (l = available_players; l != NULL; l = l->next) {
+            PlayerctlPlayerName *name = l->data;
+            g_debug("Found player %s", name->name);
+            if (!name_is_selected(name->instance)) {
+                continue;
+            }
+
+            PlayerctlPlayer *player = playerctl_player_new_from_name(name, &error);
+            if (error != NULL) {
+                g_printerr("Could not connect to player: %s\n", error->message);
+                exit_status = 1;
+                if (selected_player) {
+                    g_object_unref(selected_player);
+                }
+                goto end;
+            }
+
+            has_selected = TRUE;
+            PlayerctlPlaybackStatus status = -1;
+            g_debug("Requesting playback-status");
+            g_object_get(player, "playback-status", &status, NULL);
+
+            if (selected_player == NULL) {
+                selected_player = player;
+                selected_status = status;
+                if (selected_status == PLAYERCTL_PLAYBACK_STATUS_PLAYING) {
+                    break;
+                }
+            } else if ((selected_status == PLAYERCTL_PLAYBACK_STATUS_STOPPED && status != PLAYERCTL_PLAYBACK_STATUS_STOPPED) ||
+                       (selected_status == PLAYERCTL_PLAYBACK_STATUS_PAUSED  && status == PLAYERCTL_PLAYBACK_STATUS_PLAYING)) {
+                g_object_unref(selected_player);
+                selected_player = player;
+                selected_status = status;
+                if (selected_status == PLAYERCTL_PLAYBACK_STATUS_PLAYING) {
+                    break;
+                }
+            } else {
+                g_object_unref(player);
             }
         }
 
-        g_object_unref(player);
+        if (selected_player) {
+            if (follow) {
+                playerctl_player_manager_manage_player(manager, selected_player);
+                init_managed_player(selected_player, player_cmd);
+            } else if (player_cmd->func == playercmd_status && formatter == NULL) {
+                // reusing already retrieved status
+                const gchar *status_str = pctl_playback_status_to_string(selected_status);
+                assert(status_str != NULL);
+                printf("%s\n", status_str);
+            } else {
+                gchar *output = NULL;
+                g_debug("Executing command %s", player_cmd->name);
+                gboolean result = player_cmd->func(selected_player, command_arg, num_commands, &output, &error);
+                if (error != NULL) {
+                    g_printerr("Could not execute command: %s\n", error->message);
+                    exit_status = 1;
+                    g_object_unref(selected_player);
+                    goto end;
+                }
+                if (result) {
+                    if (output != NULL) {
+                        printf("%s", output);
+                        fflush(stdout);
+                        g_free(output);
+                    }
+                }
+            }
+
+            g_object_unref(selected_player);
+        }
     }
 
     if (!follow && !has_selected) {
