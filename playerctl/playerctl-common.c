@@ -18,6 +18,7 @@
  */
 
 #include "playerctl-common.h"
+
 #include <glib.h>
 #include <stdio.h>
 #include <strings.h>

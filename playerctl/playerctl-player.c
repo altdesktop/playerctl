@@ -17,17 +17,17 @@
  * Copyright © 2014, Tony Crisci and contributors.
  */
 
-#include <gio/gio.h>
-#include <glib-object.h>
-#include <string.h>
-
-#include <playerctl/playerctl-enum-types.h>
-#include <playerctl/playerctl-player-manager.h>
-#include "playerctl-common.h"
-#include "playerctl-generated.h"
 #include "playerctl-player.h"
 
+#include <gio/gio.h>
+#include <glib-object.h>
+#include <playerctl/playerctl-enum-types.h>
+#include <playerctl/playerctl-player-manager.h>
 #include <stdint.h>
+#include <string.h>
+
+#include "playerctl-common.h"
+#include "playerctl-generated.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 

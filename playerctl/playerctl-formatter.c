@@ -1,8 +1,10 @@
 #include "playerctl/playerctl-formatter.h"
+
 #include <assert.h>
 #include <glib.h>
 #include <inttypes.h>
 #include <playerctl/playerctl-player.h>
+
 #include "playerctl/playerctl-common.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])

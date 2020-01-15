@@ -18,8 +18,10 @@
  */
 
 #include "playerctl/playerctl-player-manager.h"
+
 #include <gio/gio.h>
 #include <glib-object.h>
+
 #include "playerctl/playerctl-common.h"
 #include "playerctl/playerctl-player-name.h"
 #include "playerctl/playerctl-player.h"
