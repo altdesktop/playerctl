@@ -35,7 +35,7 @@ async def test_basics():
     for result in results:
         assert result.returncode == 1
         assert not result.stdout
-        assert result.stderr == 'No players found'
+        assert 'No players found' in result.stderr.split('\n')
 
 
 @pytest.mark.asyncio
