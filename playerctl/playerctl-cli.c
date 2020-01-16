@@ -1043,6 +1043,7 @@ int main(int argc, char *argv[]) {
     g_debug("playerctl version %s", PLAYERCTL_VERSION_S);
     GError *error = NULL;
     guint num_commands = 0;
+    GList *available_players = NULL;
 
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
@@ -1097,7 +1098,6 @@ int main(int argc, char *argv[]) {
                                                NULL);
     }
 
-    GList *available_players = NULL;
     g_object_get(manager, "player-names", &available_players, NULL);
     available_players = g_list_copy(available_players);
     available_players = g_list_sort(available_players, (GCompareFunc)player_name_compare_func);
