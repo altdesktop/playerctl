@@ -9,6 +9,7 @@ async def bus_address(scope='class'):
         'dbus-launch', stdout=asyncio.subprocess.PIPE)
     stdout, __ = await proc.communicate()
     await proc.wait()
+    assert proc.returncode == 0
     address = None
     for line in stdout.decode().split():
         if line.startswith('DBUS_SESSION_BUS_ADDRESS='):

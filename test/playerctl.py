@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 
 class CommandResult:
@@ -13,13 +14,15 @@ class PlayerctlCli:
         self.bus_address = bus_address
 
     async def run(self, cmd):
+        env = os.environ.copy()
         shell_cmd = f'playerctl {cmd}'
 
         if self.bus_address:
-            shell_cmd = f'DBUS_SESSION_BUS_ADDRESS={self.bus_address} {shell_cmd}'
+            env['DBUS_SESSION_BUS_ADDRESS'] = self.bus_address
 
         proc = await asyncio.create_subprocess_shell(
             shell_cmd,
+            env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE)
         stdout, stderr = await proc.communicate()
