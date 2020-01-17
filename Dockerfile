@@ -17,4 +17,5 @@ RUN pip3 install -r requirements.txt
 ADD . /app
 
 RUN meson --prefix=/usr build && ninja -C build && ninja -C build install
+ENV PYTHONASYNCIODEBUG=1
 CMD ["dbus-run-session", "python3", "-m", "pytest", "-sv"]
