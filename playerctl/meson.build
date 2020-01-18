@@ -48,6 +48,9 @@ deps = [
   gio_dep,
 ]
 
+symbols_file = 'playerctl.syms'
+symbols_flag = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), symbols_file)
+
 playerctl_lib = both_libraries(
   'playerctl',
   playerctl_sources, enums,
@@ -55,6 +58,8 @@ playerctl_lib = both_libraries(
   include_directories: configuration_inc,
   version: playerctl_version,
   install: true,
+  link_args : symbols_flag,
+  link_depends: symbols_file,
 )
 
 # Required for linking against the shared lib we just built

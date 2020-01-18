@@ -30,38 +30,38 @@ async def test_format(bus_address):
 
     cmd = await playerctl.run(
         'metadata --format "{{markup_escape(xesam:escapeme)}}"')
-    assert cmd.stdout == '&lt;hi&gt;'
+    assert cmd.stdout == '&lt;hi&gt;', cmd.stderr
 
     cmd = await playerctl.run('metadata --format "{{lc(artist)}}"')
-    assert cmd.stdout == ARTIST.lower()
+    assert cmd.stdout == ARTIST.lower(), cmd.stderr
 
     cmd = await playerctl.run('metadata --format "{{uc(title)}}"')
-    assert cmd.stdout == TITLE.upper()
+    assert cmd.stdout == TITLE.upper(), cmd.stderr
 
     cmd = await playerctl.run('metadata --format "{{uc(lc(title))}}"')
-    assert cmd.stdout == TITLE.upper()
+    assert cmd.stdout == TITLE.upper(), cmd.stderr
 
     cmd = await playerctl.run('metadata --format \'{{uc("Hi")}}\'')
-    assert cmd.stdout == "HI"
+    assert cmd.stdout == "HI", cmd.stderr
 
     cmd = await playerctl.run('metadata --format "{{mpris:length}}"')
-    assert cmd.stdout == "100000"
+    assert cmd.stdout == "100000", cmd.stderr
 
     cmd = await playerctl.run(
         'metadata --format \'@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@\''
     )
-    assert cmd.stdout == '@HI - HO . a title@'
+    assert cmd.stdout == '@HI - HO . a title@', cmd.stderr
 
     cmd = await playerctl.run(
         'metadata --format \'{{default(xesam:missing, artist)}}\'')
-    assert cmd.stdout == ARTIST
+    assert cmd.stdout == ARTIST, cmd.stderr
 
     cmd = await playerctl.run(
         'metadata --format \'{{default(title, artist)}}\'')
-    assert cmd.stdout == TITLE
+    assert cmd.stdout == TITLE, cmd.stderr
 
     cmd = await playerctl.run('metadata --format \'{{default("", "ok")}}\'')
-    assert cmd.stdout == 'ok'
+    assert cmd.stdout == 'ok', cmd.stderr
 
     cmd = await playerctl.run('metadata --format \'{{default("ok", "not")}}\'')
-    assert cmd.stdout == 'ok'
+    assert cmd.stdout == 'ok', cmd.stderr
