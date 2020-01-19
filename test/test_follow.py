@@ -76,14 +76,14 @@ class ProcWrapper:
 
 @pytest.mark.asyncio
 async def test_follow(bus_address):
-    playerctl = PlayerctlCli(bus_address)
-    pctl_cmd = 'metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
-    proc = ProcWrapper(await playerctl.start(pctl_cmd))
-
     player1 = 'test1'
     [bus1] = await setup_buses(player1, bus_address=bus_address)
 
     mpris1 = MprisWrapper(bus1)
+
+    playerctl = PlayerctlCli(bus_address)
+    pctl_cmd = 'metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
+    proc = ProcWrapper(await playerctl.start(pctl_cmd))
 
     await mpris1.set_metadata('artist', 'title')
     line = await proc.queue.get()
@@ -109,10 +109,6 @@ async def test_follow(bus_address):
 
 @pytest.mark.asyncio
 async def test_follow_selection(bus_address):
-    playerctl = PlayerctlCli(bus_address)
-    pctl_cmd = '--player test3,test2,test1 metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
-    proc = ProcWrapper(await playerctl.start(pctl_cmd))
-
     player1 = 'test1'
     player2 = 'test2'
     player3 = 'test3'
@@ -126,6 +122,10 @@ async def test_follow_selection(bus_address):
      mpris4] = [MprisWrapper(bus) for bus in [bus1, bus2, bus3, bus4]]
 
     await mpris1.set_metadata('artist', 'title')
+
+    playerctl = PlayerctlCli(bus_address)
+    pctl_cmd = '--player test3,test2,test1 metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
+    proc = ProcWrapper(await playerctl.start(pctl_cmd))
 
     line = await proc.queue.get()
     assert line == 'test1: artist - title'
@@ -175,11 +175,52 @@ async def test_follow_selection(bus_address):
 
 
 @pytest.mark.asyncio
-async def test_follow_all_players(bus_address):
+async def test_follow_selection_any(bus_address):
+    player1 = 'test1'
+    player2 = 'test2'
+    player3 = 'test3'
+    player4 = 'test4'
+    [bus1, bus2, bus3, bus4] = await setup_buses(player1,
+                                                 player2,
+                                                 player3,
+                                                 player4,
+                                                 bus_address=bus_address)
+
+    [mpris1, mpris2, mpris3,
+     mpris4] = [MprisWrapper(bus) for bus in [bus1, bus2, bus3, bus4]]
+
     playerctl = PlayerctlCli(bus_address)
-    pctl_cmd = '--all-players --player test3,test2,test1 metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
+    pctl_cmd = '--player test3,%any,test1 metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
     proc = ProcWrapper(await playerctl.start(pctl_cmd))
 
+    # test3 takes first precedence
+    await mpris3.set_metadata('artist', 'title')
+    line = await proc.queue.get()
+    assert line == 'test3: artist - title', proc.queue
+
+    await mpris2.set_metadata('artist', 'title')
+    assert proc.queue.empty()
+
+    await mpris1.set_metadata('artist', 'title')
+    assert proc.queue.empty()
+
+    bus3.disconnect()
+    line = await proc.queue.get()
+    assert line == 'test2: artist - title'
+
+    bus2.disconnect()
+    line = await proc.queue.get()
+    assert line == 'test1: artist - title'
+
+    bus1.disconnect()
+    line = await proc.queue.get()
+    assert line == ''
+
+    bus4.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_follow_all_players(bus_address):
     player1 = 'test1'
     player2 = 'test2'
     player3 = 'test3'
@@ -197,10 +238,9 @@ async def test_follow_all_players(bus_address):
         for mpris in [mpris1, mpris2, mpris3, mpris4]
     ])
 
-    await mpris4.ping()
-
-    while proc.queue.qsize():
-        await proc.queue.get()
+    playerctl = PlayerctlCli(bus_address)
+    pctl_cmd = '--all-players --player test3,test2,test1 metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
+    proc = ProcWrapper(await playerctl.start(pctl_cmd))
 
     # player4 is ignored
     await mpris4.set_metadata('artist', 'title')

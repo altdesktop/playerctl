@@ -4,6 +4,8 @@ from .playerctl import PlayerctlCli
 import asyncio
 import pytest
 
+# TODO: test sending a command to all players
+
 
 @pytest.mark.asyncio
 async def test_commands(bus_address):

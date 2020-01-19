@@ -6,6 +6,8 @@ from .playerctl import PlayerctlCli
 import pytest
 import asyncio
 
+# TODO: test missing function does not segv
+
 
 @pytest.mark.asyncio
 async def test_format(bus_address):

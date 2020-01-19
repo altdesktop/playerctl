@@ -157,6 +157,10 @@ gint pctl_player_name_instance_compare(PlayerctlPlayerName *name, PlayerctlPlaye
 }
 
 gint pctl_player_name_string_instance_compare(const gchar *name, const gchar *instance) {
+    if (g_strcmp0(name, "%any") == 0 || g_strcmp0(instance, "%any") == 0) {
+        return 0;
+    }
+
     gboolean exact_match = (g_strcmp0(name, instance) == 0);
     gboolean instance_match =
         !exact_match && (g_str_has_prefix(instance, name) &&

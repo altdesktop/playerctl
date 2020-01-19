@@ -36,8 +36,11 @@ async def test_selection(bus_address):
     m5 = 'selection5'
     m6 = 'selection6'
     s6i = 'selection6.instance2'
+    any_player = '%any'
+
     buses = await setup_buses(s1, s1i, s2, s3, s6i, bus_address=bus_address)
 
+    # TODO: test ignored players
     selections = {
         (s1, ): (s1, s1i),
         (s3, s1): (s3, s1, s1i),
@@ -49,6 +52,12 @@ async def test_selection(bus_address):
         (s1i, s1): (s1i, s1),
         (m6, s1): (s6i, s1, s1i),
         (m4, m6, s3): (s6i, s3),
+        (any_player, ):
+        (s2, s3, s1i, s6i, s1),  # order undefined, but consistent
+        (s1, any_player): (s1, s1i, s2, s3, s6i),  # s1 first
+        (any_player, s1): (s2, s3, s6i, s1i, s1),  # s1 last
+        (m6, any_player, s2): (s6i, s3, s1i, s1, s2),  # s6 first, s2 last
+        (m6, s1, any_player, s2): (s6i, s1, s1i, s3, s2),
     }
 
     select, select_many = selector(bus_address)

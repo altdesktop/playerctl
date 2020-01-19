@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <locale.h>
 #include <playerctl/playerctl.h>
 #include <stdbool.h>
@@ -1010,22 +1011,51 @@ gint player_name_string_compare_func(gconstpointer a, gconstpointer b) {
         return 0;
     }
 
+    int a_index = -1;
+    int b_index = -1;
+    int any_index = INT_MAX;
+    int i = 0;
     GList *l = NULL;
     for (l = player_names; l != NULL; l = l->next) {
         gchar *name = l->data;
 
-        if (g_strcmp0(name_a, name) == 0) {
-            return -1;
+        if (g_strcmp0(name, "%any") == 0) {
+            if (any_index == INT_MAX) {
+                any_index = i;
+            }
+        } else if (g_strcmp0(name_a, name) == 0) {
+            if (a_index == -1) {
+                a_index = i;
+            }
         } else if (g_strcmp0(name_b, name) == 0) {
-            return 1;
+            if (b_index == -1) {
+                b_index = i;
+            }
         } else if (pctl_player_name_string_instance_compare(name, name_a) == 0) {
-            return -1;
+            if (a_index == -1) {
+                a_index = i;
+            }
         } else if (pctl_player_name_string_instance_compare(name, name_b) == 0) {
-            return 1;
+            if (b_index == -1) {
+                b_index = i;
+            }
         }
+        ++i;
     }
 
-    return 0;
+    if (a_index == -1 && b_index == -1) {
+        // neither are in the list
+        return 0;
+    } else if (a_index == -1) {
+        // b is in the list
+        return (b_index < any_index ? 1 : -1);
+    } else if (b_index == -1) {
+        // a is in the list
+        return (a_index < any_index ? -1 : 1);
+    } else {
+        // both are in the list
+        return (a_index < b_index ? -1 : 1);
+    }
 }
 
 gint player_name_compare_func(gconstpointer a, gconstpointer b) {
@@ -1114,7 +1144,7 @@ int main(int argc, char *argv[]) {
     GList *l = NULL;
     for (l = available_players; l != NULL; l = l->next) {
         PlayerctlPlayerName *name = l->data;
-        g_debug("found player %s", name->name);
+        g_debug("found player: %s", name->instance);
         if (!name_is_selected(name->instance)) {
             continue;
         }

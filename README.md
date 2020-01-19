@@ -42,6 +42,8 @@ If you'd only like to control certain players, you can pass the names of those p
 
 Similarly, you can ignore players by passing their names with the `--ignore-player` flag.
 
+The special player name `%any` can be used in the list of selected players once to match any player not in the list. This can be used to prioritize or deprioritize players.
+
 Examples:
 
 ```bash
@@ -57,6 +59,12 @@ playerctl --player=vlc,spotify next
 
 # Get the status of the first player that is not Gwenview.
 playerctl --ignore-player=Gwenview status
+
+# Command any player to play, but select Chromium last
+playerctl --player=%any,chromium play
+
+# Command any player to play, but select VLC first
+playerctl --player=vlc,%any play
 ```
 
 ### Printing Properties and Metadata
