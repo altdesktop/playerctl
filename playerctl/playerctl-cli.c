@@ -28,6 +28,7 @@
 
 #include "playerctl-common.h"
 #include "playerctl-formatter.h"
+#include "playerctl-player-private.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
@@ -598,13 +599,18 @@ static gboolean playercmd_loop(PlayerctlPlayer *player, gchar **argv, gint argc,
 
 static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                    GError **error) {
+    g_debug("metadata command for player: %s", pctl_player_get_instance(player));
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     gboolean can_play = FALSE;
     g_object_get(player, "can-play", &can_play, NULL);
 
     if (!can_play) {
-        // skip if no current track
+        // XXX: This is gotten from the property cache which may not be up to
+        // date in all cases. If there is a bug with a player not printing
+        // metadata, look here.
+        g_debug("%s: no current track, skipping", instance);
         return FALSE;
     }
 
@@ -618,6 +624,7 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
             *output = g_strdup_printf("%s\n", data);
             g_free(data);
         } else {
+            g_debug("%s: no metadata, skipping", instance);
             return FALSE;
         }
     } else if (argc == 1) {
@@ -861,6 +868,7 @@ static void managed_players_execute_command(GError **error) {
         g_propagate_error(error, tmp_error);
         return;
     }
+    g_debug("executing command: %s", player_cmd->name);
     assert(player_cmd->func != NULL);
 
     gboolean did_command = FALSE;
@@ -1106,7 +1114,7 @@ int main(int argc, char *argv[]) {
     GList *l = NULL;
     for (l = available_players; l != NULL; l = l->next) {
         PlayerctlPlayerName *name = l->data;
-        g_debug("Found player %s", name->name);
+        g_debug("found player %s", name->name);
         if (!name_is_selected(name->instance)) {
             continue;
         }
@@ -1124,7 +1132,7 @@ int main(int argc, char *argv[]) {
             init_managed_player(player, player_cmd);
         } else {
             gchar *output = NULL;
-            g_debug("Executing command %s", player_cmd->name);
+            g_debug("executing command %s", player_cmd->name);
             gboolean result = player_cmd->func(player, command_arg, num_commands, &output, &error);
             if (error != NULL) {
                 g_printerr("Could not execute command: %s\n", error->message);

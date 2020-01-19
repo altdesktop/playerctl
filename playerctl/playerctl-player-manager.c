@@ -24,6 +24,7 @@
 
 #include "playerctl/playerctl-common.h"
 #include "playerctl/playerctl-player-name.h"
+#include "playerctl/playerctl-player-private.h"
 #include "playerctl/playerctl-player.h"
 
 enum {
@@ -226,17 +227,15 @@ static void manager_remove_managed_player_by_name(PlayerctlPlayerManager *manage
     GList *l = NULL;
     for (l = manager->priv->players; l != NULL; l = l->next) {
         PlayerctlPlayer *player = PLAYERCTL_PLAYER(l->data);
-        gchar *instance = NULL;
-        g_object_get(player, "player-instance", &instance, NULL);
+        gchar *instance = pctl_player_get_instance(player);
         // TODO match bus type
         if (g_strcmp0(instance, player_name->instance) == 0) {
             manager->priv->players = g_list_remove_link(manager->priv->players, l);
+            g_debug("removing managed player: %s", instance);
             g_signal_emit(manager, connection_signals[PLAYER_VANISHED], 0, player);
             g_list_free_full(l, g_object_unref);
-            g_free(instance);
             break;
         }
-        g_free(instance);
     }
 }
 
@@ -292,6 +291,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
             manager->priv->player_names =
                 g_list_remove_link(manager->priv->player_names, player_entry);
             manager_remove_managed_player_by_name(manager, player_name);
+            g_debug("player name vanished: %s", player_name->instance);
             g_signal_emit(manager, connection_signals[NAME_VANISHED], 0, player_name);
             pctl_player_name_list_destroy(player_entry);
         }
@@ -304,6 +304,7 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
                 pctl_player_name_new(player_id, pctl_bus_type_to_source(bus_type));
 
             manager->priv->player_names = g_list_prepend(manager->priv->player_names, player_name);
+            g_debug("player name appeared: %s", player_name->instance);
             g_signal_emit(manager, connection_signals[NAME_APPEARED], 0, player_name);
         }
     }
@@ -484,5 +485,6 @@ void playerctl_player_manager_manage_player(PlayerctlPlayerManager *manager,
     }
 
     g_object_ref(player);
+    g_debug("player appeared: %s", pctl_player_get_instance(player));
     g_signal_emit(manager, connection_signals[PLAYER_APPEARED], 0, player);
 }
