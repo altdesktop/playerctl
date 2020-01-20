@@ -162,6 +162,8 @@ For a more complete example which is capable of listening to when players start 
 
 ## Troubleshooting
 
+To enable debug logging, set the environment variable `G_MESSAGES_DEBUG=playerctl`.
+
 Some players like Spotify require certain DBus environment variables to be set which are normally set within the session manager. If you're not using a session manager or it does not set these variables automatically (like `xinit`), launch your desktop environment wrapped in a `dbus-launch` command. For example, in your `.xinitrc` file, use this to start your WM:
 
 ```
