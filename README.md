@@ -94,14 +94,14 @@ playerctl status --format "STATUS: {{ uc(status) }}"
 # prints 'STATUS: PLAYING'
 ```
 
-| Function        | Argument         | Description                                                            |
-| --------------- | ---------------  | ---------------------------------------------------------------------- |
-| `lc`            | string           | Convert the string to lowercase.                                       |
-| `uc`            | string           | Convert the string to uppercase.                                       |
-| `duration`      | int              | Convert the duration to hh:mm:ss format.                               |
-| `markup_escape` | string           | Escape XML markup characters in the string.                            |
-| `default`       | any, any         | Print the first value if it is present, or else print the second.      |
-| `emoji`         | status or volume | (experimental) Try to convert the variable to an emoji representation. |
+| Function        | Argument         | Description                                                        |
+| --------------- | ---------------  | ------------------------------------------------------------------ |
+| `lc`            | string           | Convert the string to lowercase.                                   |
+| `uc`            | string           | Convert the string to uppercase.                                   |
+| `duration`      | int              | Convert the duration to hh:mm:ss format.                           |
+| `markup_escape` | string           | Escape XML markup characters in the string.                        |
+| `default`       | any, any         | Print the first value if it is present, or else print the second.  |
+| `emoji`         | status or volume | Try to convert the variable to an emoji representation.            |
 
 ### Following changes
 

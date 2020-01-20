@@ -389,11 +389,9 @@ static gchar *helperfn_default(struct token *token, GVariant **args, int nargs, 
 }
 
 static gchar *helperfn_emoji(struct token *token, GVariant **args, int nargs, GError **error) {
-    g_warning("The emoji() helper function is undocumented and experimental and will change in a "
-              "future release.");
     if (nargs != 1) {
         g_set_error(error, playerctl_formatter_error_quark(), 1,
-                    "function markup_escape takes exactly one argument (got %d)", nargs);
+                    "function emoji takes exactly one argument (got %d)", nargs);
         return NULL;
     }
 
@@ -447,7 +445,6 @@ struct template_helper {
     {"duration", &helperfn_duration},
     {"markup_escape", &helperfn_markup_escape},
     {"default", &helperfn_default},
-    // EXPERIMENTAL
     {"emoji", &helperfn_emoji},
 };
 
