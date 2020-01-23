@@ -76,6 +76,14 @@ playerctl_executable = executable(
   install: true,
 )
 
+playerctld_executable = executable(
+  'playerctld',
+  'playerctl-daemon.c', enums,
+  dependencies: deps,
+  include_directories: configuration_inc,
+  install: true,
+)
+
 install_headers(
   headers,
   install_dir: join_paths(get_option('includedir'), 'playerctl'),
