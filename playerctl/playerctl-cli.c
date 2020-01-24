@@ -1169,9 +1169,8 @@ int main(int argc, char *argv[]) {
         // players, and is not in the list of available players. Add it to the
         // list and try to autostart it.
         g_debug("%s", "playerctld was selected and is not available, attempting to autostart it");
-        PlayerctlPlayerName *playerctld_name =
-            pctl_player_name_new("playerctld", PLAYERCTL_SOURCE_DBUS_SESSION);
-        available_players = g_list_append(available_players, playerctld_name);
+        available_players = g_list_append(
+            available_players, pctl_player_name_new("playerctld", PLAYERCTL_SOURCE_DBUS_SESSION));
     }
 
     gboolean has_selected = FALSE;

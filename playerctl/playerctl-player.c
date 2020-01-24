@@ -909,9 +909,9 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
     g_return_val_if_fail(err == NULL || *err == NULL, FALSE);
 
     if (player->priv->instance != NULL && player->priv->player_name != NULL) {
-        g_set_error(err, playerctl_player_error_quark(), 3,
-                    "A player cannot be constructed with both name and instance");
-        return FALSE;
+        // if instance is specified, ignore name
+        g_free(player->priv->player_name);
+        player->priv->player_name = NULL;
     }
 
     if (player->priv->instance != NULL && player->priv->source == PLAYERCTL_SOURCE_NONE) {
