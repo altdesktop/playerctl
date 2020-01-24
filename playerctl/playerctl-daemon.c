@@ -116,7 +116,6 @@ static void proxy_method_call_async_callback(GObject *source_object, GAsyncResul
     GError *error = NULL;
     GDBusMessage *reply = g_dbus_connection_send_message_with_reply_finish(connection, res, &error);
     if (error != NULL) {
-        g_object_unref(reply);
         g_dbus_method_invocation_return_gerror(invocation, error);
         g_error_free(error);
         return;
@@ -128,15 +127,21 @@ static void proxy_method_call_async_callback(GObject *source_object, GAsyncResul
         g_dbus_method_invocation_return_value(invocation, body);
         break;
     case G_DBUS_MESSAGE_TYPE_ERROR: {
-        GVariant *error_message_variant = g_variant_get_child_value(body, 1);
-        const gchar *error_message = g_variant_get_string(error_message_variant, 0);
-        g_dbus_method_invocation_return_dbus_error(invocation, g_dbus_message_get_error_name(reply),
-                                                   error_message);
-        g_variant_unref(error_message_variant);
+        if (g_variant_n_children(body) > 1) {
+            GVariant *error_message_variant = g_variant_get_child_value(body, 1);
+            const char *error_message = g_variant_get_string(error_message_variant, 0);
+            g_dbus_method_invocation_return_dbus_error(invocation, g_dbus_message_get_error_name(reply),
+                                                       error_message);
+            g_variant_unref(error_message_variant);
+        } else {
+            g_dbus_method_invocation_return_dbus_error(invocation, g_dbus_message_get_error_name(reply),
+                                                       "Failed to call method");
+        }
         break;
     }
     default:
         g_warning("got unexpected message type: %d (this is a dbus spec violation)", message_type);
+        break;
     }
 
     g_object_unref(invocation);
