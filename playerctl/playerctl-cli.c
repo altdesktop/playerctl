@@ -1171,6 +1171,7 @@ int main(int argc, char *argv[]) {
         g_debug("%s", "playerctld was selected and is not available, attempting to autostart it");
         available_players = g_list_append(
             available_players, pctl_player_name_new("playerctld", PLAYERCTL_SOURCE_DBUS_SESSION));
+        available_players = g_list_sort(available_players, (GCompareFunc)player_name_compare_func);
     }
 
     gboolean has_selected = FALSE;
