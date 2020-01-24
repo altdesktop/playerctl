@@ -838,25 +838,25 @@ static int handle_version_flag() {
 
 static int handle_list_all_flag() {
     GError *tmp_error = NULL;
-    GList *player_names = playerctl_list_players(&tmp_error);
+    GList *player_names_list = playerctl_list_players(&tmp_error);
 
     if (tmp_error != NULL) {
         g_printerr("%s\n", tmp_error->message);
         return 1;
     }
 
-    if (player_names == NULL) {
+    if (player_names_list == NULL) {
         g_printerr("No players were found\n");
         return 0;
     }
 
     GList *l = NULL;
-    for (l = player_names; l != NULL; l = l->next) {
+    for (l = player_names_list; l != NULL; l = l->next) {
         PlayerctlPlayerName *name = l->data;
         printf("%s\n", name->instance);
     }
 
-    pctl_player_name_list_destroy(player_names);
+    pctl_player_name_list_destroy(player_names_list);
     return 0;
 }
 
@@ -930,6 +930,23 @@ static void name_appeared_callback(PlayerctlPlayerManager *manager, PlayerctlPla
                                    gpointer *data) {
     if (!name_is_selected(name->instance)) {
         return;
+    }
+
+    g_debug("a selected name appeared: %s (source=%d)", name->instance, name->source);
+
+    // make sure we are not managing the player already
+    GList *players = NULL;
+    g_object_get(manager, "players", &players, NULL);
+    for (GList *l = players; l != NULL; l = l->next) {
+        PlayerctlPlayer *player = PLAYERCTL_PLAYER(l->data);
+        gchar *instance = pctl_player_get_instance(player);
+        PlayerctlSource source = 0;
+        g_object_get(player, "source", &source, NULL);
+
+        if (source == name->source && g_strcmp0(instance, name->instance) == 0) {
+            g_debug("this player is already managed: %s (source=%d)", name->instance, name->source);
+            return;
+        }
     }
 
     GError *error = NULL;
@@ -1139,6 +1156,23 @@ int main(int argc, char *argv[]) {
     g_object_get(manager, "player-names", &available_players, NULL);
     available_players = g_list_copy(available_players);
     available_players = g_list_sort(available_players, (GCompareFunc)player_name_compare_func);
+
+    PlayerctlPlayerName playerctld_name = {
+        .instance = "playerctld",
+        .source = PLAYERCTL_SOURCE_DBUS_SESSION,
+    };
+    if (name_is_selected("playerctld") &&
+        (g_list_find_custom(player_names, "playerctld", (GCompareFunc)g_strcmp0)) != NULL &&
+        (g_list_find_custom(available_players, &playerctld_name,
+                            (GCompareFunc)pctl_player_name_compare) == NULL)) {
+        // playerctld is not ignored, was specified exactly in the list of
+        // players, and is not in the list of available players. Add it to the
+        // list and try to autostart it.
+        g_debug("%s", "playerctld was selected and is not available, attempting to autostart it");
+        PlayerctlPlayerName *playerctld_name =
+            pctl_player_name_new("playerctld", PLAYERCTL_SOURCE_DBUS_SESSION);
+        available_players = g_list_append(available_players, playerctld_name);
+    }
 
     gboolean has_selected = FALSE;
     GList *l = NULL;

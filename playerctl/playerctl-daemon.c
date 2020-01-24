@@ -325,10 +325,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    ud.bus_id = g_bus_own_name_on_connection(ud.connection, "org.mpris.MediaPlayer2.playerctld",
-                                             G_BUS_NAME_OWNER_FLAGS_NONE, on_bus_acquired,
-                                             on_name_lost, &ud, NULL);
-
     GVariant *names_reply = g_dbus_connection_call_sync(
         ud.connection, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
         "ListNames", NULL, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
@@ -376,6 +372,10 @@ int main(int argc, char *argv[]) {
     g_dbus_connection_signal_subscribe(ud.connection, NULL, NULL, NULL, "/org/mpris/MediaPlayer2",
                                        NULL, G_DBUS_SIGNAL_FLAGS_NONE, player_signal_proxy_callback,
                                        &ud, NULL);
+
+    ud.bus_id = g_bus_own_name_on_connection(ud.connection, "org.mpris.MediaPlayer2.playerctld",
+                                             G_BUS_NAME_OWNER_FLAGS_NONE, on_bus_acquired,
+                                             on_name_lost, &ud, NULL);
 
     g_main_loop_run(ud.loop);
     g_bus_unown_name(ud.bus_id);
