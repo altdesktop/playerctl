@@ -1,2 +1,3 @@
 option('gtk-doc', type: 'boolean', value: true, description: 'build docs')
 option('introspection', type: 'boolean', value: true, description: 'build gir data')
+option('bash-completions', type: 'boolean', value: true, description: 'Install bash shell completions.')

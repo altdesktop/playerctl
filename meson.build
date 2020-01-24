@@ -10,6 +10,10 @@ release_date = 'March 26, 2019'
 gnome = import('gnome')
 pkgconfig = import('pkgconfig')
 
+datadir = get_option('datadir')
+bindir = get_option('bindir')
+prefix = get_option('prefix')
+
 version_conf = configuration_data()
 
 playerctl_version = meson.project_version().split('-')[0]
@@ -40,6 +44,8 @@ version_conf.set(
 gobject_dep = dependency('gobject-2.0', version: '>=2.38')
 gio_dep = dependency('gio-unix-2.0')
 glib_dep = dependency('glib-2.0')
+bash_comp = dependency('bash-completion', required: false)
 
 subdir('playerctl')
+subdir('data')
 subdir('doc')

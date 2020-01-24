@@ -9,7 +9,7 @@ configuration_inc = include_directories('..')
 
 playerctl_generated = gnome.gdbus_codegen(
   'playerctl-generated',
-  'mpris-dbus-interface.xml',
+  join_paths(meson.source_root(), 'data', 'mpris-dbus-interface.xml'),
 )
 
 headers = [
@@ -48,8 +48,8 @@ deps = [
   gio_dep,
 ]
 
-symbols_file = 'playerctl.syms'
-symbols_flag = '-Wl,--version-script,@0@/@1@'.format(meson.current_source_dir(), symbols_file)
+symbols_file = join_paths(meson.source_root(), 'data', 'playerctl.syms')
+symbols_flag = '-Wl,--version-script,@0@'.format(symbols_file)
 
 playerctl_lib = both_libraries(
   'playerctl',

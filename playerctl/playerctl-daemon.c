@@ -130,12 +130,12 @@ static void proxy_method_call_async_callback(GObject *source_object, GAsyncResul
         if (g_variant_n_children(body) > 1) {
             GVariant *error_message_variant = g_variant_get_child_value(body, 1);
             const char *error_message = g_variant_get_string(error_message_variant, 0);
-            g_dbus_method_invocation_return_dbus_error(invocation, g_dbus_message_get_error_name(reply),
-                                                       error_message);
+            g_dbus_method_invocation_return_dbus_error(
+                invocation, g_dbus_message_get_error_name(reply), error_message);
             g_variant_unref(error_message_variant);
         } else {
-            g_dbus_method_invocation_return_dbus_error(invocation, g_dbus_message_get_error_name(reply),
-                                                       "Failed to call method");
+            g_dbus_method_invocation_return_dbus_error(
+                invocation, g_dbus_message_get_error_name(reply), "Failed to call method");
         }
         break;
     }
