@@ -1,0 +1,14 @@
+[flake8]
+ignore=
+    E501
+    E126
+    E402
+    F722
+
+# F821 is still relevant, but causes too many false positives in tests and
+# examples
+per-file-ignores=
+    test/*:F821
+    test/util.py:F401
+    examples/*:F821
+    */__init__.py:F401

@@ -1,4 +1,3 @@
-from dbus_next.aio import MessageBus
 import pytest
 import asyncio
 

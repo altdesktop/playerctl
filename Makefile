@@ -17,4 +17,7 @@ format:
 	yapf -rip test examples
 	clang-format -i ${FORMAT_C_SOURCE}
 
+lint:
+	flake8 test
+
 all: format docker-test

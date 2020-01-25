@@ -1,29 +1,28 @@
-from dbus_next.service import ServiceInterface, dbus_property, method, signal
+from dbus_next.service import ServiceInterface, dbus_property, method, signal, Variant
 from dbus_next import PropertyAccess, RequestNameReply
 from dbus_next.aio import MessageBus
 
 import asyncio
 
 
-async def setup_buses(*names, bus_address=None):
+async def setup_mpris(*names, bus_address=None):
     async def setup(name):
         bus = await MessageBus(bus_address=bus_address).connect()
         reply = await bus.request_name(f'org.mpris.MediaPlayer2.{name}')
         assert reply == RequestNameReply.PRIMARY_OWNER
-        bus.export('/org/mpris/MediaPlayer2', MprisPlayer())
-        return bus
+        player = MprisPlayer(bus)
+        bus.export('/org/mpris/MediaPlayer2', player)
+        return player
 
     return await asyncio.gather(*(setup(name) for name in names))
 
 
-def get_interfaces(bus):
-    return bus._path_exports.get('/org/mpris/MediaPlayer2', [])
-
-
 class MprisPlayer(ServiceInterface):
-    def __init__(self):
+    def __init__(self, bus):
         super().__init__('org.mpris.MediaPlayer2.Player')
+        self.counter = 0
         self.reset()
+        self.bus = bus
 
     def reset(self):
         # method calls
@@ -56,6 +55,40 @@ class MprisPlayer(ServiceInterface):
 
         # signals
         self.seeked_value = 0
+
+    async def ping(self):
+        await self.bus.introspect('org.freedesktop.DBus',
+                                  '/org/freedesktop/DBus')
+
+    async def set_artist_title(self, artist, title):
+        self.counter += 1
+        self.metadata = {
+            'xesam:title': Variant('s', title),
+            'xesam:artist': Variant('as', [artist]),
+            'mpris:trackid': Variant('o', '/' + str(self.counter)),
+        }
+
+        self.emit_properties_changed({
+            'Metadata': self.metadata,
+            'PlaybackStatus': self.playback_status,
+            'CanPlay': True,
+        })
+        await self.ping()
+
+    async def clear_metadata(self):
+        self.counter += 1
+        self.metadata = {
+            'mpris:trackid': Variant('o', '/' + str(self.counter)),
+        }
+        self.emit_properties_changed({
+            'Metadata': self.metadata,
+            'PlaybackStatus': self.playback_status,
+            'CanPlay': True,
+        })
+        await self.ping()
+
+    def disconnect(self):
+        self.bus.disconnect()
 
     @method()
     def Next(self):

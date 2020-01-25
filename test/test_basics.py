@@ -1,4 +1,4 @@
-from .mpris import setup_buses
+from .mpris import setup_mpris
 from .playerctl import PlayerctlCli
 
 import asyncio
@@ -40,10 +40,10 @@ async def test_basics():
 
 @pytest.mark.asyncio
 async def test_list_names(bus_address):
-    [bus1, bus2, bus3] = await setup_buses('basics1',
-                                           'basics2',
-                                           'basics3',
-                                           bus_address=bus_address)
+    mpris_players = await setup_mpris('basics1',
+                                      'basics2',
+                                      'basics3',
+                                      bus_address=bus_address)
     playerctl = PlayerctlCli(bus_address)
 
     result = await playerctl.run('--list-all')
@@ -53,5 +53,5 @@ async def test_list_names(bus_address):
     assert 'basics2' in players
     assert 'basics3' in players
 
-    for bus in [bus1, bus2, bus3]:
-        bus.disconnect()
+    for mpris in mpris_players:
+        mpris.disconnect()

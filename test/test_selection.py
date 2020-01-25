@@ -1,7 +1,6 @@
-from .mpris import setup_buses
+from .mpris import setup_mpris
 from .playerctl import PlayerctlCli
 import pytest
-import asyncio
 
 
 def selector(bus_address):
@@ -38,7 +37,12 @@ async def test_selection(bus_address):
     s6i = 'selection6.instance2'
     any_player = '%any'
 
-    buses = await setup_buses(s1, s1i, s2, s3, s6i, bus_address=bus_address)
+    mpris_players = await setup_mpris(s1,
+                                      s1i,
+                                      s2,
+                                      s3,
+                                      s6i,
+                                      bus_address=bus_address)
 
     # TODO: test ignored players
     selections = {
@@ -68,5 +72,5 @@ async def test_selection(bus_address):
         result = await select_many(*selection)
         assert result == expected
 
-    for bus in buses:
-        bus.disconnect()
+    for mpris in mpris_players:
+        mpris.disconnect()

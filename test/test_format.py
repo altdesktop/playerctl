@@ -1,21 +1,15 @@
-from dbus_next import RequestNameReply, Variant
-from dbus_next.aio import MessageBus
-from .mpris import MprisPlayer
+from dbus_next import Variant
+from .mpris import setup_mpris
 from .playerctl import PlayerctlCli
 
 import pytest
-import asyncio
 
 # TODO: test missing function does not segv
 
 
 @pytest.mark.asyncio
 async def test_format(bus_address):
-    bus = await MessageBus(bus_address=bus_address).connect()
-    reply = await bus.request_name(f'org.mpris.MediaPlayer2.format_test')
-    assert reply == RequestNameReply.PRIMARY_OWNER
-    mpris = MprisPlayer()
-    bus.export('/org/mpris/MediaPlayer2', mpris)
+    [mpris] = await setup_mpris('format-test', bus_address=bus_address)
     TITLE = 'A Title'
     ARTIST = 'An Artist'
     mpris.metadata = {
@@ -24,11 +18,12 @@ async def test_format(bus_address):
         'xesam:escapeme': Variant('s', '<hi>'),
         'mpris:length': Variant('x', 100000)
     }
+    await mpris.ping()
 
     playerctl = PlayerctlCli(bus_address)
 
     cmd = await playerctl.run('metadata --format "{{artist}} - {{title}}"')
-    assert cmd.stdout == f'{ARTIST} - {TITLE}'
+    assert cmd.stdout == f'{ARTIST} - {TITLE}', cmd.stderr
 
     cmd = await playerctl.run(
         'metadata --format "{{markup_escape(xesam:escapeme)}}"')
@@ -67,3 +62,5 @@ async def test_format(bus_address):
 
     cmd = await playerctl.run('metadata --format \'{{default("ok", "not")}}\'')
     assert cmd.stdout == 'ok', cmd.stderr
+
+    mpris.disconnect()
