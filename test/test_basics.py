@@ -1,5 +1,6 @@
 from .mpris import setup_mpris
 from .playerctl import PlayerctlCli
+import math
 
 import asyncio
 import pytest
@@ -55,3 +56,27 @@ async def test_list_names(bus_address):
 
     for mpris in mpris_players:
         mpris.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_queries(bus_address):
+    [mpris] = await setup_mpris('queries', bus_address=bus_address)
+    mpris.position = 2500000
+
+    playerctl = PlayerctlCli(bus_address)
+
+    query = await playerctl.run('status')
+    assert query.stdout == mpris.playback_status, query.stderr
+
+    query = await playerctl.run('volume')
+    assert float(query.stdout) == mpris.volume, query.stderr
+
+    query = await playerctl.run('loop')
+    assert query.stdout == mpris.loop_status, query.stderr
+
+    query = await playerctl.run('position')
+    assert math.fabs(float(query.stdout) * 1000000 -
+                     mpris.position) < 10, query.stderr
+
+    query = await playerctl.run('shuffle')
+    assert query.stdout == ('On' if mpris.shuffle else 'Off'), query.stderr

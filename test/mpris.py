@@ -37,7 +37,7 @@ class MprisPlayer(ServiceInterface):
         self.open_uri_called_with = None
 
         # properties
-        self.playback_status = 'Stopped'
+        self.playback_status = 'Playing'
         self.loop_status = 'None'
         self.rate = 1.0
         self.shuffle = False
@@ -70,8 +70,6 @@ class MprisPlayer(ServiceInterface):
 
         self.emit_properties_changed({
             'Metadata': self.metadata,
-            'PlaybackStatus': self.playback_status,
-            'CanPlay': True,
         })
         await self.ping()
 
@@ -82,8 +80,6 @@ class MprisPlayer(ServiceInterface):
         }
         self.emit_properties_changed({
             'Metadata': self.metadata,
-            'PlaybackStatus': self.playback_status,
-            'CanPlay': True,
         })
         await self.ping()
 
