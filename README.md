@@ -67,6 +67,15 @@ playerctl --player=%any,chromium play
 playerctl --player=vlc,%any play
 ```
 
+#### Selecting the Most Recent Player
+
+Playerctl comes with a service called `playerctld` you can use that monitors the activity of media players to select the one with the most recent activity. To use it, simply pass `playerctld` as the selected player to Playerctl and the service should start automatically (if it doesn't, see the troubleshooting section).
+
+```
+# Command the most recent player to play
+playerctl --player=playerctld play
+```
+
 ### Printing Properties and Metadata
 
 You can pass a format string with the `--format` argument to print properties in a specific format. Pass the variable you want to print in the format string between double braces like `{{ VARIABLE }}`. The variables available are either the name of the query command, or anything in the metadata map which can be viewed with `playerctl metadata`. You can use this to integrate playerctl into a statusline generator.
@@ -162,12 +171,28 @@ For a more complete example which is capable of listening to when players start 
 
 ## Troubleshooting
 
-To enable debug logging, set the environment variable `G_MESSAGES_DEBUG=playerctl`.
+### Debug Logging
+
+To enable debug logging, set the environment variable `G_MESSAGES_DEBUG=playerctl`. It's helpful to include a debug log when you report issues.
+
+### No Players Found
 
 Some players like Spotify require certain DBus environment variables to be set which are normally set within the session manager. If you're not using a session manager or it does not set these variables automatically (like `xinit`), launch your desktop environment wrapped in a `dbus-launch` command. For example, in your `.xinitrc` file, use this to start your WM:
 
 ```
 exec dbus-launch --autolaunch=$(cat /var/lib/dbus/machine-id) i3
+```
+
+### Playerctld Autostart Issues
+
+If `playerctld` does not autostart and you use `xinit` and systemd, you might need this fix to enable DBus activation to work correctly:
+
+```
+systemctl --user import-environment DISPLAY XAUTHORITY
+
+if which dbus-update-activation-environment >/dev/null 2>&1; then
+        dbus-update-activation-environment DISPLAY XAUTHORITY
+fi
 ```
 
 ## Installing
