@@ -84,7 +84,8 @@ static void player_update_properties(struct Player *player, const char *interfac
     }
     g_variant_iter_init(&iter, properties);
     while ((child = g_variant_iter_next_value(&iter))) {
-        const gchar *key = g_variant_get_string(g_variant_get_child_value(child, 0), NULL);
+        GVariant *key_variant = g_variant_get_child_value(child, 0);
+        const gchar *key = g_variant_get_string(key_variant, 0);
         GVariant *prop_variant = g_variant_get_child_value(child, 1);
         GVariant *prop_value = g_variant_get_variant(prop_variant);
         // printf("key=%s, value=%s\n", key, g_variant_print(prop_value, TRUE));
@@ -92,21 +93,23 @@ static void player_update_properties(struct Player *player, const char *interfac
         if (cache_value != NULL) {
             g_variant_unref(cache_value);
         }
-        g_variant_unref(prop_variant);
-        g_variant_ref(prop_value);
         g_variant_dict_insert_value(&cached_properties, key, prop_value);
+        g_variant_unref(prop_value);
+        g_variant_unref(prop_variant);
+        g_variant_unref(key_variant);
+        g_variant_unref(child);
     }
 
     if (is_player_interface) {
         if (player->player_properties != NULL) {
             g_variant_unref(player->player_properties);
         }
-        player->player_properties = g_variant_take_ref(g_variant_dict_end(&cached_properties));
+        player->player_properties = g_variant_ref_sink(g_variant_dict_end(&cached_properties));
     } else {
         if (player->root_properties != NULL) {
             g_variant_unref(player->root_properties);
         }
-        player->root_properties = g_variant_take_ref(g_variant_dict_end(&cached_properties));
+        player->root_properties = g_variant_ref_sink(g_variant_dict_end(&cached_properties));
     }
 }
 
@@ -750,6 +753,7 @@ int main(int argc, char *argv[]) {
     g_dbus_node_info_unref(mpris_introspection_data);
     g_dbus_node_info_unref(playerctld_introspection_data);
     g_queue_free_full(ctx.players, (GDestroyNotify)player_free);
+    g_object_unref(ctx.connection);
 
     return 0;
 }

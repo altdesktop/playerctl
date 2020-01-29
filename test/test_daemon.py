@@ -133,6 +133,10 @@ async def test_daemon_follow(bus_address):
     line = await proc.queue.get()
     assert line == 'playerctld: artist4 - title4', proc.queue
 
+    await mpris1.set_artist_title('artist5', 'title5')
+    line = await proc.queue.get()
+    assert line == 'playerctld: artist5 - title5', proc.queue
+
     mpris1.disconnect()
     line = await proc.queue.get()
     assert line == 'playerctld: artist3 - title3', proc.queue
