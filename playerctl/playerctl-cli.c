@@ -161,11 +161,13 @@ static gchar *get_metadata_formatted(PlayerctlPlayer *player, GError **error) {
 static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     gboolean can_play = FALSE;
     g_object_get(player, "can-play", &can_play, NULL);
 
     if (!can_play) {
+        g_debug("%s: can-play is false, skipping", instance);
         return FALSE;
     }
 
@@ -180,11 +182,13 @@ static gboolean playercmd_play(PlayerctlPlayer *player, gchar **argv, gint argc,
 static gboolean playercmd_pause(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                 GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     gboolean can_pause = FALSE;
     g_object_get(player, "can-pause", &can_pause, NULL);
 
     if (!can_pause) {
+        g_debug("%s: player cannot pause", instance);
         return FALSE;
     }
 
@@ -199,11 +203,13 @@ static gboolean playercmd_pause(PlayerctlPlayer *player, gchar **argv, gint argc
 static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint argc,
                                      gchar **output, GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     gboolean can_play = FALSE;
     g_object_get(player, "can-play", &can_play, NULL);
 
     if (!can_play) {
+        g_debug("%s: can-play is false, skipping", instance);
         return FALSE;
     }
 
@@ -218,6 +224,7 @@ static gboolean playercmd_play_pause(PlayerctlPlayer *player, gchar **argv, gint
 static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     // XXX there is no CanStop propery on the mpris player. CanPlay is supposed
     // to indicate whether there is a current track. If there is no current
@@ -226,6 +233,7 @@ static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
     g_object_get(player, "can-play", &can_play, NULL);
 
     if (!can_play) {
+        g_debug("%s: can-play is false, skipping", instance);
         return FALSE;
     }
 
@@ -240,11 +248,13 @@ static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
 static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     gboolean can_go_next = FALSE;
     g_object_get(player, "can-go-next", &can_go_next, NULL);
 
     if (!can_go_next) {
+        g_debug("%s: player cannot go next", instance);
         return FALSE;
     }
 
@@ -259,11 +269,13 @@ static gboolean playercmd_next(PlayerctlPlayer *player, gchar **argv, gint argc,
 static gboolean playercmd_previous(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                    GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     gboolean can_go_previous = FALSE;
     g_object_get(player, "can-go-previous", &can_go_previous, NULL);
 
     if (!can_go_previous) {
+        g_debug("%s: player cannot go previous", instance);
         return FALSE;
     }
 
@@ -279,11 +291,13 @@ static gboolean playercmd_open(PlayerctlPlayer *player, gchar **argv, gint argc,
                                GError **error) {
     const gchar *uri = argv[1];
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     gboolean can_control = FALSE;
     g_object_get(player, "can-control", &can_control, NULL);
 
     if (!can_control) {
+        g_debug("%s: player cannot control", instance);
         return FALSE;
     }
 
@@ -319,6 +333,7 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
     const gchar *position = argv[1];
     gint64 offset;
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     if (position) {
         if (format_string_arg != NULL) {
@@ -376,6 +391,10 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
             g_free(formatted);
             g_variant_dict_unref(context);
         } else {
+            if (!pctl_player_has_cached_property(player, "Position")) {
+                g_debug("%s: player has no cached position, skipping", instance);
+                return FALSE;
+            }
             g_object_get(player, "position", &offset, NULL);
             *output = g_strdup_printf("%f\n", (double)offset / 1000000.0);
         }
@@ -389,6 +408,7 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
     GError *tmp_error = NULL;
     const gchar *volume = argv[1];
     gdouble level;
+    gchar *instance = pctl_player_get_instance(player);
 
     if (volume) {
         if (format_string_arg != NULL) {
@@ -404,7 +424,7 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
 
             if (volume == endptr) {
                 g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "Could not parse volume as a number: %s\n", volume);
+                            "could not parse volume as a number: %s\n", volume);
                 return FALSE;
             }
 
@@ -418,7 +438,7 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
             level = strtod(volume, &endptr);
             if (volume == endptr) {
                 g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "Could not parse volume as a number: %s\n", volume);
+                            "could not parse volume as a number: %s\n", volume);
                 return FALSE;
             }
         }
@@ -427,6 +447,7 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
         g_object_get(player, "can-control", &can_control, NULL);
 
         if (!can_control) {
+            g_debug("%s: player cannot control", instance);
             return FALSE;
         }
 
@@ -436,6 +457,11 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
             return FALSE;
         }
     } else {
+        if (!pctl_player_has_cached_property(player, "Volume")) {
+            g_debug("%s: player has no volume set, skipping", instance);
+            return FALSE;
+        }
+
         g_object_get(player, "volume", &level, NULL);
 
         if (formatter != NULL) {
@@ -459,6 +485,12 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
 static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                  GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
+
+    if (!pctl_player_has_cached_property(player, "PlaybackStatus")) {
+        g_debug("%s: player has no playback status set, skipping", instance);
+        return FALSE;
+    }
 
     if (formatter != NULL) {
         GVariantDict *context =
@@ -488,6 +520,7 @@ static gboolean playercmd_status(PlayerctlPlayer *player, gchar **argv, gint arg
 static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                   GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     if (argc > 1) {
         gchar *status_str = argv[1];
@@ -508,6 +541,7 @@ static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint ar
         gboolean can_control = FALSE;
         g_object_get(player, "can-control", &can_control, NULL);
         if (!can_control) {
+            g_debug("%s: player cannot control, not setting shuffle", instance);
             return FALSE;
         }
 
@@ -517,6 +551,11 @@ static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint ar
             return FALSE;
         }
     } else {
+        if (!pctl_player_has_cached_property(player, "Shuffle")) {
+            g_debug("%s: player has no shuffle status set, skipping", instance);
+            return FALSE;
+        }
+
         if (formatter != NULL) {
             GVariantDict *context =
                 playerctl_formatter_default_template_context(formatter, player, NULL);
@@ -548,6 +587,7 @@ static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint ar
 static gboolean playercmd_loop(PlayerctlPlayer *player, gchar **argv, gint argc, gchar **output,
                                GError **error) {
     GError *tmp_error = NULL;
+    gchar *instance = pctl_player_get_instance(player);
 
     if (argc > 1) {
         gchar *status_str = argv[1];
@@ -563,6 +603,7 @@ static gboolean playercmd_loop(PlayerctlPlayer *player, gchar **argv, gint argc,
         gboolean can_control = FALSE;
         g_object_get(player, "can-control", &can_control, NULL);
         if (!can_control) {
+            g_debug("%s: player cannot control", instance);
             return FALSE;
         }
 
@@ -587,6 +628,10 @@ static gboolean playercmd_loop(PlayerctlPlayer *player, gchar **argv, gint argc,
             g_variant_dict_unref(context);
             g_free(formatted);
         } else {
+            if (!pctl_player_has_cached_property(player, "LoopStatus")) {
+                g_debug("%s: player has no cached loop status, skipping", instance);
+                return FALSE;
+            }
             PlayerctlLoopStatus status = 0;
             g_object_get(player, "loop-status", &status, NULL);
             const gchar *status_str = pctl_loop_status_to_string(status);
@@ -611,7 +656,7 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
         // XXX: This is gotten from the property cache which may not be up to
         // date in all cases. If there is a bug with a player not printing
         // metadata, look here.
-        g_debug("%s: no current track, skipping", instance);
+        g_debug("%s: can-play is false, skipping", instance);
         return FALSE;
     }
 
@@ -1175,6 +1220,7 @@ int main(int argc, char *argv[]) {
     }
 
     gboolean has_selected = FALSE;
+    gboolean did_command = FALSE;
     GList *l = NULL;
     for (l = available_players; l != NULL; l = l->next) {
         PlayerctlPlayerName *name = l->data;
@@ -1205,6 +1251,7 @@ int main(int argc, char *argv[]) {
                 goto end;
             }
             if (result) {
+                did_command = TRUE;
                 if (output != NULL) {
                     printf("%s", output);
                     fflush(stdout);
@@ -1221,13 +1268,17 @@ int main(int argc, char *argv[]) {
         g_object_unref(player);
     }
 
-    if (!follow && !has_selected) {
-        g_printerr("No players found\n");
-        exit_status = 1;
-        goto end;
-    }
-
-    if (follow) {
+    if (!follow) {
+        if (!has_selected) {
+            g_printerr("No players found\n");
+            exit_status = 1;
+            goto end;
+        } else if (!did_command) {
+            g_printerr("No player could handle this command\n");
+            exit_status = 1;
+            goto end;
+        }
+    } else {
         managed_players_execute_command(&error);
         if (error != NULL) {
             g_printerr("Connection to player failed: %s\n", error->message);

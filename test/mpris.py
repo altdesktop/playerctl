@@ -8,13 +8,47 @@ import asyncio
 async def setup_mpris(*names, bus_address=None):
     async def setup(name):
         bus = await MessageBus(bus_address=bus_address).connect()
-        reply = await bus.request_name(f'org.mpris.MediaPlayer2.{name}')
-        assert reply == RequestNameReply.PRIMARY_OWNER
         player = MprisPlayer(bus)
         bus.export('/org/mpris/MediaPlayer2', player)
+        bus.export('/org/mpris/MediaPlayer2', MprisRoot())
+        reply = await bus.request_name(f'org.mpris.MediaPlayer2.{name}')
+        assert reply == RequestNameReply.PRIMARY_OWNER
         return player
 
     return await asyncio.gather(*(setup(name) for name in names))
+
+
+class MprisRoot(ServiceInterface):
+    def __init__(self):
+        super().__init__('org.mpris.MediaPlayer2')
+
+    @method()
+    def Raise(self):
+        return
+
+    @method()
+    def Quit(self):
+        return
+
+    @dbus_property(access=PropertyAccess.READ)
+    def CanRaise(self) -> 'b':
+        return False
+
+    @dbus_property(access=PropertyAccess.READ)
+    def HasTrackList(self) -> 'b':
+        return False
+
+    @dbus_property(access=PropertyAccess.READ)
+    def Identity(self) -> 's':
+        return 'playerctl test client'
+
+    @dbus_property(access=PropertyAccess.READ)
+    def SupportedUriSchemes(self) -> 'as':
+        return ['file']
+
+    @dbus_property(access=PropertyAccess.READ)
+    def SupportedMimeTypes(self) -> 'as':
+        return ['audio/mp3']
 
 
 class MprisPlayer(ServiceInterface):

@@ -23,6 +23,7 @@
 #include <gio/gio.h>
 #include <glib.h>
 #include <playerctl/playerctl.h>
+#include <stdbool.h>
 
 #define MPRIS_PREFIX "org.mpris.MediaPlayer2."
 
@@ -55,6 +56,8 @@ GList *pctl_player_name_find_instance(GList *list, gchar *player_id, PlayerctlSo
 void pctl_player_name_list_destroy(GList *list);
 
 GList *pctl_list_player_names_on_bus(GBusType bus_type, GError **err);
+
+bool pctl_player_has_cached_property(PlayerctlPlayer *player, const gchar *name);
 
 #undef __PLAYERCTL_COMMON_H__
 #endif

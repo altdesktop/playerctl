@@ -23,6 +23,7 @@
 #include <glib-object.h>
 #include <playerctl/playerctl-enum-types.h>
 #include <playerctl/playerctl-player-manager.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -134,6 +135,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
                                                          GVariant *changed_properties,
                                                          const gchar *const *invalidated_properties,
                                                          gpointer user_data) {
+    g_debug("%s", g_variant_print(changed_properties, TRUE));
     PlayerctlPlayer *self = user_data;
     gchar *instance = self->priv->instance;
     g_debug("%s: properties changed", instance);
@@ -293,7 +295,6 @@ static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **e
     GVariant *metadata;
     GError *tmp_error = NULL;
 
-    g_main_context_iteration(NULL, FALSE);
     metadata = org_mpris_media_player2_player_dup_metadata(self->priv->proxy);
 
     if (!metadata) {
@@ -393,7 +394,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
             g_value_set_boolean(value, FALSE);
             break;
         }
-        g_main_context_iteration(NULL, FALSE);
         g_value_set_boolean(value, org_mpris_media_player2_player_get_shuffle(self->priv->proxy));
         break;
     }
@@ -421,7 +421,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
 
     case PROP_VOLUME:
         if (self->priv->proxy) {
-            g_main_context_iteration(NULL, FALSE);
             g_value_set_double(value, org_mpris_media_player2_player_get_volume(self->priv->proxy));
         } else {
             g_value_set_double(value, 0);
@@ -441,7 +440,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
             g_value_set_boolean(value, FALSE);
             break;
         }
-        g_main_context_iteration(NULL, FALSE);
         g_value_set_boolean(value,
                             org_mpris_media_player2_player_get_can_control(self->priv->proxy));
         break;
@@ -451,7 +449,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
             g_value_set_boolean(value, FALSE);
             break;
         }
-        g_main_context_iteration(NULL, FALSE);
         g_value_set_boolean(value, org_mpris_media_player2_player_get_can_play(self->priv->proxy));
         break;
 
@@ -460,7 +457,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
             g_value_set_boolean(value, FALSE);
             break;
         }
-        g_main_context_iteration(NULL, FALSE);
         g_value_set_boolean(value, org_mpris_media_player2_player_get_can_pause(self->priv->proxy));
         break;
 
@@ -469,7 +465,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
             g_value_set_boolean(value, FALSE);
             break;
         }
-        g_main_context_iteration(NULL, FALSE);
         g_value_set_boolean(value, org_mpris_media_player2_player_get_can_seek(self->priv->proxy));
         break;
 
@@ -478,7 +473,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
             g_value_set_boolean(value, FALSE);
             break;
         }
-        g_main_context_iteration(NULL, FALSE);
         g_value_set_boolean(value,
                             org_mpris_media_player2_player_get_can_go_next(self->priv->proxy));
         break;
@@ -488,7 +482,6 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
             g_value_set_boolean(value, FALSE);
             break;
         }
-        g_main_context_iteration(NULL, FALSE);
         g_value_set_boolean(value,
                             org_mpris_media_player2_player_get_can_go_previous(self->priv->proxy));
         break;
@@ -1609,4 +1602,13 @@ void playerctl_player_set_shuffle(PlayerctlPlayer *self, gboolean shuffle, GErro
 
 char *pctl_player_get_instance(PlayerctlPlayer *player) {
     return player->priv->instance;
+}
+
+bool pctl_player_has_cached_property(PlayerctlPlayer *player, const gchar *name) {
+    GVariant *value = g_dbus_proxy_get_cached_property(G_DBUS_PROXY(player->priv->proxy), name);
+    if (value == NULL) {
+        return false;
+    }
+    g_variant_unref(value);
+    return true;
 }

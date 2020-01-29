@@ -10,7 +10,7 @@ class CommandResult:
 
 
 class PlayerctlProcess:
-    def __init__(self, proc):
+    def __init__(self, proc, debug=False):
         self.queue = asyncio.Queue()
         self.proc = proc
 
@@ -23,7 +23,7 @@ class PlayerctlProcess:
                 if 'playerctl-DEBUG:' in line:
                     print(line)
                 else:
-                    await self.queue.put(line)
+                    self.queue.put_nowait(line)
 
         async def printer(stream):
             while True:
@@ -43,6 +43,7 @@ class PlayerctlCli:
     def __init__(self, bus_address=None, debug=False):
         self.bus_address = bus_address
         self.debug = debug
+        self.proc = None
 
     async def _start(self, cmd):
         env = os.environ.copy()

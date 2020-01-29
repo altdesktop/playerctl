@@ -76,7 +76,7 @@ async def test_queries(bus_address):
 
     query = await playerctl.run('position')
     assert math.fabs(float(query.stdout) * 1000000 -
-                     mpris.position) < 10, query.stderr
+                     mpris.position) < 100, query.stderr
 
     query = await playerctl.run('shuffle')
     assert query.stdout == ('On' if mpris.shuffle else 'Off'), query.stderr
