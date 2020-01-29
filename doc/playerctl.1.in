@@ -226,6 +226,13 @@ Can only be called with
 .Va position
 or
 .Va mpris:length .
+.It Fn emoji key
+Try to convert the value for
+.Fa key
+to an emoji representation. Currently implemented for
+.Fa status
+and
+.Fa volume .
 .El
 .Pp
 References to unknown functions will cause
@@ -251,7 +258,7 @@ $ playerctl metadata --format '{{playerName}}: {{lc(status)}} '\e
 .%U https://freedesktop.org/wiki/Specifications/mpris-spec/metadata/
 .Re
 .Pp
-.Lk https://github.com/acrisci/playerctl "playerctl homepage" ,
+.Lk https://github.com/altdesktop/playerctl "playerctl homepage" ,
 .Lk https://dubstepdish.com/playerctl "playerctl API documentation" ,
 .Lk https://wiki.gnome.org/Projects/GObjectIntrospection/Users \
     "GObject introspection language bindings"
