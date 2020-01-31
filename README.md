@@ -87,20 +87,20 @@ playerctl metadata --format "Now playing: {{ artist }} - {{ album }} - {{ title 
 # prints 'Now playing: Lana Del Rey - Born To Die - Video Games'
 ```
 
-Included in the template language are some helper functions for common formatting that you can call on template variables.
+Included in the template language are some built-in variables and helper functions for common formatting that you can call on template variables.
 
 ```bash
+# Prints 'Total length: 3:23'
 playerctl metadata --format "Total length: {{ duration(mpris:length) }}"
-# prints 'Total length: 3:23'
 
+# Prints 'At position: 1:16'
 playerctl position --format "At position: {{ duration(position) }}"
-# prints 'At position: 1:16'
 
+# Prints 'Artist in lowercase: lana del rey'
 playerctl metadata --format "Artist in lowercase: {{ lc(artist) }}"
-# prints 'Artist in lowercase: lana del rey'
 
+# Prints 'STATUS: PLAYING'
 playerctl status --format "STATUS: {{ uc(status) }}"
-# prints 'STATUS: PLAYING'
 ```
 
 | Function        | Argument         | Description                                                        |
@@ -111,6 +111,16 @@ playerctl status --format "STATUS: {{ uc(status) }}"
 | `markup_escape` | string           | Escape XML markup characters in the string.                        |
 | `default`       | any, any         | Print the first value if it is present, or else print the second.  |
 | `emoji`         | status or volume | Try to convert the variable to an emoji representation.            |
+
+| Variable     | Description                                       |
+| ------------ | ------------------------------------------------- |
+| `playerName` | The name of the current player.                   |
+| `position`   | The position of the current track in microseconds |
+| `status`     | The playback status of the current player         |
+| `volume`     | The volume from 0.0 to 1.0                        |
+| `album`      | The album of the current track.                   |
+| `artist`     | The artist of the current track.                  |
+| `title`      | The title of the current track.                   |
 
 ### Following changes
 
@@ -197,7 +207,7 @@ fi
 
 ## Installing
 
-First, check and see if the library is available from your package manager (if it is not, get someone to host a package for you) and also check the [releases](https://github.com/acrisci/playerctl/releases) page on github.
+First, check and see if Playerctl is available from your package manager (if it is not, get someone to host a package for you) and also check the [releases](https://github.com/acrisci/playerctl/releases) page on github.
 
 ### Fedora
 
@@ -230,7 +240,6 @@ Additionally, you also need the following build dependencies:
 [gtk-doc](http://www.gtk.org/gtk-doc/) for building documentation (configurable with the `gtk-doc` meson option)
 
 Fedora users also need to install `redhat-rpm-config`
-
 
 To generate and build the project to contribute to development and install playerctl to `/`:
 
