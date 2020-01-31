@@ -239,7 +239,7 @@ meson mesonbuild
 sudo ninja -C mesonbuild install
 ```
 
-Note that you need `meson >= 0.46.0` installed. In case your distro only has an older version of meson in its repository you can install the newest version via pip:
+Note that you need `meson >= 0.50.0` installed. In case your distro only has an older version of meson in its repository you can install the newest version via pip:
 
 ```
 pip3 install meson
