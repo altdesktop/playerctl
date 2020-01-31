@@ -4,11 +4,18 @@
 #include <stdio.h>
 
 #define MPRIS_PATH "/org/mpris/MediaPlayer2"
+#define DBUS_NAME "org.freedesktop.DBus"
+#define DBUS_INTERFACE "org.freedesktop.DBus"
 #define DBUS_PATH "/org/freedesktop/DBus"
+#define PLAYER_INTERFACE "org.mpris.MediaPlayer2.Player"
+#define ROOT_INTERFACE "org.mpris.MediaPlayer2"
+#define PROPERTIES_INTERFACE "org.freedesktop.DBus.Properties"
+#define PLAYERCTLD_INTERFACE "com.github.altdesktop.playerctld"
 
 struct Player {
     char *unique;
     char *well_known;
+    gint64 position;
     GVariant *player_properties;
     GVariant *root_properties;
 };
@@ -26,10 +33,15 @@ struct PlayerctldContext {
 };
 
 static struct Player *player_new(const char *unique, const char *well_known) {
-    struct Player *name = calloc(1, sizeof(struct Player));
-    name->unique = g_strdup(unique);
-    name->well_known = g_strdup(well_known);
-    return name;
+    struct Player *player = calloc(1, sizeof(struct Player));
+    player->unique = g_strdup(unique);
+    player->well_known = g_strdup(well_known);
+    return player;
+}
+
+static void player_set_unique_name(struct Player *player, const char *unique) {
+    g_free(player->unique);
+    player->unique = g_strdup(unique);
 }
 
 static void player_free(struct Player *name) {
@@ -68,10 +80,10 @@ static void player_update_properties(struct Player *player, const char *interfac
     GVariant *child;
     bool is_player_interface = false;  // otherwise, the root interface
 
-    if (g_strcmp0(interface_name, "org.mpris.MediaPlayer2.Player") == 0) {
+    if (g_strcmp0(interface_name, PLAYER_INTERFACE) == 0) {
         g_variant_dict_init(&cached_properties, player->player_properties);
         is_player_interface = true;
-    } else if (g_strcmp0(interface_name, "org.mpris.MediaPlayer2") == 0) {
+    } else if (g_strcmp0(interface_name, ROOT_INTERFACE) == 0) {
         g_variant_dict_init(&cached_properties, player->root_properties);
     } else {
         g_error("cannot update properties for unknown interface: %s", interface_name);
@@ -89,11 +101,17 @@ static void player_update_properties(struct Player *player, const char *interfac
         GVariant *prop_variant = g_variant_get_child_value(child, 1);
         GVariant *prop_value = g_variant_get_variant(prop_variant);
         // printf("key=%s, value=%s\n", key, g_variant_print(prop_value, TRUE));
+        if (is_player_interface && g_strcmp0(key, "Position") == 0) {
+            // gets cached separately
+            player->position = g_variant_get_int64(prop_value);
+            goto loop_out;
+        }
         GVariant *cache_value = g_variant_dict_lookup_value(&cached_properties, key, NULL);
         if (cache_value != NULL) {
             g_variant_unref(cache_value);
         }
         g_variant_dict_insert_value(&cached_properties, key, prop_value);
+    loop_out:
         g_variant_unref(prop_value);
         g_variant_unref(prop_variant);
         g_variant_unref(key_variant);
@@ -111,6 +129,29 @@ static void player_update_properties(struct Player *player, const char *interfac
         }
         player->root_properties = g_variant_ref_sink(g_variant_dict_end(&cached_properties));
     }
+}
+
+static void player_update_position_sync(struct Player *player, struct PlayerctldContext *ctx,
+                                        GError **error) {
+    GError *tmp_error = NULL;
+    g_return_if_fail(error == NULL || *error == NULL);
+    g_debug("updating position for player unique='%s', well_known='%s'", player->unique,
+            player->well_known);
+    GVariant *reply = g_dbus_connection_call_sync(
+        ctx->connection, player->unique, MPRIS_PATH, PROPERTIES_INTERFACE, "Get",
+        g_variant_new("(ss)", PLAYER_INTERFACE, "Position"), NULL, G_DBUS_CALL_FLAGS_NO_AUTO_START,
+        -1, NULL, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return;
+    }
+    GVariant *position_unwrapped = g_variant_get_child_value(reply, 0);
+    GVariant *position_variant = g_variant_get_variant(position_unwrapped);
+    player->position = g_variant_get_int64(position_variant);
+    g_debug("new position: %ld", player->position);
+    g_variant_unref(position_variant);
+    g_variant_unref(position_unwrapped);
+    g_variant_unref(reply);
 }
 
 static GVariant *context_player_names_to_gvariant(struct PlayerctldContext *ctx) {
@@ -132,32 +173,45 @@ static void context_emit_active_player_changed(struct PlayerctldContext *ctx, GE
 
     struct Player *player = g_queue_peek_head(ctx->players);
 
+    g_dbus_connection_emit_signal(
+        ctx->connection, NULL, MPRIS_PATH, PLAYERCTLD_INTERFACE, "ActivePlayerChangeBegin",
+        g_variant_new("(s)", (player != NULL ? player->well_known : "")), &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return;
+    }
+
     if (player != NULL) {
         g_debug("emitting signals for new active player: '%s'", player->well_known);
         GVariant *player_children[3] = {
-            g_variant_new_string("org.mpris.MediaPlayer2.Player"),
+            g_variant_new_string(PLAYER_INTERFACE),
             player->player_properties,
             g_variant_new_array(G_VARIANT_TYPE_STRING, NULL, 0),
         };
         GVariant *player_properties_tuple = g_variant_new_tuple(player_children, 3);
 
-        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH,
-                                      "org.freedesktop.DBus.Properties", "PropertiesChanged",
-                                      player_properties_tuple, &tmp_error);
+        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
+                                      "PropertiesChanged", player_properties_tuple, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
             return;
         }
 
         GVariant *root_children[3] = {
-            g_variant_new_string("org.mpris.MediaPlayer2.Player"),
+            g_variant_new_string(PLAYER_INTERFACE),
             player->root_properties,
             g_variant_new_array(G_VARIANT_TYPE_STRING, NULL, 0),
         };
         GVariant *root_properties_tuple = g_variant_new_tuple(root_children, 3);
-        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH,
-                                      "org.freedesktop.DBus.Properties", "PropertiesChanged",
-                                      root_properties_tuple, &tmp_error);
+        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
+                                      "PropertiesChanged", root_properties_tuple, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return;
+        }
+        g_debug("sending Seeked signal with position %ld", player->position);
+        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PLAYER_INTERFACE, "Seeked",
+                                      g_variant_new("(x)", player->position), &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
             return;
@@ -176,29 +230,27 @@ static void context_emit_active_player_changed(struct PlayerctldContext *ctx, GE
         GVariant *root_invalidated = g_variant_new_strv(
             root_properties, sizeof(root_properties) / sizeof(root_properties[0]));
         GVariant *player_children[3] = {
-            g_variant_new_string("org.mpris.MediaPlayer2.Player"),
+            g_variant_new_string(PLAYER_INTERFACE),
             g_variant_new_array(G_VARIANT_TYPE("{sv}"), NULL, 0),
             player_invalidated,
         };
         GVariant *root_children[3] = {
-            g_variant_new_string("org.mpris.MediaPlayer2"),
+            g_variant_new_string(ROOT_INTERFACE),
             g_variant_new_array(G_VARIANT_TYPE("{sv}"), NULL, 0),
             root_invalidated,
         };
         GVariant *player_invalidated_tuple = g_variant_new_tuple(player_children, 3);
         GVariant *root_invalidated_tuple = g_variant_new_tuple(root_children, 3);
 
-        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH,
-                                      "org.freedesktop.DBus.Properties", "PropertiesChanged",
-                                      player_invalidated_tuple, &tmp_error);
+        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
+                                      "PropertiesChanged", player_invalidated_tuple, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
             return;
         }
 
-        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH,
-                                      "org.freedesktop.DBus.Properties", "PropertiesChanged",
-                                      root_invalidated_tuple, &tmp_error);
+        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
+                                      "PropertiesChanged", root_invalidated_tuple, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
             return;
@@ -210,14 +262,20 @@ static void context_emit_active_player_changed(struct PlayerctldContext *ctx, GE
     g_variant_dict_insert_value(&dict, "PlayerNames", context_player_names_to_gvariant(ctx));
 
     GVariant *playerctld_children[3] = {
-        g_variant_new_string("com.github.altdesktop.playerctld"),
+        g_variant_new_string(PLAYERCTLD_INTERFACE),
         g_variant_dict_end(&dict),
         g_variant_new_array(G_VARIANT_TYPE_STRING, NULL, 0),
     };
     GVariant *playerctld_properties = g_variant_new_tuple(playerctld_children, 3);
-    g_dbus_connection_emit_signal(ctx->connection, NULL, "/com/github/altdesktop/playerctld",
-                                  "org.freedesktop.DBus.Properties", "PropertiesChanged",
-                                  playerctld_properties, &tmp_error);
+    g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
+                                  "PropertiesChanged", playerctld_properties, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(error, tmp_error);
+        return;
+    }
+    g_dbus_connection_emit_signal(
+        ctx->connection, NULL, MPRIS_PATH, PLAYERCTLD_INTERFACE, "ActivePlayerChangeEnd",
+        g_variant_new("(s)", (player != NULL ? player->well_known : "")), &tmp_error);
     if (tmp_error != NULL) {
         g_propagate_error(error, tmp_error);
         return;
@@ -278,6 +336,12 @@ static const char *playerctld_introspection_xml =
     "<node>\n"
     "  <interface name=\"com.github.altdesktop.playerctld\">\n"
     "    <property name=\"PlayerNames\" type=\"as\" access=\"read\"/>\n"
+    "    <signal name=\"ActivePlayerChangeBegin\">\n"
+    "        <arg name=\"Name\" type=\"s\"/>\n"
+    "    </signal>\n"
+    "    <signal name=\"ActivePlayerChangeEnd\">\n"
+    "        <arg name=\"Name\" type=\"s\"/>\n"
+    "    </signal>\n"
     "  </interface>\n"
     "</node>\n";
 
@@ -458,9 +522,8 @@ static void on_bus_acquired(GDBusConnection *connection, const char *name, gpoin
         g_clear_error(&error);
     }
 
-    g_dbus_connection_register_object(connection, "/com/github/altdesktop/playerctld",
-                                      ctx->playerctld_interface_info, &vtable_playerctld, user_data,
-                                      NULL, &error);
+    g_dbus_connection_register_object(connection, MPRIS_PATH, ctx->playerctld_interface_info,
+                                      &vtable_playerctld, user_data, NULL, &error);
     if (error != NULL) {
         g_warning("%s", error->message);
         g_clear_error(&error);
@@ -494,9 +557,6 @@ static void active_player_get_properties_async_callback(GObject *source_object, 
                                                         gpointer user_data) {
     GDBusConnection *connection = G_DBUS_CONNECTION(source_object);
     struct GetPropertiesUserData *data = user_data;
-    g_debug("got all properties response for name='%s', interface '%s'", data->player->well_known,
-            data->interface_name);
-    // g_debug("%s", g_variant_print(body_value, TRUE));
     GError *error = NULL;
     GVariant *body = g_dbus_connection_call_finish(connection, res, &error);
 
@@ -505,6 +565,10 @@ static void active_player_get_properties_async_callback(GObject *source_object, 
         g_clear_error(&error);
         goto out;
     }
+
+    g_debug("got all properties response for name='%s', interface '%s'", data->player->well_known,
+            data->interface_name);
+    // g_debug("%s", g_variant_print(body_value, TRUE));
 
     GVariant *body_value = g_variant_get_child_value(body, 0);
     player_update_properties(data->player, data->interface_name, body_value);
@@ -554,28 +618,49 @@ static void name_owner_changed_signal_callback(GDBusConnection *connection,
     g_debug("got name owner changed signal: name='%s', owner='%s'", name, new_owner);
 
     if (strlen(new_owner) > 0) {
-        g_debug("player name appeared, setting it to pending active: unique=%s, well_known=%s",
-                new_owner, name);
-        struct Player *player = player_new(new_owner, name);
+        g_debug("player name appeared: unique=%s, well_known=%s", new_owner, name);
+        // see if it's already managed
+        struct Player *player = context_find_player(ctx, NULL, name);
+        if (player != NULL) {
+            g_debug("player already managed, setting to active");
+            player_set_unique_name(player, new_owner);
+            if (player != context_get_active_player(ctx)) {
+                context_set_active_player(ctx, player);
+                player_update_position_sync(player, ctx, &error);
+                if (error != NULL) {
+                    g_warning("could not update player position: %s", error->message);
+                    g_clear_error(&error);
+                }
+                context_emit_active_player_changed(ctx, &error);
+                if (error != NULL) {
+                    g_warning("could not emit active player change: %s", error->message);
+                    g_clear_error(&error);
+                }
+            }
+            goto out;
+        }
+
+        g_debug("setting player to pending active");
+        player = player_new(new_owner, name);
         context_add_pending_player(ctx, player);
         ctx->pending_active = player;
 
         struct GetPropertiesUserData *player_data = calloc(1, sizeof(struct GetPropertiesUserData));
-        player_data->interface_name = "org.mpris.MediaPlayer2.Player";
+        player_data->interface_name = PLAYER_INTERFACE;
         player_data->player = player;
         player_data->ctx = ctx;
-        g_dbus_connection_call(connection, new_owner, MPRIS_PATH, "org.freedesktop.DBus.Properties",
-                               "GetAll", g_variant_new("(s)", "org.mpris.MediaPlayer2.Player"),
-                               NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL,
+        g_dbus_connection_call(connection, new_owner, MPRIS_PATH, PROPERTIES_INTERFACE, "GetAll",
+                               g_variant_new("(s)", PLAYER_INTERFACE), NULL,
+                               G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL,
                                active_player_get_properties_async_callback, player_data);
 
         struct GetPropertiesUserData *root_data = calloc(1, sizeof(struct GetPropertiesUserData));
-        root_data->interface_name = "org.mpris.MediaPlayer2";
+        root_data->interface_name = ROOT_INTERFACE;
         root_data->player = player;
         root_data->ctx = ctx;
-        g_dbus_connection_call(connection, new_owner, MPRIS_PATH, "org.freedesktop.DBus.Properties",
-                               "GetAll", g_variant_new("(s)", "org.mpris.MediaPlayer2"), NULL,
-                               G_DBUS_CALL_FLAGS_NONE, -1, NULL,
+        g_dbus_connection_call(connection, new_owner, MPRIS_PATH, PROPERTIES_INTERFACE, "GetAll",
+                               g_variant_new("(s)", ROOT_INTERFACE), NULL,
+                               G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL,
                                active_player_get_properties_async_callback, root_data);
     } else {
         struct Player *player = context_find_player(ctx, NULL, name);
@@ -596,6 +681,16 @@ static void name_owner_changed_signal_callback(GDBusConnection *connection,
             goto out;
         }
 
+        struct Player *active_player = context_get_active_player(ctx);
+        if (active_player != NULL) {
+            player_update_position_sync(active_player, ctx, &error);
+            if (error != NULL) {
+                active_player->position = 0l;
+                g_warning("could not update player position for player '%s': %s",
+                          active_player->well_known, error->message);
+                g_clear_error(&error);
+            }
+        }
         context_emit_active_player_changed(ctx, &error);
         if (error != NULL) {
             g_warning("could not emit player properties changed signal: %s", error->message);
@@ -619,8 +714,8 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
         return;
     }
 
-    if (g_strcmp0(interface_name, "org.mpris.MediaPlayer2.Player") != 0 &&
-        g_strcmp0(interface_name, "org.freedesktop.DBus.Properties") != 0) {
+    if (g_strcmp0(interface_name, PLAYER_INTERFACE) != 0 &&
+        g_strcmp0(interface_name, PROPERTIES_INTERFACE) != 0) {
         return;
     }
     g_debug("got player signal: sender=%s, object_path=%s, interface_name=%s, signal_name=%s",
@@ -644,9 +739,15 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
     if (player != context_get_active_player(ctx)) {
         g_debug("new active player: %s", player->well_known);
         context_set_active_player(ctx, player);
+        player_update_position_sync(player, ctx, &error);
+        if (error != NULL) {
+            player->position = 0l;
+            g_warning("could not update player position: %s", error->message);
+            g_clear_error(&error);
+        }
         context_emit_active_player_changed(ctx, &error);
         if (error != NULL) {
-            g_debug("could not emit all properties changed signal: %s", error->message);
+            g_warning("could not emit all properties changed signal: %s", error->message);
             g_clear_error(&error);
         }
     }
@@ -682,9 +783,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     ctx.root_interface_info =
-        g_dbus_node_info_lookup_interface(mpris_introspection_data, "org.mpris.MediaPlayer2");
-    ctx.player_interface_info = g_dbus_node_info_lookup_interface(mpris_introspection_data,
-                                                                  "org.mpris.MediaPlayer2.Player");
+        g_dbus_node_info_lookup_interface(mpris_introspection_data, ROOT_INTERFACE);
+    ctx.player_interface_info =
+        g_dbus_node_info_lookup_interface(mpris_introspection_data, PLAYER_INTERFACE);
     ctx.playerctld_interface_info = g_dbus_node_info_lookup_interface(
         playerctld_introspection_data, "com.github.altdesktop.playerctld");
 
@@ -697,8 +798,8 @@ int main(int argc, char *argv[]) {
     g_debug("connected to dbus: %s", g_dbus_connection_get_unique_name(ctx.connection));
 
     GVariant *names_reply = g_dbus_connection_call_sync(
-        ctx.connection, "org.freedesktop.DBus", DBUS_PATH, "org.freedesktop.DBus", "ListNames",
-        NULL, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, &error);
+        ctx.connection, DBUS_NAME, DBUS_PATH, DBUS_INTERFACE, "ListNames", NULL, NULL,
+        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
     if (error != NULL) {
         g_warning("could not call ListNames: %s", error->message);
         return 1;
@@ -707,15 +808,14 @@ int main(int argc, char *argv[]) {
     gsize nnames;
     const gchar **names = g_variant_get_strv(names_reply_value, &nnames);
     for (int i = 0; i < nnames; ++i) {
-        if (g_str_has_prefix(names[i], "org.mpris.MediaPlayer2.") &&
-            !g_str_has_suffix(names[i], ".playerctld")) {
-            GVariant *owner_reply = g_dbus_connection_call_sync(
-                ctx.connection, "org.freedesktop.DBus", DBUS_PATH, "org.freedesktop.DBus",
-                "GetNameOwner", g_variant_new("(s)", names[i]), NULL, G_DBUS_CALL_FLAGS_NONE, -1,
-                NULL, &error);
+        if (well_known_name_is_managed(names[i])) {
+            GVariant *owner_reply =
+                g_dbus_connection_call_sync(ctx.connection, DBUS_NAME, DBUS_PATH, DBUS_INTERFACE,
+                                            "GetNameOwner", g_variant_new("(s)", names[i]), NULL,
+                                            G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
             if (error != NULL) {
                 g_warning("could not get owner for name %s: %s", names[i], error->message);
-                g_error_free(error);
+                g_clear_error(&error);
                 continue;
             }
 
@@ -723,6 +823,38 @@ int main(int argc, char *argv[]) {
             const gchar *owner = g_variant_get_string(owner_reply_value, 0);
 
             struct Player *player = player_new(owner, names[i]);
+
+            GVariant *reply = g_dbus_connection_call_sync(
+                ctx.connection, player->unique, MPRIS_PATH, PROPERTIES_INTERFACE, "GetAll",
+                g_variant_new("(s)", PLAYER_INTERFACE), NULL, G_DBUS_CALL_FLAGS_NO_AUTO_START, -1,
+                NULL, &error);
+            if (error != NULL) {
+                g_warning("could not get player properties for player: %s", player->well_known);
+                player_free(player);
+                g_clear_error(&error);
+                continue;
+            }
+
+            GVariant *properties = g_variant_get_child_value(reply, 0);
+            player_update_properties(player, PLAYER_INTERFACE, properties);
+            g_variant_unref(properties);
+            g_variant_unref(reply);
+
+            reply = g_dbus_connection_call_sync(ctx.connection, player->unique, MPRIS_PATH,
+                                                PROPERTIES_INTERFACE, "GetAll",
+                                                g_variant_new("(s)", ROOT_INTERFACE), NULL,
+                                                G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+            if (error != NULL) {
+                g_warning("could not get root properties for player: %s", player->well_known);
+                player_free(player);
+                g_clear_error(&error);
+                continue;
+            }
+
+            properties = g_variant_get_child_value(reply, 0);
+            player_update_properties(player, ROOT_INTERFACE, properties);
+            g_variant_unref(properties);
+            g_variant_unref(reply);
 
             g_debug("found player: %s", player->well_known);
             g_queue_push_head(ctx.players, player);
@@ -736,8 +868,8 @@ int main(int argc, char *argv[]) {
     g_variant_unref(names_reply);
 
     g_dbus_connection_signal_subscribe(
-        ctx.connection, "org.freedesktop.DBus", "org.freedesktop.DBus", "NameOwnerChanged",
-        DBUS_PATH, NULL, G_DBUS_SIGNAL_FLAGS_NONE, name_owner_changed_signal_callback, &ctx, NULL);
+        ctx.connection, DBUS_NAME, DBUS_INTERFACE, "NameOwnerChanged", DBUS_PATH, NULL,
+        G_DBUS_SIGNAL_FLAGS_NONE, name_owner_changed_signal_callback, &ctx, NULL);
 
     g_dbus_connection_signal_subscribe(ctx.connection, NULL, NULL, NULL, MPRIS_PATH, NULL,
                                        G_DBUS_SIGNAL_FLAGS_NONE, player_signal_proxy_callback, &ctx,
