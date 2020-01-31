@@ -1,5 +1,33 @@
 # Changelog
 
+## Version 2.1.1
+
+Version 2.1.1 contains some bugfixes and new features.
+
+Playerctl now has a test suite that covers most features of the CLI.
+
+**playerctld**
+
+* Add `playerctld`: an activatable DBus service for selecting the most recently active player (#161, #164, #128)
+
+**CLI**
+
+* Add the `markup_escape()` formatter function (#133)
+* Mark the `emoji()` formatter function as no longer experimental
+* Add the `default()` formatter function (#142, fd0b4ab)
+* Add the special `%any` player token for prioritizing player selection (#143)
+* Add bash completions (#153)
+* Add debug logging (#152)
+* Rewrite and expand manpage with `mdoc(7)` (#130)
+* Attempt to autostart `playerctld` if it is present in players
+* bugfix: incorrect error message for shuffle command (#158)
+* bugfix: don't crash if no system bus is present (2330b64f)
+* bugfix: don't crash if given a nonexistent format function (#162)
+
+**Build**
+
+* Required meson version is now `0.50.0`.
+
 ## Version 2.0.2
 
 Version 2.0.2 contains some minor bugfixes for the CLI and build system.
