@@ -400,13 +400,15 @@ static gchar *helperfn_emoji(struct token *token, GVariant **args, int nargs, GE
         return g_strdup("");
     }
 
-    if (token->type != TOKEN_VARIABLE) {
+    struct token *arg_token = g_list_first(token->args)->data;
+
+    if (arg_token->type != TOKEN_VARIABLE) {
         g_set_error(error, playerctl_formatter_error_quark(), 1,
                     "the emoji function can only be called with a variable");
         return NULL;
     }
 
-    gchar *key = token->data;
+    gchar *key = arg_token->data;
 
     if (g_strcmp0(key, "status") == 0 && g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
         const gchar *status_str = g_variant_get_string(value, NULL);

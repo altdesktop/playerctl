@@ -63,4 +63,38 @@ async def test_format(bus_address):
     cmd = await playerctl.run('metadata --format \'{{default("ok", "not")}}\'')
     assert cmd.stdout == 'ok', cmd.stderr
 
+    status_emoji_cmd = 'metadata --format \'{{emoji(status)}}\''
+
+    mpris.playback_status = 'Playing'
+    cmd = await playerctl.run(status_emoji_cmd)
+    assert cmd.stdout == '▶️', cmd.stderr
+
+    mpris.playback_status = 'Paused'
+    cmd = await playerctl.run(status_emoji_cmd)
+    assert cmd.stdout == '⏸️', cmd.stderr
+
+    mpris.playback_status = 'Stopped'
+    cmd = await playerctl.run(status_emoji_cmd)
+    assert cmd.stdout == '⏹️', cmd.stderr
+
+    volume_emoji_cmd = 'metadata --format \'{{emoji(volume)}}\''
+    mpris.volume = 0.0
+    cmd = await playerctl.run(volume_emoji_cmd)
+    assert cmd.stdout == '🔈', cmd.stderr
+
+    mpris.volume = 0.5
+    cmd = await playerctl.run(volume_emoji_cmd)
+    assert cmd.stdout == '🔉', cmd.stderr
+
+    mpris.volume = 1.0
+    cmd = await playerctl.run(volume_emoji_cmd)
+    assert cmd.stdout == '🔊', cmd.stderr
+
+    cmd = await playerctl.run('metadata --format \'{{emoji("hi")}}\'')
+    assert cmd.returncode == 1, cmd.stderr
+
+    cmd = await playerctl.run('metadata --format \'{{emoji(status, volume)}}\''
+                              )
+    assert cmd.returncode == 1, cmd.stderr
+
     mpris.disconnect()
