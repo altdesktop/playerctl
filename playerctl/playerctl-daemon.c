@@ -332,9 +332,32 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
     }
 }
 
+static void context_shift_active_player(struct PlayerctldContext *ctx) {
+    GError *error = NULL;
+    struct Player *p;
+
+    p = context_get_active_player(ctx);
+    context_remove_player(ctx, p);
+    context_add_player(ctx, p);
+    context_emit_active_player_changed(ctx, &error);
+
+    p = context_get_active_player(ctx);
+    player_update_position_sync(p, ctx, &error);
+    if (error != NULL) {
+        g_warning("could not emit active player change: %s", error->message);
+        g_clear_error(&error);
+    }
+    if (error != NULL) {
+        g_warning("could not update player position: %s", error->message);
+        g_clear_error(&error);
+    }
+}
+
 static const char *playerctld_introspection_xml =
     "<node>\n"
     "  <interface name=\"com.github.altdesktop.playerctld\">\n"
+    "    <method name=\"Shift\">\n"
+    "    </method>\n"
     "    <property name=\"PlayerNames\" type=\"as\" access=\"read\"/>\n"
     "    <signal name=\"ActivePlayerChangeBegin\">\n"
     "        <arg name=\"Name\" type=\"s\"/>\n"
@@ -484,6 +507,31 @@ static void player_method_call_proxy_callback(GDBusConnection *connection, const
     g_object_unref(message);
 }
 
+static void playerctld_method_call_func(GDBusConnection *connection, const char *sender,
+                                              const char *object_path, const char *interface_name,
+                                              const char *method_name, GVariant *parameters,
+                                              GDBusMethodInvocation *invocation,
+                                              gpointer user_data) {
+    g_debug("got method call: sender=%s, object_path=%s, interface_name=%s, method_name=%s", sender,
+            object_path, interface_name, method_name);
+    struct PlayerctldContext *ctx = user_data;
+    struct Player *active_player = context_get_active_player(ctx);
+    if (active_player == NULL) {
+        g_debug("no active player, returning error");
+        g_dbus_method_invocation_return_dbus_error(
+            invocation, "com.github.altdesktop.playerctld.NoActivePlayer",
+            "No player is being controlled by playerctld");
+        return;
+    }
+
+    if (strcmp(method_name, "Shift")) {
+        g_dbus_method_invocation_return_dbus_error(
+            invocation, "com.github.altdesktop.playerctld.InvalidMethod",
+            "This method is not valid");
+    }
+    context_shift_active_player(ctx);
+}
+
 static GVariant *playerctld_get_property_func(GDBusConnection *connection, const gchar *sender,
                                               const gchar *object_path, const gchar *interface_name,
                                               const gchar *property_name, GError **error,
@@ -502,7 +550,7 @@ static GDBusInterfaceVTable vtable_player = {player_method_call_proxy_callback, 
 
 static GDBusInterfaceVTable vtable_root = {player_method_call_proxy_callback, NULL, NULL, {0}};
 
-static GDBusInterfaceVTable vtable_playerctld = {NULL, playerctld_get_property_func, NULL, {0}};
+static GDBusInterfaceVTable vtable_playerctld = {playerctld_method_call_func, playerctld_get_property_func, NULL, {0}};
 
 static void on_bus_acquired(GDBusConnection *connection, const char *name, gpointer user_data) {
     GError *error = NULL;
@@ -737,6 +785,12 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
     }
 
     if (player != context_get_active_player(ctx)) {
+        GVariantDict dict;
+        g_variant_dict_init(&dict, player->player_properties);
+        GVariant *prop_variant = g_variant_dict_lookup_value(&dict, "PlaybackStatus", G_VARIANT_TYPE_STRING);
+        const gchar *status = g_variant_get_string(prop_variant, NULL);
+        if (!!g_strcmp0(status, "Playing"))
+            return;
         g_debug("new active player: %s", player->well_known);
         context_set_active_player(ctx, player);
         player_update_position_sync(player, ctx, &error);
