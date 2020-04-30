@@ -332,17 +332,71 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
     }
 }
 
-static void context_shift_active_player(struct PlayerctldContext *ctx) {
+static void playerctl_play_pause_player(struct PlayerctldContext *ctx, struct Player *p, bool play) {
     GError *error = NULL;
-    struct Player *p;
 
-    p = context_get_active_player(ctx);
-    context_remove_player(ctx, p);
-    context_add_player(ctx, p);
+    g_dbus_connection_call_sync(ctx->connection, p->unique, MPRIS_PATH,
+                                PLAYER_INTERFACE, play ? "Play" : "Pause",
+                                NULL, NULL,
+                                G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+    if (error != NULL) {
+        g_warning("%s", error->message);
+        g_clear_error(&error);
+    }
+}
+
+static void context_shift_active_player(struct PlayerctldContext *ctx, int play_pause) {
+    guint len;
+    gboolean can_play = true;
+    GError *error = NULL;
+    GVariant *prop;
+    GVariantDict dict_from, dict_to;
+    struct Player *from, *to = NULL;
+
+    len = g_queue_get_length(ctx->players);
+
+    from = context_get_active_player(ctx);
+
+    for (guint i = 1; i < len && !to; i++) {
+        to = g_queue_peek_nth(ctx->players, i);
+        if (strcmp(from->unique, to->unique) == 0)
+            continue;
+
+        g_variant_dict_init(&dict_to, to->player_properties);
+        prop = g_variant_dict_lookup_value(&dict_to, "CanPlay", G_VARIANT_TYPE_BOOLEAN);
+        can_play = true;
+        if (prop) {
+            can_play = g_variant_get_boolean(prop);
+            g_variant_unref(prop);
+        }
+
+        if (!can_play) {
+            to = NULL;
+        }
+    }
+
+    if (to == NULL)
+        return;
+
+    context_remove_player(ctx, from);
+    context_add_player(ctx, from);
+    context_set_active_player(ctx, to);
+
+    if (play_pause) {
+        g_variant_dict_init(&dict_from, from->player_properties);
+        prop = g_variant_dict_lookup_value(&dict_from, "PlaybackStatus", G_VARIANT_TYPE_STRING);
+        if (prop) {
+            const gchar *status = g_variant_get_string(prop, NULL);
+            g_variant_unref(prop);
+            if (g_strcmp0(status, "Playing") == 0) {
+                playerctl_play_pause_player(ctx, from, false);
+                playerctl_play_pause_player(ctx, to, true);
+            }
+        }
+    }
+
     context_emit_active_player_changed(ctx, &error);
-
-    p = context_get_active_player(ctx);
-    player_update_position_sync(p, ctx, &error);
+    player_update_position_sync(to, ctx, &error);
     if (error != NULL) {
         g_warning("could not emit active player change: %s", error->message);
         g_clear_error(&error);
@@ -357,6 +411,8 @@ static const char *playerctld_introspection_xml =
     "<node>\n"
     "  <interface name=\"com.github.altdesktop.playerctld\">\n"
     "    <method name=\"Shift\">\n"
+    "    </method>\n"
+    "    <method name=\"ShiftPlayPause\">\n"
     "    </method>\n"
     "    <property name=\"PlayerNames\" type=\"as\" access=\"read\"/>\n"
     "    <signal name=\"ActivePlayerChangeBegin\">\n"
@@ -524,12 +580,17 @@ static void playerctld_method_call_func(GDBusConnection *connection, const char 
         return;
     }
 
-    if (strcmp(method_name, "Shift")) {
+    if (strcmp(method_name, "Shift") == 0) {
+        context_shift_active_player(ctx, 0);
+        g_dbus_method_invocation_return_value(invocation, NULL);
+    } else if (strcmp(method_name, "ShiftPlayPause") == 0) {
+        context_shift_active_player(ctx, 1);
+        g_dbus_method_invocation_return_value(invocation, NULL);
+    } else {
         g_dbus_method_invocation_return_dbus_error(
             invocation, "com.github.altdesktop.playerctld.InvalidMethod",
             "This method is not valid");
     }
-    context_shift_active_player(ctx);
 }
 
 static GVariant *playerctld_get_property_func(GDBusConnection *connection, const gchar *sender,
@@ -787,10 +848,13 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
     if (player != context_get_active_player(ctx)) {
         GVariantDict dict;
         g_variant_dict_init(&dict, player->player_properties);
-        GVariant *prop_variant = g_variant_dict_lookup_value(&dict, "PlaybackStatus", G_VARIANT_TYPE_STRING);
-        const gchar *status = g_variant_get_string(prop_variant, NULL);
-        if (!!g_strcmp0(status, "Playing"))
-            return;
+        GVariant *prop = g_variant_dict_lookup_value(&dict, "PlaybackStatus", G_VARIANT_TYPE_STRING);
+        if (prop) {
+            const gchar *status = g_variant_get_string(prop, NULL);
+            g_variant_unref(prop);
+            if (g_strcmp0(status, "Playing") != 0)
+                return;
+        }
         g_debug("new active player: %s", player->well_known);
         context_set_active_player(ctx, player);
         player_update_position_sync(player, ctx, &error);
@@ -817,11 +881,40 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
 int main(int argc, char *argv[]) {
     struct PlayerctldContext ctx = {0};
     GError *error = NULL;
+
+    ctx.connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+    if (error != NULL) {
+        g_printerr("%s", error->message);
+        return 1;
+    }
+
+    g_debug("connected to dbus: %s", g_dbus_connection_get_unique_name(ctx.connection));
+
+    if (argc > 1) {
+        char *method;
+        if (strcmp(argv[1], "--shift") == 0) {
+            method = "Shift";
+        } else if (strcmp(argv[1], "--shift-play-pause") == 0) {
+            method = "ShiftPlayPause";
+        } else {
+            g_printerr("unrecognized option '%s'\n", argv[1]);
+            return 1;
+        }
+        g_dbus_connection_call_sync(
+            ctx.connection, "org.mpris.MediaPlayer2.playerctld",
+            MPRIS_PATH, PLAYERCTLD_INTERFACE, method, NULL, NULL,
+            G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+        if (error != NULL) {
+            g_printerr("%s", error->message);
+            return 1;
+        }
+        return 0;
+    }
+
     GDBusNodeInfo *mpris_introspection_data = NULL;
     GDBusNodeInfo *playerctld_introspection_data = NULL;
     ctx.players = g_queue_new();
     ctx.pending_players = g_queue_new();
-
     ctx.loop = g_main_loop_new(NULL, FALSE);
 
     // Load introspection data and split into separate interfaces
@@ -842,14 +935,6 @@ int main(int argc, char *argv[]) {
         g_dbus_node_info_lookup_interface(mpris_introspection_data, PLAYER_INTERFACE);
     ctx.playerctld_interface_info = g_dbus_node_info_lookup_interface(
         playerctld_introspection_data, "com.github.altdesktop.playerctld");
-
-    ctx.connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
-    if (error != NULL) {
-        g_printerr("%s", error->message);
-        return 1;
-    }
-
-    g_debug("connected to dbus: %s", g_dbus_connection_get_unique_name(ctx.connection));
 
     GVariant *names_reply = g_dbus_connection_call_sync(
         ctx.connection, DBUS_NAME, DBUS_PATH, DBUS_INTERFACE, "ListNames", NULL, NULL,
