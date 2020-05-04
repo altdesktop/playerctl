@@ -811,7 +811,7 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
         }
     }
 
-    if (is_properties_changed) {
+    if (is_properties_changed || player == context_get_active_player(ctx)) {
         g_dbus_connection_emit_signal(ctx->connection, NULL, object_path, interface_name,
                                       signal_name, parameters, &error);
         if (error != NULL) {
