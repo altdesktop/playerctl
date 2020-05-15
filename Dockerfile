@@ -20,7 +20,11 @@ RUN pip3 install -r requirements.txt
 
 ADD . /app
 
+COPY data/test/dbus-system.conf /etc/dbus-1/system.d/test-dbus-system.conf
+
 RUN meson --prefix=/usr build && \
     ninja -C build && ninja -C build install
+RUN mkdir -p /run/dbus
 ENV PYTHONASYNCIODEBUG=1
-CMD ["dbus-run-session", "python3", "-m", "pytest", "-svv"]
+ENV DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
+CMD ["bash", "-c", "dbus-daemon --nopidfile --system && dbus-run-session python3 -m pytest -vv"]

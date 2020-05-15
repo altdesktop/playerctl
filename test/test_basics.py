@@ -59,6 +59,18 @@ async def test_list_names(bus_address):
 
 
 @pytest.mark.asyncio
+async def test_system_list_players(bus_address):
+    system_players = await setup_mpris('system', system=True)
+    session_players = await setup_mpris('session1', bus_address=bus_address)
+    playerctl = PlayerctlCli(bus_address, debug=False)
+    result = await playerctl.run('-l')
+    assert result.returncode == 0, result.stdout
+    assert result.stdout.split() == ['session1', 'system']
+    for mpris in system_players + session_players:
+        mpris.disconnect()
+
+
+@pytest.mark.asyncio
 async def test_queries(bus_address):
     [mpris] = await setup_mpris('queries', bus_address=bus_address)
     mpris.position = 2500000
