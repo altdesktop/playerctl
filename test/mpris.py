@@ -1,13 +1,18 @@
 from dbus_next.service import ServiceInterface, dbus_property, method, signal, Variant
-from dbus_next import PropertyAccess, RequestNameReply
+from dbus_next import PropertyAccess, RequestNameReply, BusType
 from dbus_next.aio import MessageBus
 
 import asyncio
 
 
-async def setup_mpris(*names, bus_address=None):
+async def setup_mpris(*names, bus_address=None, system=False):
     async def setup(name):
-        bus = await MessageBus(bus_address=bus_address).connect()
+        if system:
+            bus_type = BusType.SYSTEM
+        else:
+            bus_type = BusType.SESSION
+        bus = await MessageBus(bus_type=bus_type,
+                               bus_address=bus_address).connect()
         player = MprisPlayer(bus)
         bus.export('/org/mpris/MediaPlayer2', player)
         bus.export('/org/mpris/MediaPlayer2', MprisRoot())

@@ -1026,7 +1026,6 @@ GList *playerctl_list_players(GError **err) {
     }
 
     GList *players = g_list_concat(session_players, system_players);
-    g_list_free(system_players);
 
     return players;
 }
