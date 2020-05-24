@@ -148,3 +148,49 @@ async def test_daemon_follow(bus_address):
     proc.proc.terminate()
     await proc.proc.wait()
     await playerctld_proc.wait()
+
+async def playerctld_shift(bus_address):
+    env = os.environ.copy()
+    env['DBUS_SESSION_BUS_ADDRESS'] = bus_address
+    env['G_MESSAGES_DEBUG'] = 'playerctld_shift'
+    shift = await asyncio.create_subprocess_shell(
+        'playerctld shift',
+        env=env,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT)
+    await shift.wait()
+
+@pytest.mark.asyncio
+async def test_daemon_shift_simple(bus_address):
+    playerctld_proc = await start_playerctld(bus_address)
+
+    [mpris1, mpris2] = await setup_mpris('player1',
+                                         'player2',
+                                         bus_address=bus_address)
+    playerctl = PlayerctlCli(bus_address)
+    pctl_cmd = '--player playerctld metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
+    proc = await playerctl.start(pctl_cmd)
+
+    await mpris1.set_artist_title('artist1', 'title1')
+    line = await proc.queue.get()
+    assert line == 'playerctld: artist1 - title1', proc.queue
+
+    await mpris2.set_artist_title('artist2', 'title2')
+    line = await proc.queue.get()
+    assert line == 'playerctld: artist2 - title2', proc.queue
+
+    await playerctld_shift(bus_address)
+    line = await proc.queue.get()
+    assert line == 'playerctld: artist1 - title1', proc.queue
+
+    await playerctld_shift(bus_address)
+    line = await proc.queue.get()
+    assert line == 'playerctld: artist2 - title2', proc.queue
+
+    for mpris in (mpris1, mpris2):
+        mpris.disconnect()
+
+    playerctld_proc.terminate()
+    proc.proc.terminate()
+    await proc.proc.wait()
+    await playerctld_proc.wait()
