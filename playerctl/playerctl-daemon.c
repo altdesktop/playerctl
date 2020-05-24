@@ -73,6 +73,12 @@ static gint player_compare(gconstpointer a, gconstpointer b) {
     return 0;
 }
 
+/**
+ * Return value indicates if playback status has actually changed.
+ * Used to filter out PropertiesChanged signals that don't actually
+ * report a change to the player status that don't modify the playback
+ * status or a title change.
+ */
 static bool player_update_properties(struct Player *player, const char *interface_name,
                                      GVariant *properties) {
     GVariantDict cached_properties;
@@ -80,7 +86,7 @@ static bool player_update_properties(struct Player *player, const char *interfac
     GVariant *child;
     const gchar *prop_status, *cache_status;
     bool is_player_interface = false;  // otherwise, the root interface
-    bool changed = true;
+    bool is_properties_updated = false; // have the properties actually updated
 
     if (g_strcmp0(interface_name, PLAYER_INTERFACE) == 0) {
         g_variant_dict_init(&cached_properties, player->player_properties);
@@ -109,14 +115,35 @@ static bool player_update_properties(struct Player *player, const char *interfac
             goto loop_out;
         }
         GVariant *cache_value = g_variant_dict_lookup_value(&cached_properties, key, NULL);
-        if (cache_value != NULL) {
-            if (is_player_interface && g_strcmp0(key, "PlaybackStatus") == 0) {
+        if (cache_value != NULL && is_player_interface) {
+            if (g_strcmp0(key, "PlaybackStatus") == 0) {
                 cache_status = g_variant_get_string(cache_value, NULL);
                 prop_status = g_variant_get_string(prop_value, NULL);
-                changed = (g_strcmp0(prop_status, cache_status) != 0);
+                is_properties_updated = (g_strcmp0(prop_status, cache_status) != 0);
+            } else if ( g_strcmp0(key, "Metadata") == 0) {
+                GVariantDict cache_metadata, new_metadata;
+                GVariant *cache_vt, *new_vt;
+                const gchar *cache_title, *new_title;
+
+                g_variant_dict_init(&cache_metadata, cache_value);
+                g_variant_dict_init(&new_metadata, prop_value);
+
+                cache_vt = g_variant_dict_lookup_value(&cache_metadata, "xesam:title", NULL);
+                new_vt = g_variant_dict_lookup_value(&new_metadata, "xesam:title", NULL);
+
+                if (cache_vt && new_vt) {
+                    cache_title = g_variant_get_string(cache_vt, NULL);
+                    new_title = g_variant_get_string(new_vt, NULL);
+                    is_properties_updated = (g_strcmp0(cache_title, new_title) != 0);
+                }
+                if (cache_vt)
+                    g_variant_unref(cache_vt);
+                if (new_vt)
+                    g_variant_unref(new_vt);
             }
-            g_variant_unref(cache_value);
         }
+        if (cache_value != NULL)
+            g_variant_unref(cache_value);
         g_variant_dict_insert_value(&cached_properties, key, prop_value);
     loop_out:
         g_variant_unref(prop_value);
@@ -136,7 +163,7 @@ static bool player_update_properties(struct Player *player, const char *interfac
         }
         player->root_properties = g_variant_ref_sink(g_variant_dict_end(&cached_properties));
     }
-    return changed;
+    return is_properties_updated;
 }
 
 static void player_update_position_sync(struct Player *player, struct PlayerctldContext *ctx,
@@ -340,11 +367,16 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
     }
 }
 
-static void context_shift_active_player(struct PlayerctldContext *ctx) {
+/**
+ * Returns the newly activated player
+ */
+static struct Player *context_shift_active_player(struct PlayerctldContext *ctx) {
     GError *error = NULL;
     struct Player *p;
 
-    p = context_get_active_player(ctx);
+    if (!(p = context_get_active_player(ctx))) {
+        return NULL;
+    }
     context_remove_player(ctx, p);
     context_add_player(ctx, p);
     p = context_get_active_player(ctx);
@@ -359,12 +391,15 @@ static void context_shift_active_player(struct PlayerctldContext *ctx) {
         g_warning("could not update player position: %s", error->message);
         g_clear_error(&error);
     }
+
+    return p;
 }
 
 static const char *playerctld_introspection_xml =
     "<node>\n"
     "  <interface name=\"com.github.altdesktop.playerctld\">\n"
     "    <method name=\"Shift\">\n"
+    "        <arg name=\"Player\" type=\"s\" direction=\"out\"/>\n"
     "    </method>\n"
     "    <property name=\"PlayerNames\" type=\"as\" access=\"read\"/>\n"
     "    <signal name=\"ActivePlayerChangeBegin\">\n"
@@ -521,23 +556,27 @@ static void playerctld_method_call_func(GDBusConnection *connection, const char 
                                         GDBusMethodInvocation *invocation, gpointer user_data) {
     g_debug("got method call: sender=%s, object_path=%s, interface_name=%s, method_name=%s", sender,
             object_path, interface_name, method_name);
+
     struct PlayerctldContext *ctx = user_data;
-    struct Player *active_player = context_get_active_player(ctx);
-    if (active_player == NULL) {
-        g_debug("no active player, returning error");
-        g_dbus_method_invocation_return_dbus_error(
-            invocation, "com.github.altdesktop.playerctld.NoActivePlayer",
-            "No player is being controlled by playerctld");
-        return;
-    }
+    struct Player *active_player;
 
     if (strcmp(method_name, "Shift") == 0) {
-        context_shift_active_player(ctx);
-        g_dbus_method_invocation_return_value(invocation, NULL);
+        if ((active_player = context_shift_active_player(ctx))) {
+            g_dbus_method_invocation_return_value(
+                invocation,
+                g_variant_new("(s)", active_player->well_known));
+        } else {
+            g_debug("no active player, returning error");
+            g_dbus_method_invocation_return_dbus_error(
+                invocation, "com.github.altdesktop.playerctld.NoActivePlayer",
+                "No player is being controlled by playerctld");
+        }
     } else {
-        g_dbus_method_invocation_return_dbus_error(invocation,
-                                                   "com.github.altdesktop.playerctld.InvalidMethod",
-                                                   "This method is not valid");
+        g_dbus_method_invocation_return_dbus_error(
+            invocation,
+            "com.github.altdesktop.playerctld.InvalidMethod",
+            "This method is not valid"
+        );
     }
 }
 
@@ -785,17 +824,18 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
     }
 
     bool is_properties_changed = (g_strcmp0(signal_name, "PropertiesChanged") == 0);
+    bool is_properties_updated = is_properties_changed;
 
     if (is_properties_changed) {
         GVariant *interface = g_variant_get_child_value(parameters, 0);
         GVariant *properties = g_variant_get_child_value(parameters, 1);
-        is_properties_changed =
+        is_properties_updated =
             player_update_properties(player, g_variant_get_string(interface, 0), properties);
         g_variant_unref(interface);
         g_variant_unref(properties);
     }
 
-    if (is_properties_changed && player != context_get_active_player(ctx)) {
+    if (is_properties_updated && player != context_get_active_player(ctx)) {
         g_debug("new active player: %s", player->well_known);
         context_set_active_player(ctx, player);
         player_update_position_sync(player, ctx, &error);
@@ -811,7 +851,7 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
         }
     }
 
-    if (is_properties_changed || player == context_get_active_player(ctx)) {
+    if (is_properties_updated || player == context_get_active_player(ctx)) {
         g_dbus_connection_emit_signal(ctx->connection, NULL, object_path, interface_name,
                                       signal_name, parameters, &error);
         if (error != NULL) {
@@ -821,13 +861,61 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
     }
 }
 
+static gchar **command_arg = NULL;
+
+static const GOptionEntry entries[] = {
+    {G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command_arg, NULL, "COMMAND"},
+    {NULL},
+};
+
+static gboolean parse_setup_options(int argc, char **argv, GError **error) {
+    static const gchar *description =
+        "Available Commands:"
+        "\n  shift                   Shift to next player";
+
+    GOptionContext *context;
+    gboolean success;
+
+    context = g_option_context_new("- Playerctl Daemon");
+    g_option_context_add_main_entries(context, entries, NULL);
+    g_option_context_set_description(context, description);
+
+    success = g_option_context_parse(context, &argc, &argv, error);
+
+    if (success && command_arg && g_strcmp0(command_arg[0], "shift") != 0) {
+        gchar *help = g_option_context_get_help(context, TRUE, NULL);
+        printf("%s\n", help);
+        g_option_context_free(context);
+        g_free(help);
+        exit(1);
+    }
+
+    g_option_context_free(context);
+    return success;
+}
+
+int playercmd_shift(GDBusConnection *connection) {
+    GError *error = NULL;
+
+    g_dbus_connection_call_sync(connection, "org.mpris.MediaPlayer2.playerctld", MPRIS_PATH,
+                                PLAYERCTLD_INTERFACE, "Shift", NULL, NULL,
+                                G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+    g_object_unref(connection);
+    if (error != NULL) {
+        g_printerr("%s", error->message);
+        return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     struct PlayerctldContext ctx = {0};
     GError *error = NULL;
 
-    if (argc > 2 || (argc == 2 && strcmp(argv[1], "--shift") != 0)) {
-        g_printerr("usage: playerctld [--shift]\n");
-        return 1;
+    if (!parse_setup_options(argc, argv, &error)) {
+        g_printerr("%s\n", error->message);
+        g_clear_error(&error);
+        exit(0);
     }
 
     ctx.connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
@@ -838,16 +926,8 @@ int main(int argc, char *argv[]) {
 
     g_debug("connected to dbus: %s", g_dbus_connection_get_unique_name(ctx.connection));
 
-    if (argc == 2) {
-        g_dbus_connection_call_sync(ctx.connection, "org.mpris.MediaPlayer2.playerctld", MPRIS_PATH,
-                                    PLAYERCTLD_INTERFACE, "Shift", NULL, NULL,
-                                    G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
-        g_object_unref(ctx.connection);
-        if (error != NULL) {
-            g_printerr("%s", error->message);
-            return 1;
-        }
-        return 0;
+    if (command_arg && g_strcmp0(command_arg[0], "shift") == 0) {
+        return playercmd_shift(ctx.connection);
     }
 
     GDBusNodeInfo *mpris_introspection_data = NULL;
