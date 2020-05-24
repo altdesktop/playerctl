@@ -86,7 +86,7 @@ static bool player_update_properties(struct Player *player, const char *interfac
     GVariant *child;
     const gchar *prop_status, *cache_status;
     bool is_player_interface = false;  // otherwise, the root interface
-    bool is_properties_updated = false; // have the properties actually updated
+    bool is_properties_updated = true; // have the properties actually updated
 
     if (g_strcmp0(interface_name, PLAYER_INTERFACE) == 0) {
         g_variant_dict_init(&cached_properties, player->player_properties);
@@ -115,7 +115,7 @@ static bool player_update_properties(struct Player *player, const char *interfac
             goto loop_out;
         }
         GVariant *cache_value = g_variant_dict_lookup_value(&cached_properties, key, NULL);
-        if (cache_value != NULL && is_player_interface) {
+        if (cache_value != NULL && is_player_interface && is_properties_updated) {
             if (g_strcmp0(key, "PlaybackStatus") == 0) {
                 cache_status = g_variant_get_string(cache_value, NULL);
                 prop_status = g_variant_get_string(prop_value, NULL);
