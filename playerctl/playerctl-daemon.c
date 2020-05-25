@@ -337,27 +337,26 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
  */
 static struct Player *context_shift_active_player(struct PlayerctldContext *ctx) {
     GError *error = NULL;
-    struct Player *p;
+    struct Player *previous, *current;
 
-    if (!(p = context_get_active_player(ctx))) {
+    if (!(previous = current = context_get_active_player(ctx))) {
         return NULL;
     }
-    context_remove_player(ctx, p);
-    context_add_player(ctx, p);
-    p = context_get_active_player(ctx);
-
-    context_emit_active_player_changed(ctx, &error);
-    if (error != NULL) {
-        g_warning("could not emit active player change: %s", error->message);
-        g_clear_error(&error);
+    context_remove_player(ctx, previous);
+    context_add_player(ctx, previous);
+    if ((current = context_get_active_player(ctx)) != previous) {
+        player_update_position_sync(current, ctx, &error);
+        if (error != NULL) {
+            g_warning("could not update player position: %s", error->message);
+            g_clear_error(&error);
+        }
+        context_emit_active_player_changed(ctx, &error);
+        if (error != NULL) {
+            g_warning("could not emit active player change: %s", error->message);
+            g_clear_error(&error);
+        }
     }
-    player_update_position_sync(p, ctx, &error);
-    if (error != NULL) {
-        g_warning("could not update player position: %s", error->message);
-        g_clear_error(&error);
-    }
-
-    return p;
+    return current;
 }
 
 static const char *playerctld_introspection_xml =
