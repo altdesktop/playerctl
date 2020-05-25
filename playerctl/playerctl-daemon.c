@@ -73,20 +73,12 @@ static gint player_compare(gconstpointer a, gconstpointer b) {
     return 0;
 }
 
-/**
- * Return value indicates if playback status has actually changed.
- * Used to filter out PropertiesChanged signals that don't actually
- * report a change to the player status that don't modify the playback
- * status or a title change.
- */
-static bool player_update_properties(struct Player *player, const char *interface_name,
+static void player_update_properties(struct Player *player, const char *interface_name,
                                      GVariant *properties) {
     GVariantDict cached_properties;
     GVariantIter iter;
     GVariant *child;
-    const gchar *prop_status, *cache_status;
     bool is_player_interface = false;  // otherwise, the root interface
-    bool is_properties_updated = true; // have the properties actually updated
 
     if (g_strcmp0(interface_name, PLAYER_INTERFACE) == 0) {
         g_variant_dict_init(&cached_properties, player->player_properties);
@@ -115,35 +107,9 @@ static bool player_update_properties(struct Player *player, const char *interfac
             goto loop_out;
         }
         GVariant *cache_value = g_variant_dict_lookup_value(&cached_properties, key, NULL);
-        if (cache_value != NULL && is_player_interface && is_properties_updated) {
-            if (g_strcmp0(key, "PlaybackStatus") == 0) {
-                cache_status = g_variant_get_string(cache_value, NULL);
-                prop_status = g_variant_get_string(prop_value, NULL);
-                is_properties_updated = (g_strcmp0(prop_status, cache_status) != 0);
-            } else if ( g_strcmp0(key, "Metadata") == 0) {
-                GVariantDict cache_metadata, new_metadata;
-                GVariant *cache_vt, *new_vt;
-                const gchar *cache_title, *new_title;
-
-                g_variant_dict_init(&cache_metadata, cache_value);
-                g_variant_dict_init(&new_metadata, prop_value);
-
-                cache_vt = g_variant_dict_lookup_value(&cache_metadata, "xesam:title", NULL);
-                new_vt = g_variant_dict_lookup_value(&new_metadata, "xesam:title", NULL);
-
-                if (cache_vt && new_vt) {
-                    cache_title = g_variant_get_string(cache_vt, NULL);
-                    new_title = g_variant_get_string(new_vt, NULL);
-                    is_properties_updated = (g_strcmp0(cache_title, new_title) != 0);
-                }
-                if (cache_vt)
-                    g_variant_unref(cache_vt);
-                if (new_vt)
-                    g_variant_unref(new_vt);
-            }
-        }
-        if (cache_value != NULL)
+        if (cache_value != NULL) {
             g_variant_unref(cache_value);
+        }
         g_variant_dict_insert_value(&cached_properties, key, prop_value);
     loop_out:
         g_variant_unref(prop_value);
@@ -163,7 +129,6 @@ static bool player_update_properties(struct Player *player, const char *interfac
         }
         player->root_properties = g_variant_ref_sink(g_variant_dict_end(&cached_properties));
     }
-    return is_properties_updated;
 }
 
 static void player_update_position_sync(struct Player *player, struct PlayerctldContext *ctx,
@@ -824,18 +789,16 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
     }
 
     bool is_properties_changed = (g_strcmp0(signal_name, "PropertiesChanged") == 0);
-    bool is_properties_updated = is_properties_changed;
 
     if (is_properties_changed) {
         GVariant *interface = g_variant_get_child_value(parameters, 0);
         GVariant *properties = g_variant_get_child_value(parameters, 1);
-        is_properties_updated =
-            player_update_properties(player, g_variant_get_string(interface, 0), properties);
+        player_update_properties(player, g_variant_get_string(interface, 0), properties);
         g_variant_unref(interface);
         g_variant_unref(properties);
     }
 
-    if (is_properties_updated && player != context_get_active_player(ctx)) {
+    if (player != context_get_active_player(ctx)) {
         g_debug("new active player: %s", player->well_known);
         context_set_active_player(ctx, player);
         player_update_position_sync(player, ctx, &error);
@@ -851,13 +814,11 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
         }
     }
 
-    if (is_properties_updated || player == context_get_active_player(ctx)) {
-        g_dbus_connection_emit_signal(ctx->connection, NULL, object_path, interface_name,
-                                      signal_name, parameters, &error);
-        if (error != NULL) {
-            g_debug("could not emit signal: %s", error->message);
-            g_clear_error(&error);
-        }
+    g_dbus_connection_emit_signal(ctx->connection, NULL, object_path, interface_name, signal_name,
+                                  parameters, &error);
+    if (error != NULL) {
+        g_debug("could not emit signal: %s", error->message);
+        g_clear_error(&error);
     }
 }
 
