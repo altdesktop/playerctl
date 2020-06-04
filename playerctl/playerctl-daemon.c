@@ -862,7 +862,7 @@ int playercmd_shift(GDBusConnection *connection) {
                                 G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
     g_object_unref(connection);
     if (error != NULL) {
-        g_printerr("%s", error->message);
+        g_printerr("Cannot shift: %s\n", error->message);
         return 1;
     }
     return 0;
