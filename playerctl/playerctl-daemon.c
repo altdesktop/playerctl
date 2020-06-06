@@ -332,9 +332,39 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
     }
 }
 
+/**
+ * Returns the newly activated player
+ */
+static struct Player *context_shift_active_player(struct PlayerctldContext *ctx) {
+    GError *error = NULL;
+    struct Player *previous, *current;
+
+    if (!(previous = current = context_get_active_player(ctx))) {
+        return NULL;
+    }
+    context_remove_player(ctx, previous);
+    context_add_player(ctx, previous);
+    if ((current = context_get_active_player(ctx)) != previous) {
+        player_update_position_sync(current, ctx, &error);
+        if (error != NULL) {
+            g_warning("could not update player position: %s", error->message);
+            g_clear_error(&error);
+        }
+        context_emit_active_player_changed(ctx, &error);
+        if (error != NULL) {
+            g_warning("could not emit active player change: %s", error->message);
+            g_clear_error(&error);
+        }
+    }
+    return current;
+}
+
 static const char *playerctld_introspection_xml =
     "<node>\n"
     "  <interface name=\"com.github.altdesktop.playerctld\">\n"
+    "    <method name=\"Shift\">\n"
+    "        <arg name=\"Player\" type=\"s\" direction=\"out\"/>\n"
+    "    </method>\n"
     "    <property name=\"PlayerNames\" type=\"as\" access=\"read\"/>\n"
     "    <signal name=\"ActivePlayerChangeBegin\">\n"
     "        <arg name=\"Name\" type=\"s\"/>\n"
@@ -484,6 +514,36 @@ static void player_method_call_proxy_callback(GDBusConnection *connection, const
     g_object_unref(message);
 }
 
+static void playerctld_method_call_func(GDBusConnection *connection, const char *sender,
+                                        const char *object_path, const char *interface_name,
+                                        const char *method_name, GVariant *parameters,
+                                        GDBusMethodInvocation *invocation, gpointer user_data) {
+    g_debug("got method call: sender=%s, object_path=%s, interface_name=%s, method_name=%s", sender,
+            object_path, interface_name, method_name);
+
+    struct PlayerctldContext *ctx = user_data;
+    struct Player *active_player;
+
+    if (strcmp(method_name, "Shift") == 0) {
+        if ((active_player = context_shift_active_player(ctx))) {
+            g_dbus_method_invocation_return_value(
+                invocation,
+                g_variant_new("(s)", active_player->well_known));
+        } else {
+            g_debug("no active player, returning error");
+            g_dbus_method_invocation_return_dbus_error(
+                invocation, "com.github.altdesktop.playerctld.NoActivePlayer",
+                "No player is being controlled by playerctld");
+        }
+    } else {
+        g_dbus_method_invocation_return_dbus_error(
+            invocation,
+            "com.github.altdesktop.playerctld.InvalidMethod",
+            "This method is not valid"
+        );
+    }
+}
+
 static GVariant *playerctld_get_property_func(GDBusConnection *connection, const gchar *sender,
                                               const gchar *object_path, const gchar *interface_name,
                                               const gchar *property_name, GError **error,
@@ -502,7 +562,8 @@ static GDBusInterfaceVTable vtable_player = {player_method_call_proxy_callback, 
 
 static GDBusInterfaceVTable vtable_root = {player_method_call_proxy_callback, NULL, NULL, {0}};
 
-static GDBusInterfaceVTable vtable_playerctld = {NULL, playerctld_get_property_func, NULL, {0}};
+static GDBusInterfaceVTable vtable_playerctld = {
+    playerctld_method_call_func, playerctld_get_property_func, NULL, {0}};
 
 static void on_bus_acquired(GDBusConnection *connection, const char *name, gpointer user_data) {
     GError *error = NULL;
@@ -760,14 +821,79 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
     }
 }
 
+static gchar **command_arg = NULL;
+
+static const GOptionEntry entries[] = {
+    {G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command_arg, NULL, "COMMAND"},
+    {NULL},
+};
+
+static gboolean parse_setup_options(int argc, char **argv, GError **error) {
+    static const gchar *description =
+        "Available Commands:"
+        "\n  shift                   Shift to next player";
+
+    GOptionContext *context;
+    gboolean success;
+
+    context = g_option_context_new("- Playerctl Daemon");
+    g_option_context_add_main_entries(context, entries, NULL);
+    g_option_context_set_description(context, description);
+
+    success = g_option_context_parse(context, &argc, &argv, error);
+
+    if (success && command_arg && g_strcmp0(command_arg[0], "shift") != 0) {
+        gchar *help = g_option_context_get_help(context, TRUE, NULL);
+        printf("%s\n", help);
+        g_option_context_free(context);
+        g_free(help);
+        exit(1);
+    }
+
+    g_option_context_free(context);
+    return success;
+}
+
+int playercmd_shift(GDBusConnection *connection) {
+    GError *error = NULL;
+
+    g_dbus_connection_call_sync(connection, "org.mpris.MediaPlayer2.playerctld", MPRIS_PATH,
+                                PLAYERCTLD_INTERFACE, "Shift", NULL, NULL,
+                                G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+    g_object_unref(connection);
+    if (error != NULL) {
+        g_printerr("Cannot shift: %s\n", error->message);
+        return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     struct PlayerctldContext ctx = {0};
     GError *error = NULL;
+
+    if (!parse_setup_options(argc, argv, &error)) {
+        g_printerr("%s\n", error->message);
+        g_clear_error(&error);
+        exit(0);
+    }
+
+    ctx.connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+    if (error != NULL) {
+        g_printerr("%s", error->message);
+        return 1;
+    }
+
+    g_debug("connected to dbus: %s", g_dbus_connection_get_unique_name(ctx.connection));
+
+    if (command_arg && g_strcmp0(command_arg[0], "shift") == 0) {
+        return playercmd_shift(ctx.connection);
+    }
+
     GDBusNodeInfo *mpris_introspection_data = NULL;
     GDBusNodeInfo *playerctld_introspection_data = NULL;
     ctx.players = g_queue_new();
     ctx.pending_players = g_queue_new();
-
     ctx.loop = g_main_loop_new(NULL, FALSE);
 
     // Load introspection data and split into separate interfaces
@@ -788,14 +914,6 @@ int main(int argc, char *argv[]) {
         g_dbus_node_info_lookup_interface(mpris_introspection_data, PLAYER_INTERFACE);
     ctx.playerctld_interface_info = g_dbus_node_info_lookup_interface(
         playerctld_introspection_data, "com.github.altdesktop.playerctld");
-
-    ctx.connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
-    if (error != NULL) {
-        g_printerr("%s", error->message);
-        return 1;
-    }
-
-    g_debug("connected to dbus: %s", g_dbus_connection_get_unique_name(ctx.connection));
 
     GVariant *names_reply = g_dbus_connection_call_sync(
         ctx.connection, DBUS_NAME, DBUS_PATH, DBUS_INTERFACE, "ListNames", NULL, NULL,
