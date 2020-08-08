@@ -1,11 +1,11 @@
 project(
   'playerctl',
   'c',
-  version: '2.1.1',
+  version: '2.2.1',
   meson_version: '>=0.50.0'
 )
 
-release_date = 'January 31, 2020'
+release_date = 'August 8, 2020'
 
 gnome = import('gnome')
 pkgconfig = import('pkgconfig')

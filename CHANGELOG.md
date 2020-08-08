@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 2.2.1
+
+Version 2.2.1 contains some bugfixes and new features.
+
+* Fix a crash when the `emoji()` template function is used (#167)
+* Add a `shift` command to `playerctld` to shift the active player (#173)
+* Fix a crash when system players are present (#175)
+
 ## Version 2.1.1
 
 Version 2.1.1 contains some bugfixes and new features.
