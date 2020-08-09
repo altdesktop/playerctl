@@ -47,7 +47,7 @@ fpm_deb() {
 	cd - &> /dev/null
 }
 
-function fpm_rpm() {
+fpm_rpm() {
     cd ${PROJECT_ROOT}
     meson ${RPM_DIR}/build --prefix=/usr --libdir=/usr/lib64
     DESTDIR=${RPM_DIR}/install ninja -C ${RPM_DIR}/build install
@@ -69,5 +69,14 @@ function fpm_rpm() {
     cd - &> /dev/null
 }
 
+do_dist() {
+    local DIST_DIR=${FPM_DIR}/dist
+    meson ${DIST_DIR}
+    ninja -C ${DIST_DIR} dist
+    gpg --sign --armor --detach-sign ${DIST_DIR}/meson-dist/playerctl-*.tar.xz
+    mv ${DIST_DIR}/meson-dist/* ${FPM_DIR}
+}
+
 fpm_deb
 fpm_rpm
+do_dist
