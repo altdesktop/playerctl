@@ -8,6 +8,8 @@ Playerctl is a command-line utility and library for controlling media players th
 
 For more advanced users, Playerctl provides an [introspectable](https://wiki.gnome.org/action/show/Projects/GObjectIntrospection) library available in your favorite scripting language that allows more detailed control like the ability to subscribe to media player events or get metadata such as artist and title for the playing track.
 
+[Chat](https://discord.gg/UdbXHVX)
+
 ## Using the CLI
 
 ```
