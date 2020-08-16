@@ -189,6 +189,9 @@ To enable debug logging, set the environment variable `G_MESSAGES_DEBUG=playerct
 
 ### No Players Found
 
+If you are using Quod Libet as your music player you need to install/activate a plugin for it.
+In Quod Libet open the window File -> Plugins and select the plugin called *MPRIS D-Bus Support*.
+
 Some players like Spotify require certain DBus environment variables to be set which are normally set within the session manager. If you're not using a session manager or it does not set these variables automatically (like `xinit`), launch your desktop environment wrapped in a `dbus-launch` command. For example, in your `.xinitrc` file, use this to start your WM:
 
 ```
