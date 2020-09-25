@@ -49,6 +49,8 @@ static gboolean select_all_players;
 static gboolean list_all_players_and_exit;
 /* If true, print the version and exit. */
 static gboolean print_version_and_exit;
+/* If true, don't print error messages related to status. */
+static gboolean no_status_error_messages;
 /* The commands passed on the command line, filled in via G_OPTION_REMAINING. */
 static gchar **command_arg = NULL;
 /* A format string for printing properties and metadata */
@@ -800,6 +802,8 @@ static const GOptionEntry entries[] = {
      NULL},
     {"list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &list_all_players_and_exit,
      "List the names of running players that can be controlled", NULL},
+    {"no-messages", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &no_status_error_messages,
+     "Suppress status error messages", NULL},
     {"version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &print_version_and_exit,
      "Print version information", NULL},
     {G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command_arg, NULL, "COMMAND"},
@@ -891,7 +895,8 @@ static int handle_list_all_flag() {
     }
 
     if (player_names_list == NULL) {
-        g_printerr("No players were found\n");
+        if (!no_status_error_messages)
+            g_printerr("No players were found\n");
         return 0;
     }
 
@@ -1270,11 +1275,13 @@ int main(int argc, char *argv[]) {
 
     if (!follow) {
         if (!has_selected) {
-            g_printerr("No players found\n");
+            if (!no_status_error_messages)
+                g_printerr("No players found\n");
             exit_status = 1;
             goto end;
         } else if (!did_command) {
-            g_printerr("No player could handle this command\n");
+            if (!no_status_error_messages)
+                g_printerr("No player could handle this command\n");
             exit_status = 1;
             goto end;
         }
@@ -1317,3 +1324,4 @@ end:
 
     exit(exit_status);
 }
+

@@ -1,0 +1,68 @@
+[
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/libplayerctl.so.2.2.1.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -fPIC -pthread -MD -MQ playerctl/libplayerctl.so.2.2.1.p/meson-generated_.._playerctl-generated.c.o -MF playerctl/libplayerctl.so.2.2.1.p/meson-generated_.._playerctl-generated.c.o.d -o playerctl/libplayerctl.so.2.2.1.p/meson-generated_.._playerctl-generated.c.o -c playerctl/playerctl-generated.c",
+    "file": "playerctl/playerctl-generated.c",
+    "output": "playerctl/libplayerctl.so.2.2.1.p/meson-generated_.._playerctl-generated.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/libplayerctl.so.2.2.1.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -fPIC -pthread -MD -MQ playerctl/libplayerctl.so.2.2.1.p/meson-generated_.._playerctl-enum-types.c.o -MF playerctl/libplayerctl.so.2.2.1.p/meson-generated_.._playerctl-enum-types.c.o.d -o playerctl/libplayerctl.so.2.2.1.p/meson-generated_.._playerctl-enum-types.c.o -c playerctl/playerctl-enum-types.c",
+    "file": "playerctl/playerctl-enum-types.c",
+    "output": "playerctl/libplayerctl.so.2.2.1.p/meson-generated_.._playerctl-enum-types.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/libplayerctl.so.2.2.1.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -fPIC -pthread -MD -MQ playerctl/libplayerctl.so.2.2.1.p/playerctl-player-name.c.o -MF playerctl/libplayerctl.so.2.2.1.p/playerctl-player-name.c.o.d -o playerctl/libplayerctl.so.2.2.1.p/playerctl-player-name.c.o -c ../playerctl/playerctl-player-name.c",
+    "file": "../playerctl/playerctl-player-name.c",
+    "output": "playerctl/libplayerctl.so.2.2.1.p/playerctl-player-name.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/libplayerctl.so.2.2.1.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -fPIC -pthread -MD -MQ playerctl/libplayerctl.so.2.2.1.p/playerctl-formatter.c.o -MF playerctl/libplayerctl.so.2.2.1.p/playerctl-formatter.c.o.d -o playerctl/libplayerctl.so.2.2.1.p/playerctl-formatter.c.o -c ../playerctl/playerctl-formatter.c",
+    "file": "../playerctl/playerctl-formatter.c",
+    "output": "playerctl/libplayerctl.so.2.2.1.p/playerctl-formatter.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/libplayerctl.so.2.2.1.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -fPIC -pthread -MD -MQ playerctl/libplayerctl.so.2.2.1.p/playerctl-player.c.o -MF playerctl/libplayerctl.so.2.2.1.p/playerctl-player.c.o.d -o playerctl/libplayerctl.so.2.2.1.p/playerctl-player.c.o -c ../playerctl/playerctl-player.c",
+    "file": "../playerctl/playerctl-player.c",
+    "output": "playerctl/libplayerctl.so.2.2.1.p/playerctl-player.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/libplayerctl.so.2.2.1.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -fPIC -pthread -MD -MQ playerctl/libplayerctl.so.2.2.1.p/playerctl-common.c.o -MF playerctl/libplayerctl.so.2.2.1.p/playerctl-common.c.o.d -o playerctl/libplayerctl.so.2.2.1.p/playerctl-common.c.o -c ../playerctl/playerctl-common.c",
+    "file": "../playerctl/playerctl-common.c",
+    "output": "playerctl/libplayerctl.so.2.2.1.p/playerctl-common.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/libplayerctl.so.2.2.1.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -fPIC -pthread -MD -MQ playerctl/libplayerctl.so.2.2.1.p/playerctl-player-manager.c.o -MF playerctl/libplayerctl.so.2.2.1.p/playerctl-player-manager.c.o.d -o playerctl/libplayerctl.so.2.2.1.p/playerctl-player-manager.c.o -c ../playerctl/playerctl-player-manager.c",
+    "file": "../playerctl/playerctl-player-manager.c",
+    "output": "playerctl/libplayerctl.so.2.2.1.p/playerctl-player-manager.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/playerctl.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -pthread -MD -MQ playerctl/playerctl.p/meson-generated_.._playerctl-enum-types.c.o -MF playerctl/playerctl.p/meson-generated_.._playerctl-enum-types.c.o.d -o playerctl/playerctl.p/meson-generated_.._playerctl-enum-types.c.o -c playerctl/playerctl-enum-types.c",
+    "file": "playerctl/playerctl-enum-types.c",
+    "output": "playerctl/playerctl.p/meson-generated_.._playerctl-enum-types.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/playerctl.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -pthread -MD -MQ playerctl/playerctl.p/playerctl-cli.c.o -MF playerctl/playerctl.p/playerctl-cli.c.o.d -o playerctl/playerctl.p/playerctl-cli.c.o -c ../playerctl/playerctl-cli.c",
+    "file": "../playerctl/playerctl-cli.c",
+    "output": "playerctl/playerctl.p/playerctl-cli.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/playerctld.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -pthread -MD -MQ playerctl/playerctld.p/meson-generated_.._playerctl-enum-types.c.o -MF playerctl/playerctld.p/meson-generated_.._playerctl-enum-types.c.o.d -o playerctl/playerctld.p/meson-generated_.._playerctl-enum-types.c.o -c playerctl/playerctl-enum-types.c",
+    "file": "playerctl/playerctl-enum-types.c",
+    "output": "playerctl/playerctld.p/meson-generated_.._playerctl-enum-types.c.o"
+  },
+  {
+    "directory": "/home/pta2002/sources/playerctl/mesonbuild",
+    "command": "cc -Iplayerctl/playerctld.p -Iplayerctl -I../playerctl -I. -I.. -I/usr/include/glib-2.0 -I/usr/lib64/glib-2.0/include -I/usr/include/gio-unix-2.0 -I/usr/include/libmount -I/usr/include/blkid -fdiagnostics-color=always -pipe -D_FILE_OFFSET_BITS=64 -Wall -Winvalid-pch -g -DPLAYERCTL_COMPILATION '-DG_LOG_DOMAIN=\"playerctl\"' -pthread -MD -MQ playerctl/playerctld.p/playerctl-daemon.c.o -MF playerctl/playerctld.p/playerctl-daemon.c.o.d -o playerctl/playerctld.p/playerctl-daemon.c.o -c ../playerctl/playerctl-daemon.c",
+    "file": "../playerctl/playerctl-daemon.c",
+    "output": "playerctl/playerctld.p/playerctl-daemon.c.o"
+  }
+]
