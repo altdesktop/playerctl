@@ -13,7 +13,7 @@ For more advanced users, Playerctl provides an [introspectable](https://wiki.gno
 ## Using the CLI
 
 ```
-playerctl [--version] [--list-all] [--all-players] [--player=NAME] [--ignore-player=IGNORE] [--format=FORMAT] COMMAND
+playerctl [--version] [--list-all] [--all-players] [--player=NAME] [--ignore-player=IGNORE] [--format=FORMAT] [--no-messages] COMMAND
 ```
 
 Here is a list of available commands:
