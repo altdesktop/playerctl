@@ -895,8 +895,9 @@ static int handle_list_all_flag() {
     }
 
     if (player_names_list == NULL) {
-        if (!no_status_error_messages)
+        if (!no_status_error_messages) {
             g_printerr("No players were found\n");
+        }
         return 0;
     }
 
@@ -1275,13 +1276,15 @@ int main(int argc, char *argv[]) {
 
     if (!follow) {
         if (!has_selected) {
-            if (!no_status_error_messages)
+            if (!no_status_error_messages) {
                 g_printerr("No players found\n");
+            }
             exit_status = 1;
             goto end;
         } else if (!did_command) {
-            if (!no_status_error_messages)
+            if (!no_status_error_messages) {
                 g_printerr("No player could handle this command\n");
+            }
             exit_status = 1;
             goto end;
         }
@@ -1324,4 +1327,3 @@ end:
 
     exit(exit_status);
 }
-

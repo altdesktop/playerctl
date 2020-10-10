@@ -149,6 +149,7 @@ async def test_daemon_follow(bus_address):
     await proc.proc.wait()
     await playerctld_proc.wait()
 
+
 async def playerctld_shift(bus_address):
     env = os.environ.copy()
     env['DBUS_SESSION_BUS_ADDRESS'] = bus_address
@@ -159,6 +160,7 @@ async def playerctld_shift(bus_address):
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT)
     return await shift.wait()
+
 
 @pytest.mark.asyncio
 async def test_daemon_shift_simple(bus_address):
@@ -197,6 +199,7 @@ async def test_daemon_shift_simple(bus_address):
     await proc.proc.wait()
     await playerctld_proc.wait()
 
+
 @pytest.mark.asyncio
 async def test_daemon_shift_no_player(bus_address):
     playerctld_proc = await start_playerctld(bus_address)
@@ -208,8 +211,7 @@ async def test_daemon_shift_no_player(bus_address):
     code = await playerctld_shift(bus_address)
     assert code == 1
 
-    [mpris1] = await setup_mpris('player1',
-                                 bus_address=bus_address)
+    [mpris1] = await setup_mpris('player1', bus_address=bus_address)
     code = await playerctld_shift(bus_address)
     assert code == 0
 

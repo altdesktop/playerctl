@@ -526,9 +526,8 @@ static void playerctld_method_call_func(GDBusConnection *connection, const char 
 
     if (strcmp(method_name, "Shift") == 0) {
         if ((active_player = context_shift_active_player(ctx))) {
-            g_dbus_method_invocation_return_value(
-                invocation,
-                g_variant_new("(s)", active_player->well_known));
+            g_dbus_method_invocation_return_value(invocation,
+                                                  g_variant_new("(s)", active_player->well_known));
         } else {
             g_debug("no active player, returning error");
             g_dbus_method_invocation_return_dbus_error(
@@ -536,11 +535,9 @@ static void playerctld_method_call_func(GDBusConnection *connection, const char 
                 "No player is being controlled by playerctld");
         }
     } else {
-        g_dbus_method_invocation_return_dbus_error(
-            invocation,
-            "com.github.altdesktop.playerctld.InvalidMethod",
-            "This method is not valid"
-        );
+        g_dbus_method_invocation_return_dbus_error(invocation,
+                                                   "com.github.altdesktop.playerctld.InvalidMethod",
+                                                   "This method is not valid");
     }
 }
 
@@ -829,9 +826,8 @@ static const GOptionEntry entries[] = {
 };
 
 static gboolean parse_setup_options(int argc, char **argv, GError **error) {
-    static const gchar *description =
-        "Available Commands:"
-        "\n  shift                   Shift to next player";
+    static const gchar *description = "Available Commands:"
+                                      "\n  shift                   Shift to next player";
 
     GOptionContext *context;
     gboolean success;
