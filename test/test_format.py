@@ -12,10 +12,12 @@ async def test_format(bus_address):
     [mpris] = await setup_mpris('format-test', bus_address=bus_address)
     TITLE = 'A Title'
     ARTIST = 'An Artist'
+    ALBUM = 'An Album'
     mpris.metadata = {
         'xesam:title': Variant('s', TITLE),
         'xesam:artist': Variant('as', [ARTIST]),
         'xesam:escapeme': Variant('s', '<hi>'),
+        'xesam:album': Variant('s', ALBUM),
         'mpris:length': Variant('x', 100000)
     }
     await mpris.ping()
@@ -47,7 +49,7 @@ async def test_format(bus_address):
     cmd = await playerctl.run(
         'metadata --format \'@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@\''
     )
-    assert cmd.stdout == '@HI - HO . a title@', cmd.stderr
+    assert cmd.stdout == f'@HI - HO . {TITLE.lower()}@', cmd.stderr
 
     cmd = await playerctl.run(
         'metadata --format \'{{default(xesam:missing, artist)}}\'')
@@ -96,5 +98,8 @@ async def test_format(bus_address):
     cmd = await playerctl.run('metadata --format \'{{emoji(status, volume)}}\''
                               )
     assert cmd.returncode == 1, cmd.stderr
+
+    cmd = await playerctl.run('metadata --format " {{lc(album)}} "')
+    assert cmd.stdout == ALBUM.lower()
 
     mpris.disconnect()
