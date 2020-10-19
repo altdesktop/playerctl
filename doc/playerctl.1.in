@@ -67,6 +67,8 @@ Control the specific player
 .Ar NAME .
 Multiple players can be specified in a comma-separated list.
 Defaults to the first available player.
+The name "name" matches both "name" and "name.instanceN".
+Additionally, the name "%any" matches any player.
 .It Fl V , -version
 Print version number, then exit.
 .El
