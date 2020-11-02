@@ -89,7 +89,7 @@ playerctl metadata --format "Now playing: {{ artist }} - {{ album }} - {{ title 
 # prints 'Now playing: Lana Del Rey - Born To Die - Video Games'
 ```
 
-Included in the template language are some built-in variables and helper functions for common formatting that you can call on template variables.
+Included in the template language are some built-in variables and helper functions for common formatting that you can call on template variables. It can also do basic math operations on numbers including `+`, `-`, `*`, `/`, and operation ordering with `()` parens.
 
 ```bash
 # Prints 'Total length: 3:23'
@@ -103,6 +103,12 @@ playerctl metadata --format "Artist in lowercase: {{ lc(artist) }}"
 
 # Prints 'STATUS: PLAYING'
 playerctl status --format "STATUS: {{ uc(status) }}"
+
+# Prints the time remaining in the track (e.g, 'Time remaining: 2:07')
+playerctl metadata --format "Time remaining: {{ duration(mpris:length - position) }}
+
+# Prints volume from 0 - 100
+playerctl metadata --format "Volume: {{ volume * 100 }}"
 ```
 
 | Function        | Argument         | Description                                                        |

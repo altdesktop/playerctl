@@ -3,67 +3,17 @@ from .mpris import setup_mpris
 from .playerctl import PlayerctlCli
 
 import pytest
+import asyncio
 
 # TODO: test missing function does not segv
 
 
 @pytest.mark.asyncio
-async def test_format(bus_address):
-    [mpris] = await setup_mpris('format-test', bus_address=bus_address)
-    TITLE = 'A Title'
-    ARTIST = 'An Artist'
-    ALBUM = 'An Album'
-    mpris.metadata = {
-        'xesam:title': Variant('s', TITLE),
-        'xesam:artist': Variant('as', [ARTIST]),
-        'xesam:escapeme': Variant('s', '<hi>'),
-        'xesam:album': Variant('s', ALBUM),
-        'mpris:length': Variant('x', 100000)
-    }
+async def test_emoji(bus_address):
+    [mpris] = await setup_mpris('emoji-format-test', bus_address=bus_address)
+    mpris.metadata = {'mpris:length': Variant('x', 100000)}
     await mpris.ping()
-
     playerctl = PlayerctlCli(bus_address)
-
-    cmd = await playerctl.run('metadata --format "{{artist}} - {{title}}"')
-    assert cmd.stdout == f'{ARTIST} - {TITLE}', cmd.stderr
-
-    cmd = await playerctl.run(
-        'metadata --format "{{markup_escape(xesam:escapeme)}}"')
-    assert cmd.stdout == '&lt;hi&gt;', cmd.stderr
-
-    cmd = await playerctl.run('metadata --format "{{lc(artist)}}"')
-    assert cmd.stdout == ARTIST.lower(), cmd.stderr
-
-    cmd = await playerctl.run('metadata --format "{{uc(title)}}"')
-    assert cmd.stdout == TITLE.upper(), cmd.stderr
-
-    cmd = await playerctl.run('metadata --format "{{uc(lc(title))}}"')
-    assert cmd.stdout == TITLE.upper(), cmd.stderr
-
-    cmd = await playerctl.run('metadata --format \'{{uc("Hi")}}\'')
-    assert cmd.stdout == "HI", cmd.stderr
-
-    cmd = await playerctl.run('metadata --format "{{mpris:length}}"')
-    assert cmd.stdout == "100000", cmd.stderr
-
-    cmd = await playerctl.run(
-        'metadata --format \'@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@\''
-    )
-    assert cmd.stdout == f'@HI - HO . {TITLE.lower()}@', cmd.stderr
-
-    cmd = await playerctl.run(
-        'metadata --format \'{{default(xesam:missing, artist)}}\'')
-    assert cmd.stdout == ARTIST, cmd.stderr
-
-    cmd = await playerctl.run(
-        'metadata --format \'{{default(title, artist)}}\'')
-    assert cmd.stdout == TITLE, cmd.stderr
-
-    cmd = await playerctl.run('metadata --format \'{{default("", "ok")}}\'')
-    assert cmd.stdout == 'ok', cmd.stderr
-
-    cmd = await playerctl.run('metadata --format \'{{default("ok", "not")}}\'')
-    assert cmd.stdout == 'ok', cmd.stderr
 
     status_emoji_cmd = 'metadata --format \'{{emoji(status)}}\''
 
@@ -99,7 +49,127 @@ async def test_format(bus_address):
                               )
     assert cmd.returncode == 1, cmd.stderr
 
-    cmd = await playerctl.run('metadata --format " {{lc(album)}} "')
-    assert cmd.stdout == ALBUM.lower()
+
+class MetadataTest:
+    def __init__(self, playerctl):
+        self.tests = []
+        self.playerctl = playerctl
+
+    def add(self, fmt, expected, ret=0):
+        fmt = fmt.replace("'", r"\'")
+        self.tests.append((f"metadata --format '{fmt}'", expected, ret))
+
+    async def run(self):
+        coros = []
+        for fmt, _, _ in self.tests:
+            coros.append(self.playerctl.run(fmt))
+
+        results = await asyncio.gather(*coros)
+
+        for i, cmd in enumerate(results):
+            fmt, expected, ret = self.tests[i]
+            assert cmd.returncode == ret, cmd.stderr
+            if ret == 0:
+                assert cmd.stdout == expected, cmd.stderr
+
+
+@pytest.mark.asyncio
+async def test_format(bus_address):
+    [mpris] = await setup_mpris('format-test', bus_address=bus_address)
+    TITLE = 'A Title'
+    ARTIST = 'An Artist'
+    ALBUM = 'An Album'
+    mpris.metadata = {
+        'xesam:title': Variant('s', TITLE),
+        'xesam:artist': Variant('as', [ARTIST]),
+        'xesam:escapeme': Variant('s', '<hi>'),
+        'xesam:album': Variant('s', ALBUM),
+        'mpris:length': Variant('x', 100000)
+    }
+    mpris.volume = 2.0
+    await mpris.ping()
+
+    playerctl = PlayerctlCli(bus_address)
+
+    test = MetadataTest(playerctl)
+
+    test.add('{{artist}} - {{title}}', f'{ARTIST} - {TITLE}')
+    test.add("{{markup_escape(xesam:escapeme)}}", "&lt;hi&gt;")
+    test.add("{{lc(artist)}}", ARTIST.lower())
+    test.add("{{uc(title)}}", TITLE.upper())
+    test.add("{{uc(lc(title))}}", TITLE.upper())
+    test.add('{{uc("Hi")}}', "HI")
+    test.add("{{mpris:length}}", "100000")
+    test.add(
+        '@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@',
+        f'@HI - HO . {TITLE.lower()}@')
+    test.add("{{default(xesam:missing, artist)}}", ARTIST)
+    test.add("{{default(title, artist)}}", TITLE)
+    test.add('{{default("", "ok")}}', 'ok')
+    test.add('{{default("ok", "not")}}', 'ok')
+    test.add(' {{lc(album)}} ', ALBUM.lower())
+
+    await test.run()
+
+    # numbers
+    math = [
+        '10',
+        '-10 + 20',
+        '10 + 10',
+        '10 * 10',
+        '10 / 10',
+        '10 + 10 * 10 + 10',
+        '10 + 10 * -10 + 10',
+        '10 + 10 * -10 + -10',
+        '-10 * 10 + 10',
+        '-10 * -10 * -1 + -10',
+        '-10 * 10 + -10 * -10 + 20 / 10 * -20 + -10',
+        '8+-+--++-4',
+        '2 - 10 * 1 + 1',
+        '2 / -2 + 2 * 2 * -2 - 2 - 2 * -2',
+        '2 * (2 + 2)',
+        '10 * (10 + 12) - 4',
+        '-(10)',
+        '-(10 + 12 * -2)',
+        '14 - (10 * 2 + 5) * -6',
+        '(14 - 2 * 3) * (14 * -2 - 6) + -(4 - 2) * 5',
+    ]
+
+    # variables
+    math += [
+        'volume',
+        'volume + 10',
+        '-volume',
+        '-volume * -1',
+        '-volume + volume',
+        'volume * volume',
+        'volume * -volume',
+        'volume + volume * -volume * volume + -volume',
+        'volume / -volume + volume * volume * -volume - volume - volume * -volume',
+        '-(volume + 3) * 5 * (volume + 2)',
+    ]
+
+    # functions
+    math += [
+        'default(5+5, None)',
+        '-default(5 + 5, None)',
+        '(-default(5 - 5, None) + 2) * 8',
+        '2 + (5 * 4 + 3 * -default(5, default(6 * (3 + 4 * (6 + 2)) / 2, None)) + -56)',
+    ]
+
+    def default_shim(arg1, arg2):
+        if arg1 is None:
+            return arg2
+        return arg1
+
+    async def math_test(math):
+        cmd = await playerctl.run("metadata --format '{{" + math + "}}'")
+        assert cmd.returncode == 0, cmd.stderr
+        assert float(cmd.stdout) == eval(math, {
+            'volume': mpris.volume,
+            'default': default_shim
+        }), math
+
+    await asyncio.gather(*[math_test(m) for m in math])
 
     mpris.disconnect()
