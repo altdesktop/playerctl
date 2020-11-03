@@ -532,10 +532,13 @@ static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint ar
             status = TRUE;
         } else if (strcasecmp(status_str, "off") == 0) {
             status = FALSE;
+        } else if (strcasecmp(status_str, "toggle") == 0) {
+            g_object_get(player, "shuffle", &status, NULL);
+            status = !status;
         } else {
             g_set_error(error, playerctl_cli_error_quark(), 1,
                         "Got unknown shuffle status: '%s' (expected 'on', "
-                        "or 'off').",
+                        "'off', or 'toggle').",
                         argv[1]);
             return FALSE;
         }
@@ -803,7 +806,7 @@ static const GOptionEntry entries[] = {
     {"list-all", 'l', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &list_all_players_and_exit,
      "List the names of running players that can be controlled", NULL},
     {"no-messages", 's', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &no_status_error_messages,
-     "Suppress status error messages", NULL},
+     "Suppress diagnostic messages", NULL},
     {"version", 'v', G_OPTION_FLAG_NONE, G_OPTION_ARG_NONE, &print_version_and_exit,
      "Print version information", NULL},
     {G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command_arg, NULL, "COMMAND"},
@@ -834,7 +837,7 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         "\n  loop [STATUS]           Print or set the loop status."
         "\n                          Can be \"None\", \"Track\", or \"Playlist\"."
         "\n  shuffle [STATUS]        Print or set the shuffle status."
-        "\n                          Can be \"On\" or \"Off\".";
+        "\n                          Can be \"On\", \"Off\", or \"Toggle\".";
 
     static const gchar *summary = "  For players supporting the MPRIS D-Bus specification";
     GOptionContext *context = NULL;
