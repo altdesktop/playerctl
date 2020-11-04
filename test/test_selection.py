@@ -28,13 +28,13 @@ def selector(bus_address):
 @pytest.mark.asyncio
 async def test_selection(bus_address):
     s1 = 'selection1'
-    s1i = 'selection1.instance123'
+    s1i = 'selection1.i_123'
     s2 = 'selection2'
     s3 = 'selection3'
     m4 = 'selection4'
     m5 = 'selection5'
     m6 = 'selection6'
-    s6i = 'selection6.instance2'
+    s6i = 'selection6.i_2'
     any_player = '%any'
 
     mpris_players = await setup_mpris(s1,

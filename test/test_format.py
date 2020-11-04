@@ -75,39 +75,43 @@ class MetadataTest:
 
 @pytest.mark.asyncio
 async def test_format(bus_address):
-    [mpris] = await setup_mpris('format-test', bus_address=bus_address)
-    TITLE = 'A Title'
-    ARTIST = 'An Artist'
-    ALBUM = 'An Album'
+    title = 'A Title'
+    artist = 'An Artist'
+    album = 'An Album'
+    player_name = 'format-test'
+    player_instance = f'{player_name}.instance123'
+
+    [mpris] = await setup_mpris(player_instance, bus_address=bus_address)
     mpris.metadata = {
-        'xesam:title': Variant('s', TITLE),
-        'xesam:artist': Variant('as', [ARTIST]),
+        'xesam:title': Variant('s', title),
+        'xesam:artist': Variant('as', [artist]),
         'xesam:escapeme': Variant('s', '<hi>'),
-        'xesam:album': Variant('s', ALBUM),
+        'xesam:album': Variant('s', album),
         'mpris:length': Variant('x', 100000)
     }
     mpris.volume = 2.0
-    await mpris.ping()
 
     playerctl = PlayerctlCli(bus_address)
 
     test = MetadataTest(playerctl)
 
-    test.add('{{artist}} - {{title}}', f'{ARTIST} - {TITLE}')
+    test.add('{{artist}} - {{title}}', f'{artist} - {title}')
     test.add("{{markup_escape(xesam:escapeme)}}", "&lt;hi&gt;")
-    test.add("{{lc(artist)}}", ARTIST.lower())
-    test.add("{{uc(title)}}", TITLE.upper())
-    test.add("{{uc(lc(title))}}", TITLE.upper())
+    test.add("{{lc(artist)}}", artist.lower())
+    test.add("{{uc(title)}}", title.upper())
+    test.add("{{uc(lc(title))}}", title.upper())
     test.add('{{uc("Hi")}}', "HI")
     test.add("{{mpris:length}}", "100000")
     test.add(
         '@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@',
-        f'@HI - HO . {TITLE.lower()}@')
-    test.add("{{default(xesam:missing, artist)}}", ARTIST)
-    test.add("{{default(title, artist)}}", TITLE)
+        f'@HI - HO . {title.lower()}@')
+    test.add("{{default(xesam:missing, artist)}}", artist)
+    test.add("{{default(title, artist)}}", title)
     test.add('{{default("", "ok")}}', 'ok')
     test.add('{{default("ok", "not")}}', 'ok')
-    test.add(' {{lc(album)}} ', ALBUM.lower())
+    test.add(' {{lc(album)}} ', album.lower())
+    test.add('{{playerName}} - {{playerInstance}}',
+             f'{player_name} - {player_instance}')
 
     await test.run()
 

@@ -21,7 +21,7 @@ async def test_commands(bus_address):
     def get_called(cmd):
         return getattr(mpris, f'{cmd.replace("-", "_")}_called')
 
-    playerctl = PlayerctlCli(bus_address)
+    playerctl = PlayerctlCli(bus_address, debug=True)
 
     results = await asyncio.gather(*(playerctl.run(f'-p commands {cmd}')
                                      for cmd in commands + setters))

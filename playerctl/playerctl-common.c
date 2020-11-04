@@ -134,7 +134,7 @@ PlayerctlSource pctl_bus_type_to_source(GBusType bus_type) {
 
 PlayerctlPlayerName *pctl_player_name_new(const gchar *instance, PlayerctlSource source) {
     PlayerctlPlayerName *player_name = g_slice_new(PlayerctlPlayerName);
-    gchar **split = g_strsplit(instance, ".instance", 2);
+    gchar **split = g_strsplit(instance, ".", 2);
     player_name->name = g_strdup(split[0]);
     g_strfreev(split);
     player_name->instance = g_strdup(instance);
@@ -162,9 +162,8 @@ gint pctl_player_name_string_instance_compare(const gchar *name, const gchar *in
     }
 
     gboolean exact_match = (g_strcmp0(name, instance) == 0);
-    gboolean instance_match =
-        !exact_match && (g_str_has_prefix(instance, name) &&
-                         g_str_has_prefix(instance + strlen(name), ".instance"));
+    gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
+                                               g_str_has_prefix(instance + strlen(name), "."));
 
     if (exact_match || instance_match) {
         return 0;

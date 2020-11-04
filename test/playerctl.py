@@ -33,7 +33,7 @@ class PlayerctlProcess:
                     break
 
         asyncio.get_event_loop().create_task(reader(proc.stdout))
-        # asyncio.get_event_loop().create_task(printer(proc.stderr))
+        asyncio.get_event_loop().create_task(printer(proc.stderr))
 
     def running(self):
         return self.proc.returncode is None

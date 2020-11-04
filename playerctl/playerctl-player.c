@@ -951,9 +951,9 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
         return FALSE;
     }
 
-    /* org.mpris.MediaPlayer2.{NAME}[.instance{NUM}] */
+    /* org.mpris.MediaPlayer2.{NAME}[.{INSTANCE}] */
     int offset = strlen(MPRIS_PREFIX);
-    gchar **split = g_strsplit(bus_name + offset, ".instance", 2);
+    gchar **split = g_strsplit(bus_name + offset, ".", 2);
     g_free(player->priv->player_name);
     player->priv->player_name = g_strdup(split[0]);
     g_strfreev(split);
