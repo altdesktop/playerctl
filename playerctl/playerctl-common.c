@@ -209,7 +209,13 @@ GList *pctl_list_player_names_on_bus(GBusType bus_type, GError **err) {
             // incorrectly. I think we can pass through here because it is true
             // that there are no names on the bus that is supposed to be at
             // this socket path. But we need a better way of dealing with this case.
-            g_warning("D-Bus socket address not found, unable to list player names");
+            const gchar *message = "D-Bus socket address not found, unable to list player names";
+            if (bus_type == G_BUS_TYPE_SESSION) {
+                g_warning("%s", message);
+            } else {
+                g_debug("%s", message);
+            }
+
             g_clear_error(&tmp_error);
             return NULL;
         }

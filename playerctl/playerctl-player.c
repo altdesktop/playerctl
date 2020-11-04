@@ -826,7 +826,7 @@ static void playerctl_player_init(PlayerctlPlayer *self) {
 
 /*
  * Get the matching bus name for this player name. Bus name will be like:
- * "org.mpris.MediaPlayer2.{PLAYER_NAME}[.instance{NUM}]"
+ * "org.mpris.MediaPlayer2.{PLAYER_NAME}[.{INSTANCE}]"
  * Pass a NULL player_name to get the first name on the bus
  * Returns NULL if no matching bus name is found on the bus.
  * Returns an error if there was a problem listing the names on the bus.
