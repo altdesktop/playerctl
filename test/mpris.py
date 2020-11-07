@@ -6,6 +6,7 @@ import asyncio
 
 
 async def setup_mpris(*names, bus_address=None, system=False):
+    # TODO maybe they should all share a bus for speed
     async def setup(name):
         if system:
             bus_type = BusType.SYSTEM
@@ -21,6 +22,15 @@ async def setup_mpris(*names, bus_address=None, system=False):
         return player
 
     return await asyncio.gather(*(setup(name) for name in names))
+
+
+async def setup_playerctld(bus_address=None):
+    bus = await MessageBus(bus_address=bus_address).connect()
+    playerctld = PlayerctldInterface(bus)
+    bus.export('/org/mpris/MediaPlayer2', playerctld)
+    reply = await bus.request_name('org.mpris.MediaPlayer2.playerctld')
+    assert reply == RequestNameReply.PRIMARY_OWNER
+    return playerctld
 
 
 class MprisRoot(ServiceInterface):
@@ -240,3 +250,18 @@ class MprisPlayer(ServiceInterface):
     @dbus_property(access=PropertyAccess.READ)
     def CanControl(self) -> 'b':
         return self.can_control
+
+
+class PlayerctldInterface(ServiceInterface):
+    '''just enough of playerctld for testing'''
+    def __init__(self, bus):
+        super().__init__('com.github.altdesktop.playerctld')
+        self.bus = bus
+        self.player_names = []
+
+    @dbus_property(access=PropertyAccess.READ)
+    def PlayerNames(self) -> 'as':
+        return self.player_names
+
+    def disconnect(self):
+        self.bus.disconnect()

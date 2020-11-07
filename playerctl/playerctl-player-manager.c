@@ -56,7 +56,7 @@ struct _PlayerctlPlayerManagerPrivate {
     GList *player_names;
     GList *players;
     GCompareDataFunc sort_func;
-    gpointer *sort_data;
+    gpointer sort_data;
     GDestroyNotify sort_notify;
 };
 
@@ -412,7 +412,7 @@ PlayerctlPlayerManager *playerctl_player_manager_new(GError **err) {
  * for using this list as a priority queue.
  */
 void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
-                                            GCompareDataFunc sort_func, gpointer *sort_data,
+                                            GCompareDataFunc sort_func, gpointer sort_data,
                                             GDestroyNotify notify) {
     // TODO figure out how to make this work with the bindings
     manager->priv->sort_func = sort_func;

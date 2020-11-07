@@ -21,7 +21,10 @@
 
 #include <glib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <strings.h>
+
+#define PLAYERCTLD_BUS_NAME "org.mpris.MediaPlayer2.playerctld"
 
 gboolean pctl_parse_playback_status(const gchar *status_str, PlayerctlPlaybackStatus *status) {
     if (status_str == NULL) {
@@ -162,8 +165,9 @@ gint pctl_player_name_string_instance_compare(const gchar *name, const gchar *in
     }
 
     gboolean exact_match = (g_strcmp0(name, instance) == 0);
-    gboolean instance_match = !exact_match && (g_str_has_prefix(instance, name) &&
-                                               g_str_has_prefix(instance + strlen(name), "."));
+    gboolean instance_match =
+        !exact_match && (g_str_has_prefix(instance, name) && strlen(instance) > strlen(name) &&
+                         g_str_has_prefix(instance + strlen(name), "."));
 
     if (exact_match || instance_match) {
         return 0;
@@ -191,12 +195,16 @@ GList *pctl_player_name_find_instance(GList *list, gchar *player_id, PlayerctlSo
 }
 
 void pctl_player_name_list_destroy(GList *list) {
+    if (list == NULL) {
+        return;
+    }
     g_list_free_full(list, (GDestroyNotify)playerctl_player_name_free);
 }
 
 GList *pctl_list_player_names_on_bus(GBusType bus_type, GError **err) {
     GError *tmp_error = NULL;
     GList *players = NULL;
+    gboolean has_playerctld = FALSE;
 
     GDBusProxy *proxy = g_dbus_proxy_new_for_bus_sync(
         bus_type, G_DBUS_PROXY_FLAGS_NONE, NULL, "org.freedesktop.DBus", "/org/freedesktop/DBus",
@@ -237,6 +245,46 @@ GList *pctl_list_player_names_on_bus(GBusType bus_type, GError **err) {
     gsize reply_count;
     const gchar **names = g_variant_get_strv(reply_child, &reply_count);
 
+    // If playerctld is in the names, get the list of players from there
+    // because it will be in order of activity
+    for (gsize i = 0; i < reply_count; i += 1) {
+        if (g_strcmp0(names[i], PLAYERCTLD_BUS_NAME) == 0) {
+            g_debug("%s", "Playerctld is running. Getting names from there.");
+            has_playerctld = TRUE;
+
+            GDBusProxy *playerctld_proxy = g_dbus_proxy_new_for_bus_sync(
+                bus_type, G_DBUS_PROXY_FLAGS_NONE, NULL, PLAYERCTLD_BUS_NAME,
+                "/org/mpris/MediaPlayer2", "com.github.altdesktop.playerctld", NULL, &tmp_error);
+            if (tmp_error != NULL) {
+                g_warning("Could not get player names from playerctld: %s", tmp_error->message);
+                g_clear_error(&tmp_error);
+                g_object_unref(playerctld_proxy);
+                break;
+            }
+
+            GVariant *playerctld_reply =
+                g_dbus_proxy_get_cached_property(playerctld_proxy, "PlayerNames");
+            if (playerctld_reply == NULL) {
+                g_warning(
+                    "%s",
+                    "Could not get player names from playerctld: PlayerNames property not found");
+                g_clear_error(&tmp_error);
+                g_object_unref(playerctld_proxy);
+                break;
+            }
+
+            g_variant_unref(reply);
+            g_free(names);
+
+            reply = playerctld_reply;
+            names = g_variant_get_strv(reply, &reply_count);
+            g_object_unref(playerctld_proxy);
+            has_playerctld = TRUE;
+
+            break;
+        }
+    }
+
     size_t offset = strlen(MPRIS_PREFIX);
     for (gsize i = 0; i < reply_count; i += 1) {
         if (g_str_has_prefix(names[i], MPRIS_PREFIX)) {
@@ -244,6 +292,10 @@ GList *pctl_list_player_names_on_bus(GBusType bus_type, GError **err) {
                 pctl_player_name_new(names[i] + offset, pctl_bus_type_to_source(bus_type));
             players = g_list_append(players, player_name);
         }
+    }
+
+    if (!has_playerctld) {
+        players = g_list_sort(players, (GCompareFunc)pctl_player_name_compare);
     }
 
     g_object_unref(proxy);

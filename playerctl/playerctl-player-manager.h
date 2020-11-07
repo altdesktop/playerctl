@@ -93,7 +93,7 @@ void playerctl_player_manager_manage_player(PlayerctlPlayerManager *manager,
                                             PlayerctlPlayer *player);
 
 void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
-                                            GCompareDataFunc sort_func, gpointer *sort_data,
+                                            GCompareDataFunc sort_func, gpointer sort_data,
                                             GDestroyNotify notify);
 
 void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager,

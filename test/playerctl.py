@@ -1,5 +1,6 @@
 import asyncio
 import os
+from shlex import join
 
 
 class CommandResult:
@@ -33,7 +34,7 @@ class PlayerctlProcess:
                     break
 
         asyncio.get_event_loop().create_task(reader(proc.stdout))
-        asyncio.get_event_loop().create_task(printer(proc.stderr))
+        # asyncio.get_event_loop().create_task(printer(proc.stderr))
 
     def running(self):
         return self.proc.returncode is None
@@ -69,3 +70,16 @@ class PlayerctlCli:
         stdout, stderr = await proc.communicate()
         await proc.wait()
         return CommandResult(stdout, stderr, proc.returncode)
+
+    async def list(self, players=[], ignored=[]):
+        args = ['--list-all']
+
+        if players:
+            args.extend(['--player', ','.join(players)])
+
+        if ignored:
+            args.extend(['--ignored-players', ','.join(ignored)])
+
+        cmd = await self.run(join(args))
+        assert cmd.returncode == 0, cmd.stderr
+        return cmd.stdout.splitlines()

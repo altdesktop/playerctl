@@ -38,6 +38,8 @@ Here is a list of available commands:
 
 Without specifying any players to control, Playerctl will act on the first player it can find.
 
+Playerctl comes with a service called `playerctld` that monitors the activity of media players in the background. If `playerctld` is running, Playerctl will act on players in order of their last activity.
+
 You can list the names of players that are available to control that are running on the system with `playerctl --list-all`.
 
 If you'd only like to control certain players, you can pass the names of those players separated by commas with the `--player` flag. Playerctl will select the first instance of a player in that list that supports the command. To control all players in the list, you can use the `--all-players` flag.
@@ -67,15 +69,6 @@ playerctl --player=%any,chromium play
 
 # Command any player to play, but select VLC first
 playerctl --player=vlc,%any play
-```
-
-#### Selecting the Most Recent Player
-
-Playerctl comes with a service called `playerctld` you can use that monitors the activity of media players to select the one with the most recent activity. To use it, simply pass `playerctld` as the selected player to Playerctl and the service should start automatically (if it doesn't, see the troubleshooting section).
-
-```
-# Command the most recent player to play
-playerctl --player=playerctld play
 ```
 
 ### Printing Properties and Metadata

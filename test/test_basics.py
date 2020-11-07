@@ -62,7 +62,7 @@ async def test_list_names(bus_address):
 async def test_system_list_players(bus_address):
     system_players = await setup_mpris('system', system=True)
     session_players = await setup_mpris('session1', bus_address=bus_address)
-    playerctl = PlayerctlCli(bus_address, debug=False)
+    playerctl = PlayerctlCli(bus_address)
     result = await playerctl.run('-l')
     assert result.returncode == 0, result.stdout
     assert result.stdout.split() == ['session1', 'system']

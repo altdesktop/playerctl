@@ -723,7 +723,7 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
     return TRUE;
 }
 
-static void managed_player_properties_callback(PlayerctlPlayer *player, gpointer *data) {
+static void managed_player_properties_callback(PlayerctlPlayer *player, gpointer data) {
     playerctl_player_manager_move_player_to_top(manager, player);
     GError *error = NULL;
     managed_players_execute_command(&error);
@@ -883,6 +883,28 @@ static GList *parse_player_list(gchar *player_list_arg) {
     return players;
 }
 
+static gboolean name_is_selected(const gchar *name) {
+    if (ignored_player_names != NULL) {
+        gboolean ignored =
+            (g_list_find_custom(ignored_player_names, name,
+                                (GCompareFunc)pctl_player_name_string_instance_compare) != NULL);
+        if (ignored) {
+            return FALSE;
+        }
+    }
+
+    if (player_names != NULL) {
+        gboolean selected =
+            (g_list_find_custom(player_names, name,
+                                (GCompareFunc)pctl_player_name_string_instance_compare) != NULL);
+        if (!selected) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 static int handle_version_flag() {
     g_print("v%s\n", PLAYERCTL_VERSION_S);
     return 0;
@@ -892,22 +914,26 @@ static int handle_list_all_flag() {
     GError *tmp_error = NULL;
     GList *player_names_list = playerctl_list_players(&tmp_error);
 
+    player_names_list =
+        g_list_sort_with_data(player_names_list, player_name_compare_func, (gpointer)player_names);
+
     if (tmp_error != NULL) {
         g_printerr("%s\n", tmp_error->message);
         return 1;
     }
 
-    if (player_names_list == NULL) {
-        if (!no_status_error_messages) {
-            g_printerr("No players were found\n");
-        }
-        return 0;
-    }
-
+    gboolean one_selected = FALSE;
     GList *l = NULL;
     for (l = player_names_list; l != NULL; l = l->next) {
         PlayerctlPlayerName *name = l->data;
-        printf("%s\n", name->instance);
+        if (name_is_selected(name->instance)) {
+            one_selected = TRUE;
+            printf("%s\n", name->instance);
+        }
+    }
+
+    if (!one_selected && !no_status_error_messages) {
+        g_printerr("No players were found\n");
     }
 
     pctl_player_name_list_destroy(player_names_list);
@@ -956,28 +982,6 @@ static void managed_players_execute_command(GError **error) {
     if (!did_command) {
         cli_print_output(NULL);
     }
-}
-
-static gboolean name_is_selected(gchar *name) {
-    if (ignored_player_names != NULL) {
-        gboolean ignored =
-            (g_list_find_custom(ignored_player_names, name,
-                                (GCompareFunc)pctl_player_name_string_instance_compare) != NULL);
-        if (ignored) {
-            return FALSE;
-        }
-    }
-
-    if (player_names != NULL) {
-        gboolean selected =
-            (g_list_find_custom(player_names, name,
-                                (GCompareFunc)pctl_player_name_string_instance_compare) != NULL);
-        if (!selected) {
-            return FALSE;
-        }
-    }
-
-    return TRUE;
 }
 
 static void name_appeared_callback(PlayerctlPlayerManager *manager, PlayerctlPlayerName *name,
@@ -1074,75 +1078,76 @@ static void player_vanished_callback(PlayerctlPlayerManager *manager, PlayerctlP
     }
 }
 
-gint player_name_string_compare_func(gconstpointer a, gconstpointer b) {
+gint player_name_string_compare_func(gconstpointer a, gconstpointer b, gpointer user_data) {
     const gchar *name_a = a;
     const gchar *name_b = b;
+    GList *names = user_data;
 
     if (g_strcmp0(name_a, name_b) == 0) {
         return 0;
     }
 
-    int a_index = -1;
-    int b_index = -1;
+    int a_match_index = -1;
+    int b_match_index = -1;
+
     int any_index = INT_MAX;
     int i = 0;
     GList *l = NULL;
-    for (l = player_names; l != NULL; l = l->next) {
+    for (l = names; l != NULL; l = l->next) {
         gchar *name = l->data;
 
         if (g_strcmp0(name, "%any") == 0) {
             if (any_index == INT_MAX) {
                 any_index = i;
             }
-        } else if (g_strcmp0(name_a, name) == 0) {
-            if (a_index == -1) {
-                a_index = i;
+            continue;
+        }
+
+        if (pctl_player_name_string_instance_compare(name, name_a) == 0) {
+            if (a_match_index == -1) {
+                a_match_index = i;
             }
-        } else if (g_strcmp0(name_b, name) == 0) {
-            if (b_index == -1) {
-                b_index = i;
-            }
-        } else if (pctl_player_name_string_instance_compare(name, name_a) == 0) {
-            if (a_index == -1) {
-                a_index = i;
-            }
-        } else if (pctl_player_name_string_instance_compare(name, name_b) == 0) {
-            if (b_index == -1) {
-                b_index = i;
+        }
+
+        if (pctl_player_name_string_instance_compare(name, name_b) == 0) {
+            if (b_match_index == -1) {
+                b_match_index = i;
             }
         }
         ++i;
     }
 
-    if (a_index == -1 && b_index == -1) {
+    if (a_match_index == -1 && b_match_index == -1) {
         // neither are in the list
         return 0;
-    } else if (a_index == -1) {
+    } else if (a_match_index == -1) {
         // b is in the list
-        return (b_index < any_index ? 1 : -1);
-    } else if (b_index == -1) {
+        return (b_match_index < any_index ? 1 : -1);
+    } else if (b_match_index == -1) {
         // a is in the list
-        return (a_index < any_index ? -1 : 1);
+        return (a_match_index < any_index ? -1 : 1);
+    } else if (a_match_index == b_match_index) {
+        // preserve order
+        return 0;
     } else {
-        // both are in the list
-        return (a_index < b_index ? -1 : 1);
+        return (a_match_index < b_match_index ? -1 : 1);
     }
 }
 
-gint player_name_compare_func(gconstpointer a, gconstpointer b) {
+gint player_name_compare_func(gconstpointer a, gconstpointer b, gpointer user_data) {
     const PlayerctlPlayerName *name_a = a;
     const PlayerctlPlayerName *name_b = b;
-    return player_name_string_compare_func(name_a->instance, name_b->instance);
+    return player_name_string_compare_func(name_a->instance, name_b->instance, user_data);
 }
 
-gint player_compare_func(gconstpointer a, gconstpointer b) {
+gint player_compare_func(gconstpointer a, gconstpointer b, gpointer user_data) {
     PlayerctlPlayer *player_a = PLAYERCTL_PLAYER(a);
     PlayerctlPlayer *player_b = PLAYERCTL_PLAYER(b);
     gchar *name_a = NULL;
     gchar *name_b = NULL;
     g_object_get(player_a, "player-name", &name_a, NULL);
     g_object_get(player_b, "player-name", &name_b, NULL);
-    gint result = player_name_string_compare_func(name_a, name_b);
+    gint result = player_name_string_compare_func(name_a, name_b, user_data);
     g_free(name_a);
     g_free(name_b);
     return result;
@@ -1162,6 +1167,9 @@ int main(int argc, char *argv[]) {
         g_clear_error(&error);
         exit(0);
     }
+
+    player_names = parse_player_list(player_arg);
+    ignored_player_names = parse_player_list(ignore_player_arg);
 
     if (print_version_and_exit) {
         int result = handle_version_flag();
@@ -1191,8 +1199,6 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    player_names = parse_player_list(player_arg);
-    ignored_player_names = parse_player_list(ignore_player_arg);
     playercmd_args = playercmd_args_create(command_arg, num_commands);
 
     manager = playerctl_player_manager_new(&error);
@@ -1203,13 +1209,14 @@ int main(int argc, char *argv[]) {
     }
 
     if (player_names != NULL && !select_all_players) {
-        playerctl_player_manager_set_sort_func(manager, (GCompareDataFunc)player_compare_func, NULL,
+        playerctl_player_manager_set_sort_func(manager, player_compare_func, (gpointer)player_names,
                                                NULL);
     }
 
     g_object_get(manager, "player-names", &available_players, NULL);
     available_players = g_list_copy(available_players);
-    available_players = g_list_sort(available_players, (GCompareFunc)player_name_compare_func);
+    available_players =
+        g_list_sort_with_data(available_players, player_name_compare_func, (gpointer)player_names);
 
     PlayerctlPlayerName playerctld_name = {
         .instance = "playerctld",
@@ -1222,10 +1229,11 @@ int main(int argc, char *argv[]) {
         // playerctld is not ignored, was specified exactly in the list of
         // players, and is not in the list of available players. Add it to the
         // list and try to autostart it.
-        g_debug("%s", "playerctld was selected and is not available, attempting to autostart it");
+        g_debug("%s", "playerctld was selected explicitly, it may autostart");
         available_players = g_list_append(
             available_players, pctl_player_name_new("playerctld", PLAYERCTL_SOURCE_DBUS_SESSION));
-        available_players = g_list_sort(available_players, (GCompareFunc)player_name_compare_func);
+        available_players = g_list_sort_with_data(available_players, player_name_compare_func,
+                                                  (gpointer)player_names);
     }
 
     gboolean has_selected = FALSE;
