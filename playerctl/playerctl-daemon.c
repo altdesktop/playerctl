@@ -827,6 +827,7 @@ static const GOptionEntry entries[] = {
 
 static gboolean parse_setup_options(int argc, char **argv, GError **error) {
     static const gchar *description = "Available Commands:"
+                                      "\n  daemon                  Activate playerctld and exit"
                                       "\n  shift                   Shift to next player";
 
     GOptionContext *context;
@@ -838,7 +839,8 @@ static gboolean parse_setup_options(int argc, char **argv, GError **error) {
 
     success = g_option_context_parse(context, &argc, &argv, error);
 
-    if (success && command_arg && g_strcmp0(command_arg[0], "shift") != 0) {
+    if (success && command_arg &&
+        (g_strcmp0(command_arg[0], "shift") != 0 && g_strcmp0(command_arg[0], "daemon") != 0)) {
         gchar *help = g_option_context_get_help(context, TRUE, NULL);
         printf("%s\n", help);
         g_option_context_free(context);
@@ -864,6 +866,24 @@ int playercmd_shift(GDBusConnection *connection) {
     return 0;
 }
 
+int playercmd_daemon(GDBusConnection *connection) {
+    GError *error = NULL;
+
+    GVariant *result = g_dbus_connection_call_sync(
+        connection, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+        "StartServiceByName", g_variant_new("(su)", "org.mpris.MediaPlayer2.playerctld", 0), NULL,
+        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+    g_object_unref(connection);
+    g_variant_unref(result);
+
+    if (error != NULL) {
+        g_printerr("Could not start playerctld: %s\n", error->message);
+        return 1;
+    }
+
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     struct PlayerctldContext ctx = {0};
     GError *error = NULL;
@@ -881,6 +901,10 @@ int main(int argc, char *argv[]) {
     }
 
     g_debug("connected to dbus: %s", g_dbus_connection_get_unique_name(ctx.connection));
+
+    if (command_arg && g_strcmp0(command_arg[0], "daemon") == 0) {
+        return playercmd_daemon(ctx.connection);
+    }
 
     if (command_arg && g_strcmp0(command_arg[0], "shift") == 0) {
         return playercmd_shift(ctx.connection);

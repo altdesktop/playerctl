@@ -38,7 +38,11 @@ Here is a list of available commands:
 
 Without specifying any players to control, Playerctl will act on the first player it can find.
 
-Playerctl comes with a service called `playerctld` that monitors the activity of media players in the background. If `playerctld` is running, Playerctl will act on players in order of their last activity.
+Playerctl comes with a service called `playerctld` that monitors the activity of media players in the background. If `playerctld` is running, Playerctl will act on players in order of their last activity. To start `playerctld`, add the following command to your system startup script:
+
+```
+playerctld daemon
+```
 
 You can list the names of players that are available to control that are running on the system with `playerctl --list-all`.
 
