@@ -873,8 +873,11 @@ int playercmd_daemon(GDBusConnection *connection) {
         connection, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
         "StartServiceByName", g_variant_new("(su)", "org.mpris.MediaPlayer2.playerctld", 0), NULL,
         G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+
     g_object_unref(connection);
-    g_variant_unref(result);
+    if (result != NULL) {
+        g_variant_unref(result);
+    }
 
     if (error != NULL) {
         g_printerr("Could not start playerctld: %s\n", error->message);
