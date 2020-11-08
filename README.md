@@ -1,14 +1,14 @@
 # Playerctl
 
-For true players only: vlc, audacious, bmp, xmms2, spotify and others.
+For true players only: vlc, mpv, RhythmBox, web browsers, cmus, mpd, spotify and others.
+
+[Chat](https://discord.gg/UdbXHVX)
 
 ## About
 
 Playerctl is a command-line utility and library for controlling media players that implement the [MPRIS](http://specifications.freedesktop.org/mpris-spec/latest/) D-Bus Interface Specification. Playerctl makes it easy to bind player actions, such as play and pause, to media keys. You can also get metadata about the playing track such as the artist and title for integration into statusline generators or other command-line tools.
 
-For more advanced users, Playerctl provides an [introspectable](https://wiki.gnome.org/action/show/Projects/GObjectIntrospection) library available in your favorite scripting language that allows more detailed control like the ability to subscribe to media player events or get metadata such as artist and title for the playing track.
-
-[Chat](https://discord.gg/UdbXHVX)
+Playerctl also comes with a daemon that allows it to act on the currently active media player called `playerctld`.
 
 ## Using the CLI
 
@@ -86,7 +86,7 @@ playerctl metadata --format "Now playing: {{ artist }} - {{ album }} - {{ title 
 # prints 'Now playing: Lana Del Rey - Born To Die - Video Games'
 ```
 
-Included in the template language are some built-in variables and helper functions for common formatting that you can call on template variables. It can also do basic math operations on numbers including `+`, `-`, `*`, `/`, and operation ordering with `()` parens.
+Included in the template language are some built-in variables and helper functions for common formatting that you can call on template variables. It can also do basic math operations on numbers.
 
 ```bash
 # Prints 'Total length: 3:23'
@@ -102,7 +102,7 @@ playerctl metadata --format "Artist in lowercase: {{ lc(artist) }}"
 playerctl status --format "STATUS: {{ uc(status) }}"
 
 # Prints the time remaining in the track (e.g, 'Time remaining: 2:07')
-playerctl metadata --format "Time remaining: {{ duration(mpris:length - position) }}
+playerctl metadata --format "Time remaining: {{ duration(mpris:length - position) }}"
 
 # Prints volume from 0 - 100
 playerctl metadata --format "Volume: {{ volume * 100 }}"
@@ -135,55 +135,6 @@ You can pass the `--follow` flag to query commands to block, wait for players to
 playerctl metadata --format '{{ playerName }}: {{ artist }} - {{ title }} {{ duration(position) }}|{{ duration(mpris:length) }}' --follow
 ```
 
-## Using the Library
-
-To use a scripting library, find your favorite language from [this list](https://wiki.gnome.org/Projects/GObjectIntrospection/Users) and install the bindings library. Documentation for the library is hosted [here](https://dubstepdish.com/playerctl). For examples on how to use the library, see the [examples](https://github.com/acrisci/playerctl/blob/master/examples) folder.
-
-### Example Python Script
-
-This example uses the [Python bindings](https://wiki.gnome.org/action/show/Projects/PyGObject).
-
-```python
-#!/usr/bin/env python3
-
-from gi.repository import Playerctl, GLib
-
-player = Playerctl.Player('vlc')
-
-
-def on_metadata(player, metadata):
-    if 'xesam:artist' in metadata.keys() and 'xesam:title' in metadata.keys():
-        print('Now playing:')
-        print('{artist} - {title}'.format(
-            artist=metadata['xesam:artist'][0], title=metadata['xesam:title']))
-
-
-def on_play(player, status):
-    print('Playing at volume {}'.format(player.props.volume))
-
-
-def on_pause(player, status):
-    print('Paused the song: {}'.format(player.get_title()))
-
-
-player.connect('playback-status::playing', on_play)
-player.connect('playback-status::paused', on_pause)
-player.connect('metadata', on_metadata)
-
-# start playing some music
-player.play()
-
-if player.get_artist() == 'Lana Del Rey':
-    # I meant some good music!
-    player.next()
-
-# wait for events
-main = GLib.MainLoop()
-main.run()
-```
-
-For a more complete example which is capable of listening to when players start and exit, see [player-manager.py](https://github.com/acrisci/playerctl/blob/master/examples/player-manager.py) from the official examples.
-
 ## Troubleshooting
 
 ### Debug Logging
@@ -215,7 +166,7 @@ fi
 
 ## Installing
 
-First, check and see if Playerctl is available from your package manager (if it is not, get someone to host a package for you) and also check the [releases](https://github.com/acrisci/playerctl/releases) page on github.
+First, check and see if Playerctl is available from your package manager (if it is not, get someone to host a package for you) and also check the [releases](https://github.com/altdesktop/playerctl/releases) page on github.
 
 ### Fedora
 
@@ -281,6 +232,54 @@ export GI_TYPELIB_PATH="$DESTDIR/${PREFIX}/lib/:$GI_TYPELIB_PATH"
 export PATH="$DESTDIR/${PREFIX}/bin:$PATH"
 ```
 
+## Using the Library
+
+To use a scripting library, find your favorite language from [this list](https://wiki.gnome.org/Projects/GObjectIntrospection/Users) and install the bindings library. Documentation for the library is hosted [here](https://dubstepdish.com/playerctl). For examples on how to use the library, see the [examples](https://github.com/acrisci/playerctl/blob/master/examples) folder.
+
+### Example Python Script
+
+For more advanced users, Playerctl provides an [introspectable](https://wiki.gnome.org/action/show/Projects/GObjectIntrospection) library available in your favorite scripting language that allows more detailed control like the ability to subscribe to media player events or get metadata such as artist and title for the playing track. This example uses the [Python bindings](https://wiki.gnome.org/action/show/Projects/PyGObject).
+
+```python
+#!/usr/bin/env python3
+
+from gi.repository import Playerctl, GLib
+
+player = Playerctl.Player('vlc')
+
+
+def on_metadata(player, metadata):
+    if 'xesam:artist' in metadata.keys() and 'xesam:title' in metadata.keys():
+        print('Now playing:')
+        print('{artist} - {title}'.format(
+            artist=metadata['xesam:artist'][0], title=metadata['xesam:title']))
+
+
+def on_play(player, status):
+    print('Playing at volume {}'.format(player.props.volume))
+
+
+def on_pause(player, status):
+    print('Paused the song: {}'.format(player.get_title()))
+
+
+player.connect('playback-status::playing', on_play)
+player.connect('playback-status::paused', on_pause)
+player.connect('metadata', on_metadata)
+
+# start playing some music
+player.play()
+
+if player.get_artist() == 'Lana Del Rey':
+    # I meant some good music!
+    player.next()
+
+# wait for events
+main = GLib.MainLoop()
+main.run()
+```
+
+For a more complete example which is capable of listening to when players start and exit, see [player-manager.py](https://github.com/acrisci/playerctl/blob/master/examples/player-manager.py) from the official examples.
 
 ## Resources
 

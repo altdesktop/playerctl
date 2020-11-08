@@ -41,7 +41,19 @@ and
 However,
 any player that implements the MPRIS interface specification
 can be controlled using
-.Nm .
+.Nm
+including web browsers.
+.Pp
+Playerctl also comes with a daemon called
+.Nm playerctld
+which keeps track of media player activity. When
+.Nm playerctld
+is running,
+.Nm
+commands will act on the media player with the most recent activity.
+Run the command
+.Nm playerctld daemon
+to start the daemon.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -67,8 +79,10 @@ Control the specific player
 .Ar NAME .
 Multiple players can be specified in a comma-separated list.
 Defaults to the first available player.
-The name "name" matches both "name" and "name.instanceN".
+The name "name" matches both "name" and "name.{INSTANCE}".
 Additionally, the name "%any" matches any player.
+.It Fl s, -no-messages
+Silence some diagnostic and error messages.
 .It Fl V , -version
 Print version number, then exit.
 .El
@@ -131,13 +145,15 @@ Open
 in the player.
 .Ar URI
 may be the name of a file or an external URL.
-.It Cm shuffle Op Ic On | Off
+.It Cm shuffle Op Ic On | Off | Toggle
 Print the shuffle status of the player.
 With the shuffle status specified,
 set the shuffle status to either
 .Ic On
-or
-.Ic Off .
+,
+.Ic Off
+, or
+.Ic Toggle
 .It Cm loop Op Ic None | Track | Playlist
 Print the loop status of the player.
 With the loop status specified,
@@ -236,6 +252,8 @@ to an emoji representation. Currently implemented for
 and
 .Fa volume .
 .El
+.Pp
+The template language is also able to perform basic math operations.
 .Pp
 References to unknown functions will cause
 .Nm
