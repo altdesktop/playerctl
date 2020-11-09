@@ -23,12 +23,14 @@ struct Player {
 struct PlayerctldContext {
     GMainLoop *loop;
     gint bus_id;
+    gchar *bus_address;
     GDBusConnection *connection;
     GDBusInterfaceInfo *root_interface_info;
     GDBusInterfaceInfo *player_interface_info;
     GDBusInterfaceInfo *playerctld_interface_info;
     GQueue *players;
     GQueue *pending_players;
+    gint return_code;
     struct Player *pending_active;
 };
 
@@ -591,13 +593,14 @@ static void on_bus_acquired(GDBusConnection *connection, const char *name, gpoin
 static void on_name_lost(GDBusConnection *connection, const char *name, gpointer user_data) {
     struct PlayerctldContext *ctx = user_data;
 
-    if (connection) {
-        pid_t pid = getpid();
-        char *name = g_strdup_printf("org.mpris.MediaPlayer2.playerctld.instance%d", pid);
-        ctx->bus_id = g_bus_own_name(G_BUS_TYPE_SESSION, name, G_BUS_NAME_OWNER_FLAGS_NONE, NULL,
-                                     NULL, NULL, &ctx, NULL);
-        g_free(name);
+    if (connection == NULL) {
+        g_printerr("%s\n", "could not acquire bus name: unknown connection error");
+    } else {
+        g_printerr("%s\n", "could not acquire bus name: playerctld is already running");
     }
+
+    ctx->return_code = 1;
+    g_main_loop_quit(ctx->loop);
 }
 
 static bool well_known_name_is_managed(const char *name) {
@@ -866,25 +869,46 @@ int playercmd_shift(GDBusConnection *connection) {
     return 0;
 }
 
-int playercmd_daemon(GDBusConnection *connection) {
-    GError *error = NULL;
+enum activation_result {
+    ACTIVATION_FAIL = 0,
+    ACTIVATION_NOT_SUPPORTED,
+    ACTIVATION_SUCCESS,
+    ACTIVATION_ALREADY_RUNNING,
+};
+
+enum activation_result start_playerctld_dbus_activation(GDBusConnection *connection,
+                                                        GError **error) {
+    GError *tmp_error = NULL;
+    GVariant *child = NULL;
 
     GVariant *result = g_dbus_connection_call_sync(
         connection, "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
         "StartServiceByName", g_variant_new("(su)", "org.mpris.MediaPlayer2.playerctld", 0), NULL,
-        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+        G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &tmp_error);
+    if (tmp_error != NULL) {
+        if (g_str_has_prefix(tmp_error->message,
+                             "GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown")) {
+            g_clear_error(&tmp_error);
+            return ACTIVATION_NOT_SUPPORTED;
+        }
 
-    g_object_unref(connection);
-    if (result != NULL) {
-        g_variant_unref(result);
+        g_propagate_error(error, tmp_error);
+        return ACTIVATION_FAIL;
     }
 
-    if (error != NULL) {
-        g_printerr("Could not start playerctld: %s\n", error->message);
-        return 1;
-    }
+    child = g_variant_get_child_value(result, 0);
+    guint32 result_code = g_variant_get_uint32(child);
+    g_variant_unref(child);
+    g_variant_unref(result);
 
-    return 0;
+    if (result_code == 1) {
+        return ACTIVATION_SUCCESS;
+    } else if (result_code == 2) {
+        return ACTIVATION_ALREADY_RUNNING;
+    } else {
+        g_warning("Got unknown result from StartServiceByName: %d\n", result_code);
+        return ACTIVATION_SUCCESS;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -897,16 +921,51 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    ctx.connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+    GDBusConnectionFlags connection_flags = G_DBUS_CONNECTION_FLAGS_AUTHENTICATION_CLIENT |
+                                            G_DBUS_CONNECTION_FLAGS_MESSAGE_BUS_CONNECTION;
+
+    ctx.bus_address = g_dbus_address_get_for_bus_sync(G_BUS_TYPE_SESSION, NULL, &error);
     if (error != NULL) {
-        g_printerr("%s", error->message);
+        g_printerr("could not get bus address: %s", error->message);
+        return 1;
+    }
+    // ctx.connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &error);
+    ctx.connection = g_dbus_connection_new_for_address_sync(ctx.bus_address, connection_flags, NULL,
+                                                            NULL, &error);
+    if (error != NULL) {
+        g_printerr("could not connect to message bus: %s", error->message);
         return 1;
     }
 
     g_debug("connected to dbus: %s", g_dbus_connection_get_unique_name(ctx.connection));
 
     if (command_arg && g_strcmp0(command_arg[0], "daemon") == 0) {
-        return playercmd_daemon(ctx.connection);
+        enum activation_result result = start_playerctld_dbus_activation(ctx.connection, &error);
+        if (error != NULL) {
+            g_printerr("could not activate playerctld service: %s\n", error->message);
+            g_clear_error(&error);
+            return 1;
+        }
+
+        switch (result) {
+        case ACTIVATION_NOT_SUPPORTED:
+            // TODO: find some other way to daemonize the process
+            g_printerr("%s\n", "org.freedesktop.DBus.Error.ServiceUnknown: DBus service activation "
+                               "of playerctld is not supported");
+            return 1;
+            break;
+        case ACTIVATION_SUCCESS:
+            g_printerr("%s\n", "playerctld successfully started with DBus service activation");
+            return 0;
+            break;
+        case ACTIVATION_ALREADY_RUNNING:
+            g_printerr("%s\n", "playerctld DBus service is already running");
+            return 0;
+            break;
+        case ACTIVATION_FAIL:
+            // not reached, already handled in the error condition
+            return 1;
+        }
     }
 
     if (command_arg && g_strcmp0(command_arg[0], "shift") == 0) {
@@ -1017,7 +1076,7 @@ int main(int argc, char *argv[]) {
                                        NULL);
 
     ctx.bus_id = g_bus_own_name_on_connection(ctx.connection, "org.mpris.MediaPlayer2.playerctld",
-                                              G_BUS_NAME_OWNER_FLAGS_NONE, on_bus_acquired,
+                                              G_BUS_NAME_OWNER_FLAGS_DO_NOT_QUEUE, on_bus_acquired,
                                               on_name_lost, &ctx, NULL);
 
     g_main_loop_run(ctx.loop);
@@ -1027,6 +1086,7 @@ int main(int argc, char *argv[]) {
     g_dbus_node_info_unref(playerctld_introspection_data);
     g_queue_free_full(ctx.players, (GDestroyNotify)player_free);
     g_object_unref(ctx.connection);
+    g_free(ctx.bus_address);
 
-    return 0;
+    return ctx.return_code;
 }
