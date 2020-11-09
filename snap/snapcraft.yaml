@@ -1,0 +1,44 @@
+name: playerctl # you probably want to 'snapcraft register <name>'
+base: core18 # the base snap is the execution environment for this snap
+version: '2.2.1+git' # just for humans, typically '1.2+git' or '1.3.2'
+summary: Single-line elevator pitch for your amazing snap # 79 char long summary
+description: |
+  This is my-snap's description. You have a paragraph or two to tell the
+  most important story about your snap. Keep it under 100 words though,
+  we live in tweetspace and your description wants to look good in the snap
+  store.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: strict # use 'strict' once you have the right plugs and slots
+
+parts:
+  playerctl:
+    # See 'snapcraft plugins'
+    plugin: meson
+    source: https://github.com/altdesktop/playerctl
+    source-type: git
+    meson-parameters:
+      - -Dintrospection=false
+      - -Dgtk-doc=false
+    build-packages:
+      - libglib2.0-dev
+    stage-packages:
+      - libglib2.0-0
+
+slots:
+  dbus-svc:
+    interface: dbus
+    bus: session
+    name: org.mpris.MediaPlayer2.playerctld
+
+apps:
+  playerctl:
+    command: playerctl
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib/$SNAPCRAFT_ARCH_TRIPLET
+
+  playerctld:
+    command: playerctld
+    slots: [ dbus-svc ]
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/local/lib/$SNAPCRAFT_ARCH_TRIPLET
