@@ -1,19 +1,19 @@
-name: playerctl # you probably want to 'snapcraft register <name>'
-base: core18 # the base snap is the execution environment for this snap
-version: '2.2.1+git' # just for humans, typically '1.2+git' or '1.3.2'
-summary: Single-line elevator pitch for your amazing snap # 79 char long summary
+name: playerctl
+base: core18
+version: '2.2.1+git'
+summary: Media player command-line controller
 description: |
-  This is my-snap's description. You have a paragraph or two to tell the
-  most important story about your snap. Keep it under 100 words though,
-  we live in tweetspace and your description wants to look good in the snap
-  store.
+  Playerctl is a command-line utility and library for controlling media players
+  that implement the MPRIS D-Bus Interface Specification. Playerctl makes it
+  easy to bind player actions, such as play and pause, to media keys. You can
+  also get metadata about the playing track such as the artist and title for
+  integration into statusline generators or other command-line tools.
 
-grade: devel # must be 'stable' to release into candidate/stable channels
-confinement: strict # use 'strict' once you have the right plugs and slots
+grade: devel
+confinement: strict
 
 parts:
   playerctl:
-    # See 'snapcraft plugins'
     plugin: meson
     source: https://github.com/altdesktop/playerctl
     source-type: git
