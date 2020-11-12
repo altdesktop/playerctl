@@ -11,7 +11,7 @@ __playerctl_ctx() {
 		${(kv)opt_args[(I)-i|--ignore-player]}
 		${(kv)opt_args[(I)-a|--all-players]}
 	)
-	__playerctl "$opt_args[@]" "$@"
+	__playerctl "$player_opts[@]" "$@"
 }
 
 local -a playercmd_loop=(/$'(none|track|playlist)\0'/ ':(none track playlist)')
@@ -26,8 +26,11 @@ _playerctl_players() {
 
 (( $+functions[_playerctl_metadata_keys] )) ||
 _playerctl_metadata_keys() {
-	local -a metadata=( ${(@f)"$(__playerctl_ctx metadata)"} )
-	local -a keys=( ${${metadata#* }%% *} )
+	local -a keys
+	__playerctl_ctx metadata |
+	while read PLAYER KEY VALUE; do
+		keys+="$KEY"
+	done
 	_multi_parts "$@" -i ":" keys
 }
 local -a playerctl_command_metadata_keys=(/$'[^\0]#\0'/ ':keys:key:_playerctl_metadata_keys')
