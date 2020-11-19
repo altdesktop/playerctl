@@ -49,6 +49,8 @@ async def test_emoji(bus_address):
                               )
     assert cmd.returncode == 1, cmd.stderr
 
+    await mpris.disconnect()
+
 
 class MetadataTest:
     def __init__(self, playerctl):
@@ -176,4 +178,4 @@ async def test_format(bus_address):
 
     await asyncio.gather(*[math_test(m) for m in math])
 
-    mpris.disconnect()
+    await mpris.disconnect()

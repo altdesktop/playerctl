@@ -40,3 +40,5 @@ async def test_commands(bus_address):
     await playerctl.run('-p commands shuffle toggle')
 
     assert not mpris.shuffle
+
+    await mpris.disconnect()

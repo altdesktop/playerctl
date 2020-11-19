@@ -1,6 +1,7 @@
 from .mpris import setup_mpris, setup_playerctld
 from .playerctl import PlayerctlCli
 import pytest
+import asyncio
 
 
 def selector(bus_address):
@@ -71,8 +72,7 @@ async def test_selection(bus_address):
         result = await select_many(*selection)
         assert result == expected
 
-    for mpris in mpris_players:
-        mpris.disconnect()
+    await asyncio.gather(*[mpris.disconnect() for mpris in mpris_players])
 
 
 @pytest.mark.asyncio
@@ -129,4 +129,4 @@ async def test_daemon_selection(bus_address):
         # playerctld
         await daemon_selection_test(test)
 
-    playerctld.disconnect()
+    await playerctld.disconnect()

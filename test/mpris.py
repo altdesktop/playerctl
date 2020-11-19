@@ -132,8 +132,9 @@ class MprisPlayer(ServiceInterface):
         })
         await self.ping()
 
-    def disconnect(self):
+    async def disconnect(self):
         self.bus.disconnect()
+        await self.bus.wait_for_disconnect()
 
     @method()
     def Next(self):
@@ -263,5 +264,6 @@ class PlayerctldInterface(ServiceInterface):
     def PlayerNames(self) -> 'as':
         return self.player_names
 
-    def disconnect(self):
+    async def disconnect(self):
         self.bus.disconnect()
+        await self.bus.wait_for_disconnect()

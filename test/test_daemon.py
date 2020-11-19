@@ -58,11 +58,10 @@ async def test_daemon_commands(bus_address):
                                                  'position', 'volume',
                                                  'status', 'metadata', 'loop',
                                                  'shuffle')))
-    cmd = await run('play')
-
     for result in results:
-        assert cmd.returncode == 1
-        assert 'No player could handle this command' in cmd.stderr.splitlines()
+        assert result.returncode == 1
+        assert 'No player could handle this command' in result.stderr.splitlines(
+        )
 
     # restart playerctld so we can manage the process and see debug info
     playerctld_proc = await start_playerctld(bus_address)
@@ -89,14 +88,13 @@ async def test_daemon_commands(bus_address):
     assert mpris3.play_called
     mpris3.reset()
 
-    mpris3.disconnect()
+    await mpris3.disconnect()
     cmd = await run('play')
     assert cmd.returncode == 0, cmd.stderr
     assert mpris1.play_called
     mpris1.reset()
 
-    mpris1.disconnect()
-    mpris2.disconnect()
+    await asyncio.gather(mpris1.disconnect(), mpris2.disconnect())
 
     playerctld_proc.terminate()
     await playerctld_proc.wait()
@@ -137,12 +135,11 @@ async def test_daemon_follow(bus_address):
     line = await proc.queue.get()
     assert line == 'playerctld: artist5 - title5', proc.queue
 
-    mpris1.disconnect()
+    await mpris1.disconnect()
     line = await proc.queue.get()
     assert line == 'playerctld: artist3 - title3', proc.queue
 
-    for mpris in (mpris2, mpris3):
-        mpris.disconnect()
+    asyncio.gather(mpris2.disconnect(), mpris3.disconnect())
 
     playerctld_proc.terminate()
     proc.proc.terminate()
@@ -153,7 +150,7 @@ async def test_daemon_follow(bus_address):
 async def playerctld_shift(bus_address):
     env = os.environ.copy()
     env['DBUS_SESSION_BUS_ADDRESS'] = bus_address
-    env['G_MESSAGES_DEBUG'] = 'playerctld_shift'
+    env['G_MESSAGES_DEBUG'] = 'playerctl'
     shift = await asyncio.create_subprocess_shell(
         'playerctld shift',
         env=env,
@@ -191,13 +188,10 @@ async def test_daemon_shift_simple(bus_address):
     line = await proc.queue.get()
     assert line == 'playerctld: artist2 - title2', proc.queue
 
-    for mpris in (mpris1, mpris2):
-        mpris.disconnect()
-
     playerctld_proc.terminate()
     proc.proc.terminate()
-    await proc.proc.wait()
-    await playerctld_proc.wait()
+    await asyncio.gather(mpris1.disconnect(), mpris2.disconnect(),
+                         playerctld_proc.wait(), proc.proc.wait())
 
 
 @pytest.mark.asyncio
@@ -215,7 +209,7 @@ async def test_daemon_shift_no_player(bus_address):
     code = await playerctld_shift(bus_address)
     assert code == 0
 
-    mpris1.disconnect()
+    await mpris1.disconnect()
     code = await playerctld_shift(bus_address)
     assert code == 1
 

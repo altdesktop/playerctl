@@ -54,8 +54,7 @@ async def test_list_names(bus_address):
     assert 'basics2' in players
     assert 'basics3' in players
 
-    for mpris in mpris_players:
-        mpris.disconnect()
+    await asyncio.gather(*[mpris.disconnect() for mpris in mpris_players])
 
 
 @pytest.mark.asyncio
@@ -66,8 +65,9 @@ async def test_system_list_players(bus_address):
     result = await playerctl.run('-l')
     assert result.returncode == 0, result.stdout
     assert result.stdout.split() == ['session1', 'system']
-    for mpris in system_players + session_players:
-        mpris.disconnect()
+
+    await asyncio.gather(
+        *[mpris.disconnect() for mpris in system_players + session_players])
 
 
 @pytest.mark.asyncio

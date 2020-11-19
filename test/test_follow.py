@@ -29,7 +29,7 @@ async def test_follow(bus_address):
     line = await proc.queue.get()
     assert line == 'test1: artist3 - title3'
 
-    mpris1.disconnect()
+    await mpris1.disconnect()
 
     line = await proc.queue.get()
     assert line == ''
@@ -82,23 +82,23 @@ async def test_follow_selection(bus_address):
     assert proc.queue.empty()
 
     # when bus3 disconnects, it should show the next one
-    mpris3.disconnect()
+    await mpris3.disconnect()
 
     await mpris2.ping()
     line = await proc.queue.get()
     assert line == 'test2: artist2 - title2'
 
     # same for bus2
-    mpris2.disconnect()
+    await mpris2.disconnect()
     await mpris1.ping()
     line = await proc.queue.get()
     assert line == 'test1: artist2 - title2'
 
-    mpris1.disconnect()
+    await mpris1.disconnect()
     line = await proc.queue.get()
     assert line == ''
 
-    mpris4.disconnect()
+    await mpris4.disconnect()
 
 
 @pytest.mark.asyncio
@@ -129,19 +129,19 @@ async def test_follow_selection_any(bus_address):
     await mpris1.set_artist_title('artist', 'title')
     assert proc.queue.empty()
 
-    mpris3.disconnect()
+    await mpris3.disconnect()
     line = await proc.queue.get()
     assert line == 'test2: artist - title'
 
-    mpris2.disconnect()
+    await mpris2.disconnect()
     line = await proc.queue.get()
     assert line == 'test1: artist - title'
 
-    mpris1.disconnect()
+    await mpris1.disconnect()
     line = await proc.queue.get()
     assert line == ''
 
-    mpris4.disconnect()
+    await mpris4.disconnect()
 
 
 @pytest.mark.asyncio
@@ -191,22 +191,22 @@ async def test_follow_all_players(bus_address):
     line = await proc.queue.get()
     assert line == 'test1: artist2 - title2'
 
-    mpris1.disconnect()
+    await mpris1.disconnect()
     await mpris4.ping()
 
     line = await proc.queue.get()
     assert line == 'test2: artist2 - title2'
 
-    mpris2.disconnect()
+    await mpris2.disconnect()
     await mpris4.ping()
 
     line = await proc.queue.get()
     assert line == 'test3: artist2 - title2'
 
-    mpris3.disconnect()
+    await mpris3.disconnect()
     await mpris4.ping()
 
     line = await proc.queue.get()
     assert line == ''
 
-    mpris4.disconnect()
+    await mpris4.disconnect()
