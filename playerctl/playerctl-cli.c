@@ -453,6 +453,7 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
             return FALSE;
         }
 
+        g_debug("%s: setting volume to %f\n", instance, level);
         playerctl_player_set_volume(player, level, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);
@@ -555,6 +556,7 @@ static gboolean playercmd_shuffle(PlayerctlPlayer *player, gchar **argv, gint ar
             g_propagate_error(error, tmp_error);
             return FALSE;
         }
+        g_debug("%s: setting shuffle to %d\n", instance, status);
     } else {
         if (!pctl_player_has_cached_property(player, "Shuffle")) {
             g_debug("%s: player has no shuffle status set, skipping", instance);
@@ -612,6 +614,7 @@ static gboolean playercmd_loop(PlayerctlPlayer *player, gchar **argv, gint argc,
             return FALSE;
         }
 
+        g_debug("%s: setting loop status to %d\n", instance, status);
         playerctl_player_set_loop_status(player, status, &tmp_error);
         if (tmp_error != NULL) {
             g_propagate_error(error, tmp_error);

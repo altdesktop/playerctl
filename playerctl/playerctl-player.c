@@ -32,6 +32,11 @@
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
+#define MPRIS_PATH "/org/mpris/MediaPlayer2"
+#define PROPERTIES_IFACE "org.freedesktop.DBus.Properties"
+#define PLAYER_IFACE "org.mpris.MediaPlayer2.Player"
+#define SET_MEMBER "Set"
+
 enum {
     PROP_0,
 
@@ -81,6 +86,7 @@ struct _PlayerctlPlayerPrivate {
     OrgMprisMediaPlayer2Player *proxy;
     gchar *player_name;
     gchar *instance;
+    gchar *bus_name;
     PlayerctlSource source;
     GError *init_error;
     gboolean initted;
@@ -517,6 +523,7 @@ static void playerctl_player_finalize(GObject *gobject) {
     g_free(self->priv->player_name);
     g_free(self->priv->instance);
     g_free(self->priv->cached_track_id);
+    g_free(self->priv->bus_name);
 
     G_OBJECT_CLASS(playerctl_player_parent_class)->finalize(gobject);
 }
@@ -950,6 +957,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
         g_set_error(err, playerctl_player_error_quark(), 1, "Player not found");
         return FALSE;
     }
+    player->priv->bus_name = bus_name;
 
     /* org.mpris.MediaPlayer2.{NAME}[.{INSTANCE}] */
     int offset = strlen(MPRIS_PREFIX);
@@ -962,12 +970,9 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
         pctl_source_to_bus_type(player->priv->source), G_DBUS_PROXY_FLAGS_NONE, bus_name,
         "/org/mpris/MediaPlayer2", NULL, &tmp_error);
     if (tmp_error != NULL) {
-        g_free(bus_name);
         g_propagate_error(err, tmp_error);
         return FALSE;
     }
-
-    g_free(bus_name);
 
     // init the cache
     g_debug("initializing player: %s", player->priv->instance);
@@ -1457,8 +1462,7 @@ gchar *playerctl_player_get_album(PlayerctlPlayer *self, GError **err) {
  * maximum volume. Passing negative numbers should set the volume to 0.0.
  */
 void playerctl_player_set_volume(PlayerctlPlayer *self, gdouble volume, GError **err) {
-    // TODO better error handling
-    // GError *tmp_error = NULL;
+    GError *tmp_error = NULL;
 
     g_return_if_fail(self != NULL);
     g_return_if_fail(err == NULL || *err == NULL);
@@ -1467,7 +1471,25 @@ void playerctl_player_set_volume(PlayerctlPlayer *self, gdouble volume, GError *
         g_propagate_error(err, g_error_copy(self->priv->init_error));
         return;
     }
-    org_mpris_media_player2_player_set_volume(self->priv->proxy, volume);
+
+    GDBusConnection *connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return;
+    }
+
+    GVariant *result = g_dbus_connection_call_sync(
+        connection, self->priv->bus_name, MPRIS_PATH, PROPERTIES_IFACE, SET_MEMBER,
+        g_variant_new("(ssv)", PLAYER_IFACE, "Volume", g_variant_new("d", volume)), NULL,
+        G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
+    if (result != NULL) {
+        g_variant_unref(result);
+    }
+
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return;
+    }
 }
 
 /**
@@ -1489,10 +1511,10 @@ gint64 playerctl_player_get_position(PlayerctlPlayer *self, GError **err) {
         return 0;
     }
 
-    GVariant *call_reply = g_dbus_proxy_call_sync(
-        G_DBUS_PROXY(self->priv->proxy), "org.freedesktop.DBus.Properties.Get",
-        g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "Position"), G_DBUS_CALL_FLAGS_NONE,
-        -1, NULL, &tmp_error);
+    GVariant *call_reply = g_dbus_proxy_call_sync(G_DBUS_PROXY(self->priv->proxy),
+                                                  "org.freedesktop.DBus.Properties.Get",
+                                                  g_variant_new("(ss)", PLAYER_IFACE, "Position"),
+                                                  G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
     if (tmp_error) {
         g_propagate_error(err, tmp_error);
         return 0;
@@ -1563,6 +1585,7 @@ void playerctl_player_set_position(PlayerctlPlayer *self, gint64 position, GErro
  */
 void playerctl_player_set_loop_status(PlayerctlPlayer *self, PlayerctlLoopStatus status,
                                       GError **err) {
+    GError *tmp_error = NULL;
     g_return_if_fail(self != NULL);
     g_return_if_fail(err == NULL || *err == NULL);
 
@@ -1574,8 +1597,24 @@ void playerctl_player_set_loop_status(PlayerctlPlayer *self, PlayerctlLoopStatus
     const gchar *status_str = pctl_loop_status_to_string(status);
     g_return_if_fail(status_str != NULL);
 
-    // TODO better error handling
-    org_mpris_media_player2_player_set_loop_status(self->priv->proxy, status_str);
+    GDBusConnection *connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return;
+    }
+
+    GVariant *result = g_dbus_connection_call_sync(
+        connection, self->priv->bus_name, MPRIS_PATH, PROPERTIES_IFACE, SET_MEMBER,
+        g_variant_new("(ssv)", PLAYER_IFACE, "LoopStatus", g_variant_new("s", status_str)), NULL,
+        G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
+    if (result != NULL) {
+        g_variant_unref(result);
+    }
+
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return;
+    }
 }
 
 /**
@@ -1587,6 +1626,7 @@ void playerctl_player_set_loop_status(PlayerctlPlayer *self, PlayerctlLoopStatus
  * Request to set the shuffle state of the player, either on or off.
  */
 void playerctl_player_set_shuffle(PlayerctlPlayer *self, gboolean shuffle, GError **err) {
+    GError *tmp_error = NULL;
     g_return_if_fail(self != NULL);
     g_return_if_fail(err == NULL || *err == NULL);
 
@@ -1595,8 +1635,24 @@ void playerctl_player_set_shuffle(PlayerctlPlayer *self, gboolean shuffle, GErro
         return;
     }
 
-    // TODO better error handling
-    org_mpris_media_player2_player_set_shuffle(self->priv->proxy, shuffle);
+    GDBusConnection *connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &tmp_error);
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return;
+    }
+
+    GVariant *result = g_dbus_connection_call_sync(
+        connection, self->priv->bus_name, MPRIS_PATH, PROPERTIES_IFACE, SET_MEMBER,
+        g_variant_new("(ssv)", PLAYER_IFACE, "Shuffle", g_variant_new("b", shuffle)), NULL,
+        G_DBUS_CALL_FLAGS_NONE, -1, NULL, &tmp_error);
+    if (result != NULL) {
+        g_variant_unref(result);
+    }
+
+    if (tmp_error != NULL) {
+        g_propagate_error(err, tmp_error);
+        return;
+    }
 }
 
 char *pctl_player_get_instance(PlayerctlPlayer *player) {

@@ -26,6 +26,9 @@ async def test_commands(bus_address):
     results = await asyncio.gather(*(playerctl.run(f'-p commands {cmd}')
                                      for cmd in commands + setters))
 
+    for result in results:
+        assert result.returncode == 0, result.stderr
+
     for i, cmd in enumerate(commands):
         result = results[i]
         assert get_called(cmd), f'{cmd} was not called: {result.stderr}'
