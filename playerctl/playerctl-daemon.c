@@ -75,8 +75,13 @@ static gint player_compare(gconstpointer a, gconstpointer b) {
     return 0;
 }
 
-static void player_update_properties(struct Player *player, const char *interface_name,
-                                     GVariant *properties) {
+/*
+ * Updates the properties for the player. Returns TRUE if the properties have
+ * changed, or else FALSE.
+ */
+static gboolean player_update_properties(struct Player *player, const char *interface_name,
+                                         GVariant *properties) {
+    gboolean changed = FALSE;
     GVariantDict cached_properties;
     GVariantIter iter;
     GVariant *child;
@@ -102,15 +107,23 @@ static void player_update_properties(struct Player *player, const char *interfac
         const gchar *key = g_variant_get_string(key_variant, 0);
         GVariant *prop_variant = g_variant_get_child_value(child, 1);
         GVariant *prop_value = g_variant_get_variant(prop_variant);
-        // printf("key=%s, value=%s\n", key, g_variant_print(prop_value, TRUE));
+        // g_debug("key=%s, value=%s", key, g_variant_print(prop_value, TRUE));
         if (is_player_interface && g_strcmp0(key, "Position") == 0) {
-            // gets cached separately
+            // gets cached separately (never counts as changed)
             player->position = g_variant_get_int64(prop_value);
             goto loop_out;
         }
         GVariant *cache_value = g_variant_dict_lookup_value(&cached_properties, key, NULL);
         if (cache_value != NULL) {
+            if (!g_variant_equal(cache_value, prop_value)) {
+                g_debug("%s: changed property '%s.%s'", player->well_known, interface_name, key);
+                // g_debug("old = %s, new = %s", g_variant_print(cache_value, FALSE),
+                changed = TRUE;
+            }
             g_variant_unref(cache_value);
+        } else {
+            g_debug("%s: new property '%s.%s'", player->well_known, interface_name, key);
+            changed = TRUE;
         }
         g_variant_dict_insert_value(&cached_properties, key, prop_value);
     loop_out:
@@ -131,6 +144,8 @@ static void player_update_properties(struct Player *player, const char *interfac
         }
         player->root_properties = g_variant_ref_sink(g_variant_dict_end(&cached_properties));
     }
+
+    return changed;
 }
 
 static void player_update_position_sync(struct Player *player, struct PlayerctldContext *ctx,
@@ -768,6 +783,8 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
                                          const gchar *object_path, const gchar *interface_name,
                                          const gchar *signal_name, GVariant *parameters,
                                          gpointer user_data) {
+    gboolean changed = TRUE;
+
     GError *error = NULL;
     struct PlayerctldContext *ctx = user_data;
     struct Player *player = context_find_player(ctx, sender_name, NULL);
@@ -792,12 +809,12 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
     if (is_properties_changed) {
         GVariant *interface = g_variant_get_child_value(parameters, 0);
         GVariant *properties = g_variant_get_child_value(parameters, 1);
-        player_update_properties(player, g_variant_get_string(interface, 0), properties);
+        changed = player_update_properties(player, g_variant_get_string(interface, 0), properties);
         g_variant_unref(interface);
         g_variant_unref(properties);
     }
 
-    if (player != context_get_active_player(ctx)) {
+    if (changed && player != context_get_active_player(ctx)) {
         g_debug("new active player: %s", player->well_known);
         context_set_active_player(ctx, player);
         player_update_position_sync(player, ctx, &error);

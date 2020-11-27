@@ -109,12 +109,15 @@ class MprisPlayer(ServiceInterface):
         await self.bus.introspect('org.freedesktop.DBus',
                                   '/org/freedesktop/DBus')
 
-    async def set_artist_title(self, artist, title):
+    async def set_artist_title(self, artist, title, track_id=None):
+        if track_id is None:
+            track_id = '/' + str(self.counter)
+
         self.counter += 1
         self.metadata = {
             'xesam:title': Variant('s', title),
             'xesam:artist': Variant('as', [artist]),
-            'mpris:trackid': Variant('o', '/' + str(self.counter)),
+            'mpris:trackid': Variant('o', track_id),
         }
 
         self.emit_properties_changed({

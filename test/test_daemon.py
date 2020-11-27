@@ -3,8 +3,11 @@ import pytest
 import os
 from .mpris import setup_mpris
 from .playerctl import PlayerctlCli
+from dbus_next.aio import MessageBus
+from dbus_next import Message, MessageType
 
 import asyncio
+from asyncio import Queue
 from subprocess import run as run_process
 
 
@@ -212,6 +215,63 @@ async def test_daemon_shift_no_player(bus_address):
     await mpris1.disconnect()
     code = await playerctld_shift(bus_address)
     assert code == 1
+
+    playerctld_proc.terminate()
+    await playerctld_proc.wait()
+
+
+@pytest.mark.asyncio
+async def test_active_player_change(bus_address):
+    queue = Queue()
+    playerctld_proc = await start_playerctld(bus_address)
+
+    bus = await MessageBus(bus_address=bus_address).connect()
+
+    reply = await bus.call(
+        Message(destination='org.freedesktop.DBus',
+                interface='org.freedesktop.DBus',
+                path='/org/freedesktop/DBus',
+                member='AddMatch',
+                signature='s',
+                body=["sender='org.mpris.MediaPlayer2.playerctld'"]))
+
+    assert reply.message_type == MessageType.METHOD_RETURN, reply.body
+
+    def message_handler(message):
+        if message.member == 'PropertiesChanged' and message.body[
+                0] == 'com.github.altdesktop.playerctld' and 'PlayerNames' in message.body[
+                    1]:
+            queue.put_nowait(message.body[1]['PlayerNames'].value)
+
+    def player_list(*args):
+        return [f'org.mpris.MediaPlayer2.{name}' for name in args]
+
+    bus.add_message_handler(message_handler)
+
+    [mpris1] = await setup_mpris('player1', bus_address=bus_address)
+
+    assert player_list('player1') == await queue.get()
+
+    [mpris2] = await setup_mpris('player2', bus_address=bus_address)
+
+    assert player_list('player2', 'player1') == await queue.get()
+
+    # changing artist/title should bump the player up
+    await mpris1.set_artist_title('artist1', 'title1', '/1')
+
+    assert player_list('player1', 'player2') == await queue.get()
+
+    # if properties are not actually different, it shouldn't update
+    await mpris2.set_artist_title('artist2', 'title2', '/2')
+    assert player_list('player2', 'player1') == await queue.get()
+
+    await mpris1.set_artist_title('artist1', 'title1', '/1')
+    await mpris1.ping()
+    assert queue.empty()
+
+    bus.disconnect()
+    await asyncio.gather(mpris1.disconnect(), mpris2.disconnect(),
+                         bus.wait_for_disconnect())
 
     playerctld_proc.terminate()
     await playerctld_proc.wait()
