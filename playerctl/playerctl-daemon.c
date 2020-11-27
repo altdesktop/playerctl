@@ -349,6 +349,23 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
     }
 }
 
+static void context_rotate_queue(struct PlayerctldContext *ctx) {
+    struct Player *player;
+    if ((player = g_queue_peek_head(ctx->players))) {    
+        context_remove_player(ctx, player);
+        g_queue_push_tail(ctx->players, player);
+    }
+}
+
+static void context_unrotate_queue(struct PlayerctldContext *ctx) {
+    struct Player *player;
+    if ((player = g_queue_peek_tail(ctx->players))) {    
+        context_remove_player(ctx, player);
+        g_queue_push_head(ctx->players, player);
+    }
+}
+
+
 /**
  * Returns the newly activated player
  */
@@ -376,10 +393,38 @@ static struct Player *context_shift_active_player(struct PlayerctldContext *ctx)
     return current;
 }
 
+static struct Player *context_unshift_active_player(struct PlayerctldContext *ctx) {
+    GError *error = NULL;
+    struct Player *previous, *current;
+
+    if (!(previous = current = context_get_active_player(ctx))) {
+        return NULL;
+    }
+
+    context_unrotate_queue(ctx);
+
+    if ((current = context_get_active_player(ctx)) != previous) {
+        player_update_position_sync(current, ctx, &error);
+        if (error != NULL) {
+            g_warning("could not update player position: %s", error->message);
+            g_clear_error(&error);
+        }
+        context_emit_active_player_changed(ctx, &error);
+        if (error != NULL) {
+            g_warning("could not emit active player change: %s", error->message);
+            g_clear_error(&error);
+        }
+    }
+    return current;
+}
+
 static const char *playerctld_introspection_xml =
     "<node>\n"
     "  <interface name=\"com.github.altdesktop.playerctld\">\n"
     "    <method name=\"Shift\">\n"
+    "        <arg name=\"Player\" type=\"s\" direction=\"out\"/>\n"
+    "    </method>\n"
+    "    <method name=\"Unshift\">\n"
     "        <arg name=\"Player\" type=\"s\" direction=\"out\"/>\n"
     "    </method>\n"
     "    <property name=\"PlayerNames\" type=\"as\" access=\"read\"/>\n"
@@ -545,6 +590,16 @@ static void playerctld_method_call_func(GDBusConnection *connection, const char 
         if ((active_player = context_shift_active_player(ctx))) {
             g_dbus_method_invocation_return_value(invocation,
                                                   g_variant_new("(s)", active_player->well_known));
+        } else {
+            g_debug("no active player, returning error");
+            g_dbus_method_invocation_return_dbus_error(
+                invocation, "com.github.altdesktop.playerctld.NoActivePlayer",
+                "No player is being controlled by playerctld");
+        }
+    } else if (strcmp(method_name, "Unshift") == 0) {
+        if ((active_player = context_unshift_active_player(ctx))) {
+            g_dbus_method_invocation_return_value(invocation,
+                                                g_variant_new("(s)", active_player->well_known));
         } else {
             g_debug("no active player, returning error");
             g_dbus_method_invocation_return_dbus_error(
@@ -848,7 +903,8 @@ static const GOptionEntry entries[] = {
 static gboolean parse_setup_options(int argc, char **argv, GError **error) {
     static const gchar *description = "Available Commands:"
                                       "\n  daemon                  Activate playerctld and exit"
-                                      "\n  shift                   Shift to next player";
+                                      "\n  shift                   Shift to next player"
+                                      "\n  unshift                 Unshift to previous player";
 
     GOptionContext *context;
     gboolean success;
@@ -860,7 +916,8 @@ static gboolean parse_setup_options(int argc, char **argv, GError **error) {
     success = g_option_context_parse(context, &argc, &argv, error);
 
     if (success && command_arg &&
-        (g_strcmp0(command_arg[0], "shift") != 0 && g_strcmp0(command_arg[0], "daemon") != 0)) {
+            (g_strcmp0(command_arg[0], "shift") != 0 && g_strcmp0(command_arg[0], "unshift") != 0 &&
+            g_strcmp0(command_arg[0], "daemon") != 0)) {
         gchar *help = g_option_context_get_help(context, TRUE, NULL);
         printf("%s\n", help);
         g_option_context_free(context);
@@ -881,6 +938,20 @@ int playercmd_shift(GDBusConnection *connection) {
     g_object_unref(connection);
     if (error != NULL) {
         g_printerr("Cannot shift: %s\n", error->message);
+        return 1;
+    }
+    return 0;
+}
+
+int playercmd_unshift(GDBusConnection *connection) {
+    GError *error = NULL;
+
+    g_dbus_connection_call_sync(connection, "org.mpris.MediaPlayer2.playerctld", MPRIS_PATH,
+                                PLAYERCTLD_INTERFACE, "Unshift", NULL, NULL,
+                                G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &error);
+    g_object_unref(connection);
+    if (error != NULL) {
+        g_printerr("Cannot unshift: %s\n", error->message);
         return 1;
     }
     return 0;
@@ -987,6 +1058,10 @@ int main(int argc, char *argv[]) {
 
     if (command_arg && g_strcmp0(command_arg[0], "shift") == 0) {
         return playercmd_shift(ctx.connection);
+    }
+
+    if (command_arg && g_strcmp0(command_arg[0], "unshift") == 0) {
+        return playercmd_unshift(ctx.connection);
     }
 
     GDBusNodeInfo *mpris_introspection_data = NULL;

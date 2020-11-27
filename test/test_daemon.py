@@ -142,7 +142,7 @@ async def test_daemon_follow(bus_address):
     line = await proc.queue.get()
     assert line == 'playerctld: artist3 - title3', proc.queue
 
-    asyncio.gather(mpris2.disconnect(), mpris3.disconnect())
+    await asyncio.gather(mpris2.disconnect(), mpris3.disconnect())
 
     playerctld_proc.terminate()
     proc.proc.terminate()
@@ -150,12 +150,13 @@ async def test_daemon_follow(bus_address):
     await playerctld_proc.wait()
 
 
-async def playerctld_shift(bus_address):
+async def playerctld_shift(bus_address, reverse = False):
     env = os.environ.copy()
     env['DBUS_SESSION_BUS_ADDRESS'] = bus_address
     env['G_MESSAGES_DEBUG'] = 'playerctl'
+    cmd = 'playerctld unshift' if reverse else 'playerctld shift'
     shift = await asyncio.create_subprocess_shell(
-        'playerctld shift',
+        cmd,
         env=env,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.STDOUT)
@@ -166,9 +167,9 @@ async def playerctld_shift(bus_address):
 async def test_daemon_shift_simple(bus_address):
     playerctld_proc = await start_playerctld(bus_address)
 
-    [mpris1, mpris2] = await setup_mpris('player1',
-                                         'player2',
-                                         bus_address=bus_address)
+    mprises = await setup_mpris('player1', 'player2', 'player3', bus_address=bus_address)
+    [mpris1, mpris2, mpris3] = mprises
+
     playerctl = PlayerctlCli(bus_address)
     pctl_cmd = '--player playerctld metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
     proc = await playerctl.start(pctl_cmd)
@@ -181,15 +182,29 @@ async def test_daemon_shift_simple(bus_address):
     line = await proc.queue.get()
     assert line == 'playerctld: artist2 - title2', proc.queue
 
-    code = await playerctld_shift(bus_address)
-    assert code == 0
+    await mpris3.set_artist_title('artist3', 'title3')
     line = await proc.queue.get()
-    assert line == 'playerctld: artist1 - title1', proc.queue
+    assert line == 'playerctld: artist3 - title3', proc.queue
 
     code = await playerctld_shift(bus_address)
     assert code == 0
     line = await proc.queue.get()
     assert line == 'playerctld: artist2 - title2', proc.queue
+
+    code = await playerctld_shift(bus_address)
+    assert code == 0
+    line = await proc.queue.get()
+    assert line == 'playerctld: artist1 - title1', proc.queue
+
+    code = await playerctld_shift(bus_address, reverse=True)
+    assert code == 0
+    line = await proc.queue.get()
+    assert line == 'playerctld: artist2 - title2', proc.queue
+
+    code = await playerctld_shift(bus_address, reverse=True)
+    assert code == 0
+    line = await proc.queue.get()
+    assert line == 'playerctld: artist3 - title3', proc.queue
 
     playerctld_proc.terminate()
     proc.proc.terminate()
@@ -214,6 +229,17 @@ async def test_daemon_shift_no_player(bus_address):
 
     await mpris1.disconnect()
     code = await playerctld_shift(bus_address)
+    assert code == 1
+
+    code = await playerctld_shift(bus_address, reverse=True)
+    assert code == 1
+
+    [mpris1] = await setup_mpris('player1', bus_address=bus_address)
+    code = await playerctld_shift(bus_address, reverse=True)
+    assert code == 0
+
+    await mpris1.disconnect()
+    code = await playerctld_shift(bus_address, reverse=True)
     assert code == 1
 
     playerctld_proc.terminate()
