@@ -351,7 +351,7 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
 
 static void context_rotate_queue(struct PlayerctldContext *ctx) {
     struct Player *player;
-    if ((player = g_queue_peek_head(ctx->players))) {    
+    if ((player = g_queue_peek_head(ctx->players))) {
         context_remove_player(ctx, player);
         g_queue_push_tail(ctx->players, player);
     }
@@ -359,12 +359,11 @@ static void context_rotate_queue(struct PlayerctldContext *ctx) {
 
 static void context_unrotate_queue(struct PlayerctldContext *ctx) {
     struct Player *player;
-    if ((player = g_queue_peek_tail(ctx->players))) {    
+    if ((player = g_queue_peek_tail(ctx->players))) {
         context_remove_player(ctx, player);
         g_queue_push_head(ctx->players, player);
     }
 }
-
 
 /**
  * Returns the newly activated player
@@ -599,7 +598,7 @@ static void playerctld_method_call_func(GDBusConnection *connection, const char 
     } else if (strcmp(method_name, "Unshift") == 0) {
         if ((active_player = context_unshift_active_player(ctx))) {
             g_dbus_method_invocation_return_value(invocation,
-                                                g_variant_new("(s)", active_player->well_known));
+                                                  g_variant_new("(s)", active_player->well_known));
         } else {
             g_debug("no active player, returning error");
             g_dbus_method_invocation_return_dbus_error(
@@ -916,8 +915,8 @@ static gboolean parse_setup_options(int argc, char **argv, GError **error) {
     success = g_option_context_parse(context, &argc, &argv, error);
 
     if (success && command_arg &&
-            (g_strcmp0(command_arg[0], "shift") != 0 && g_strcmp0(command_arg[0], "unshift") != 0 &&
-            g_strcmp0(command_arg[0], "daemon") != 0)) {
+        (g_strcmp0(command_arg[0], "shift") != 0 && g_strcmp0(command_arg[0], "unshift") != 0 &&
+         g_strcmp0(command_arg[0], "daemon") != 0)) {
         gchar *help = g_option_context_get_help(context, TRUE, NULL);
         printf("%s\n", help);
         g_option_context_free(context);

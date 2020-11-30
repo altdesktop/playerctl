@@ -21,7 +21,9 @@ async def setup_mpris(*names, bus_address=None, system=False):
         assert reply == RequestNameReply.PRIMARY_OWNER
         return player
 
-    return await asyncio.gather(*(setup(name) for name in names))
+    players = await asyncio.gather(*(setup(name) for name in names))
+    await asyncio.gather(*(p.ping() for p in players))
+    return players
 
 
 async def setup_playerctld(bus_address=None):
@@ -111,9 +113,9 @@ class MprisPlayer(ServiceInterface):
 
     async def set_artist_title(self, artist, title, track_id=None):
         if track_id is None:
+            self.counter += 1
             track_id = '/' + str(self.counter)
 
-        self.counter += 1
         self.metadata = {
             'xesam:title': Variant('s', title),
             'xesam:artist': Variant('as', [artist]),

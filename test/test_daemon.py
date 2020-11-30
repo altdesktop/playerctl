@@ -125,9 +125,11 @@ async def test_daemon_follow(bus_address):
     [mpris3] = await setup_mpris('player3', bus_address=bus_address)
     await mpris3.set_artist_title('artist3', 'title3')
     line = await proc.queue.get()
-    # I don't really care if this is blank, but happens by test setup
-    assert line == ''
-    line = await proc.queue.get()
+
+    if line == '':
+        # the line might be blank here because of the test setup
+        line = await proc.queue.get()
+
     assert line == 'playerctld: artist3 - title3', proc.queue
 
     await mpris1.set_artist_title('artist4', 'title4')
@@ -150,7 +152,7 @@ async def test_daemon_follow(bus_address):
     await playerctld_proc.wait()
 
 
-async def playerctld_shift(bus_address, reverse = False):
+async def playerctld_shift(bus_address, reverse=False):
     env = os.environ.copy()
     env['DBUS_SESSION_BUS_ADDRESS'] = bus_address
     env['G_MESSAGES_DEBUG'] = 'playerctl'
@@ -167,7 +169,10 @@ async def playerctld_shift(bus_address, reverse = False):
 async def test_daemon_shift_simple(bus_address):
     playerctld_proc = await start_playerctld(bus_address)
 
-    mprises = await setup_mpris('player1', 'player2', 'player3', bus_address=bus_address)
+    mprises = await setup_mpris('player1',
+                                'player2',
+                                'player3',
+                                bus_address=bus_address)
     [mpris1, mpris2, mpris3] = mprises
 
     playerctl = PlayerctlCli(bus_address)
