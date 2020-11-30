@@ -1,4 +1,3 @@
 [D-BUS Service]
 Name=@application_id@
 Exec=@prefix@/@bindir@/playerctld
-Environment=G_MESSAGES_DEBUG=playerctl
