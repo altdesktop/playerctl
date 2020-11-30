@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 2.3.1
+
+Version 2.3.1 contains bugfixes and new features.
+
+* Add option to toggle shuffle (#197)
+* Add `-s`, quiet flag to supress some messages from stderr (#108, #193)
+* Add math operations to the formatter (#149, 119d0a5)
+* Change instance delimiter to "." (#198, d0a59e2)
+* Use playerctld to get players in order of activation when it is running (#192, bfed117)
+* Remove warning message when the system bus isn't found (a1cfd4a)
+* Add zsh shell completions (#127, #201, #202)
+* playerctld: add `daemon` activation command (1266063)
+* playerctld: add `unshift` command (#204)
+* bugfix: improve property setter reliability (c617911)
+
 ## Version 2.2.1
 
 Version 2.2.1 contains some bugfixes and new features.
