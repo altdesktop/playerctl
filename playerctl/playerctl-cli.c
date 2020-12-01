@@ -228,7 +228,7 @@ static gboolean playercmd_stop(PlayerctlPlayer *player, gchar **argv, gint argc,
     GError *tmp_error = NULL;
     gchar *instance = pctl_player_get_instance(player);
 
-    // XXX there is no CanStop propery on the mpris player. CanPlay is supposed
+    // XXX there is no CanStop property on the mpris player. CanPlay is supposed
     // to indicate whether there is a current track. If there is no current
     // track, then I assume the player cannot stop.
     gboolean can_play = FALSE;
