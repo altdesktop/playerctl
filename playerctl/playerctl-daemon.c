@@ -9,6 +9,8 @@
 #define DBUS_PATH "/org/freedesktop/DBus"
 #define PLAYER_INTERFACE "org.mpris.MediaPlayer2.Player"
 #define ROOT_INTERFACE "org.mpris.MediaPlayer2"
+#define PLAYLISTS_INTERFACE "org.mpris.MediaPlayer2.Playlists"
+#define TRACKLIST_INTERFACE "org.mpris.MediaPlayer2.TrackList"
 #define PROPERTIES_INTERFACE "org.freedesktop.DBus.Properties"
 #define PLAYERCTLD_INTERFACE "com.github.altdesktop.playerctld"
 
@@ -85,13 +87,15 @@ static gboolean player_update_properties(struct Player *player, const char *inte
     GVariantDict cached_properties;
     GVariantIter iter;
     GVariant *child;
-    bool is_player_interface = false;  // otherwise, the root interface
+    bool is_root_interface = false;
 
-    if (g_strcmp0(interface_name, PLAYER_INTERFACE) == 0) {
+    if (g_strcmp0(interface_name, PLAYER_INTERFACE) == 0 ||
+        g_strcmp0(interface_name, TRACKLIST_INTERFACE) == 0 ||
+        g_strcmp0(interface_name, PLAYLISTS_INTERFACE) == 0) {
         g_variant_dict_init(&cached_properties, player->player_properties);
-        is_player_interface = true;
     } else if (g_strcmp0(interface_name, ROOT_INTERFACE) == 0) {
         g_variant_dict_init(&cached_properties, player->root_properties);
+        is_root_interface = true;
     } else {
         g_error("cannot update properties for unknown interface: %s", interface_name);
         assert(false);
@@ -108,7 +112,7 @@ static gboolean player_update_properties(struct Player *player, const char *inte
         GVariant *prop_variant = g_variant_get_child_value(child, 1);
         GVariant *prop_value = g_variant_get_variant(prop_variant);
         // g_debug("key=%s, value=%s", key, g_variant_print(prop_value, TRUE));
-        if (is_player_interface && g_strcmp0(key, "Position") == 0) {
+        if ( ! is_root_interface && g_strcmp0(key, "Position") == 0) {
             // gets cached separately (never counts as changed)
             player->position = g_variant_get_int64(prop_value);
             goto loop_out;
