@@ -50,7 +50,90 @@
     <property access="read" type="b" name="CanSeek"/>
     <property access="read" type="b" name="CanControl"/>
   </interface>
-  <interface name="org.freedesktop.DBus.Properties">
+  <interface name="org.mpris.MediaPlayer2.TrackList">
+    <method name="GetTracksMetadata">
+      <arg direction="in" name="TrackIds" type="ao">
+      </arg>
+      <arg direction="out" type="aa{sv}" name="Metadata">
+      </arg>
+    </method>
+    <method name="AddTrack">
+      <arg direction="in" type="s" name="Uri">
+      </arg>
+      <arg direction="in" type="o" name="AfterTrack">
+      </arg>
+      <arg direction="in" type="b" name="SetAsCurrent">
+      </arg>
+    </method>
+    <method name="RemoveTrack">
+      <arg direction="in" type="o" name="TrackId">
+      </arg>
+    </method>
+    <method name="GoTo">
+      <arg direction="in" type="o" name="TrackId">
+      </arg>
+    </method>
+    <property name="Tracks" type="ao" access="read">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="invalidates"/>
+    </property>
+    <property name="CanEditTracks" type="b" access="read">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="true"/>
+    </property>
+    <signal name="TrackListReplaced">
+      <arg name="Tracks" type="ao">
+      </arg>
+      <arg name="CurrentTrack" type="o">
+      </arg>
+    </signal>
+    <signal name="TrackAdded">
+      <arg type="a{sv}" name="Metadata">
+      </arg>
+      <arg type="o" name="AfterTrack">
+      </arg>
+    </signal>
+    <signal name="TrackRemoved">
+      <arg type="o" name="TrackId">
+      </arg>
+    </signal>
+    <signal name="TrackMetadataChanged">
+      <arg type="o" name="TrackId">
+      </arg>
+      <arg type="a{sv}" name="Metadata">
+      </arg>
+    </signal>
+  </interface>
+  <interface name="org.mpris.MediaPlayer2.Playlists">
+    <method name="ActivatePlaylist">
+      <arg direction="in" name="PlaylistId" type="o">
+      </arg>
+    </method>
+    <method name="GetPlaylists">
+      <arg direction="in" name="Index" type="u">
+      </arg>
+      <arg direction="in" name="MaxCount" type="u">
+      </arg>
+      <arg direction="in" name="Order" type="s">
+      </arg>
+      <arg direction="in" name="ReverseOrder" type="b">
+      </arg>
+      <arg direction="out" name="Playlists" type="a(oss)">
+      </arg>
+    </method>
+    <property name="PlaylistCount" type="u" access="read">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="true"/>
+    </property>
+    <property name="Orderings" type="as" access="read">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="true"/>
+    </property>
+    <property name="ActivePlaylist" type="(b(oss))" access="read">
+      <annotation name="org.freedesktop.DBus.Property.EmitsChangedSignal" value="true"/>
+    </property>
+    <signal name="PlaylistChanged">
+      <arg name="Playlist" type="(oss)">
+      </arg>
+    </signal>
+    </interface>
+    <interface name="org.freedesktop.DBus.Properties">
     <method name="Get">
       <arg name="interface_name" type="s" direction="in"/>
       <arg name="property_name" type="s" direction="in"/>
@@ -78,4 +161,5 @@
       <arg name="machine_uuid" type="s" direction="out"/>
     </method>
   </interface>
+
 </node>
