@@ -979,7 +979,7 @@ static void name_owner_changed_signal_callback(GDBusConnection *connection,
         g_dbus_connection_call(connection, new_owner, MPRIS_PATH, PROPERTIES_INTERFACE, "GetAll",
                                g_variant_new("(s)", TRACKLIST_INTERFACE), NULL,
                                G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL,
-                               active_player_get_properties_async_callback, player_data);
+                               active_player_get_properties_async_callback, tracklist_data);
 
         struct GetPropertiesUserData *playlists_data = calloc(1, sizeof(struct GetPropertiesUserData));
         playlists_data->interface_name = PLAYLISTS_INTERFACE;
