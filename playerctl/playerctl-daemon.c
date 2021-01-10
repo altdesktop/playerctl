@@ -377,46 +377,39 @@ static void context_emit_active_player_changed(struct PlayerctldContext *ctx, GE
             return;
         }
 
-        // Optional interfaces handled only if supported by player
-        if (player->tracklist.supported) {
-            const gchar *const tracklist_properties[] = {"Tracks", "CanEditTracks"};
-            GVariant *tracklist_invalidated =
-                g_variant_new_strv(tracklist_properties,
-                                   sizeof(tracklist_properties) / sizeof(tracklist_properties[0]));
-            GVariant *tracklist_children[3] = {
-                g_variant_new_string(ROOT_INTERFACE),
-                g_variant_new_array(G_VARIANT_TYPE("{sv}"), NULL, 0),
-                tracklist_invalidated,
-            };
-            GVariant *tracklist_invalidated_tuple = g_variant_new_tuple(tracklist_children, 3);
-            g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
-                                          "PropertiesChanged", tracklist_invalidated_tuple,
-                                          &tmp_error);
-            if (tmp_error != NULL) {
-                g_propagate_error(error, tmp_error);
-                return;
-            }
+        // Assume old player supported all optional interfaces and invalidate those properties
+        // unconditionally
+        const gchar *const tracklist_properties[] = {"Tracks", "CanEditTracks"};
+        GVariant *tracklist_invalidated = g_variant_new_strv(
+            tracklist_properties, sizeof(tracklist_properties) / sizeof(tracklist_properties[0]));
+        GVariant *tracklist_children[3] = {
+            g_variant_new_string(ROOT_INTERFACE),
+            g_variant_new_array(G_VARIANT_TYPE("{sv}"), NULL, 0),
+            tracklist_invalidated,
+        };
+        GVariant *tracklist_invalidated_tuple = g_variant_new_tuple(tracklist_children, 3);
+        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
+                                      "PropertiesChanged", tracklist_invalidated_tuple, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return;
         }
 
-        if (player->playlists.supported) {
-            const gchar *const playlists_properties[] = {"PlaylistCount", "Orderings",
-                                                         "ActivePlaylist"};
-            GVariant *playlists_invalidated =
-                g_variant_new_strv(playlists_properties,
-                                   sizeof(playlists_properties) / sizeof(playlists_properties[0]));
-            GVariant *playlists_children[3] = {
-                g_variant_new_string(ROOT_INTERFACE),
-                g_variant_new_array(G_VARIANT_TYPE("{sv}"), NULL, 0),
-                playlists_invalidated,
-            };
-            GVariant *playlists_invalidated_tuple = g_variant_new_tuple(playlists_children, 3);
-            g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
-                                          "PropertiesChanged", playlists_invalidated_tuple,
-                                          &tmp_error);
-            if (tmp_error != NULL) {
-                g_propagate_error(error, tmp_error);
-                return;
-            }
+        const gchar *const playlists_properties[] = {"PlaylistCount", "Orderings",
+                                                     "ActivePlaylist"};
+        GVariant *playlists_invalidated = g_variant_new_strv(
+            playlists_properties, sizeof(playlists_properties) / sizeof(playlists_properties[0]));
+        GVariant *playlists_children[3] = {
+            g_variant_new_string(ROOT_INTERFACE),
+            g_variant_new_array(G_VARIANT_TYPE("{sv}"), NULL, 0),
+            playlists_invalidated,
+        };
+        GVariant *playlists_invalidated_tuple = g_variant_new_tuple(playlists_children, 3);
+        g_dbus_connection_emit_signal(ctx->connection, NULL, MPRIS_PATH, PROPERTIES_INTERFACE,
+                                      "PropertiesChanged", playlists_invalidated_tuple, &tmp_error);
+        if (tmp_error != NULL) {
+            g_propagate_error(error, tmp_error);
+            return;
         }
     }
 
