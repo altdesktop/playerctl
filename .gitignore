@@ -3,8 +3,8 @@ tags
 /build
 /mesonbuild
 /playerctl-fpm
-.swp
-.swo
-.swn
-.snap
-env
+*.swp
+*.swo
+*.swn
+*.snap
+/env

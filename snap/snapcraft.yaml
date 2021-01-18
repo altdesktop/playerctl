@@ -30,15 +30,20 @@ slots:
     interface: dbus
     bus: session
     name: org.mpris.MediaPlayer2.playerctld
+  system-observe:
+    interface: system-observe
+  desktop-legacy:
+    interface: desktop-legacy
 
 apps:
   playerctl:
     command: playerctl
+    slots: [ system-observe, desktop-legacy ]
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/local/lib/$SNAPCRAFT_ARCH_TRIPLET
 
   playerctld:
     command: playerctld
-    slots: [ dbus-svc ]
+    slots: [ dbus-svc, system-observe, desktop-legacy ]
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/local/lib/$SNAPCRAFT_ARCH_TRIPLET
