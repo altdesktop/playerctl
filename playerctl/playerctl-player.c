@@ -124,7 +124,7 @@ static gchar *metadata_get_track_id(GVariant *metadata) {
         // XXX some players set this as a string, which is against the protocol,
         // but a lot of them do it and I don't feel like fixing it on all the
         // players in the world.
-        g_warning("mpris:trackid is a string, not a D-Bus object reference");
+        g_debug("mpris:trackid is a string, not a D-Bus object reference");
         track_id_variant = g_variant_lookup_value(metadata, "mpris:trackid", G_VARIANT_TYPE_STRING);
     }
 
@@ -197,7 +197,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
         // XXX: Lots of player aren't setting status correctly when the track
         // changes so we have to get it from the interface. We should
         // definitely go fix this bug on the players.
-        g_warning("Playback status not set on track change; getting status from interface instead");
+        g_debug("Playback status not set on track change; getting status from interface instead");
         GVariant *call_reply = g_dbus_proxy_call_sync(
             G_DBUS_PROXY(self->priv->proxy), "org.freedesktop.DBus.Properties.Get",
             g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "PlaybackStatus"),
@@ -270,7 +270,7 @@ static void playerctl_player_properties_changed_callback(GDBusProxy *_proxy,
                 g_signal_emit(self, connection_signals[PLAYBACK_STATUS], quark, status);
             }
         } else {
-            g_warning("%s: got unknown playback state: %s", instance, status_str);
+            g_debug("%s: got unknown playback state: %s", instance, status_str);
         }
 
         g_variant_unref(playback_status);
@@ -306,7 +306,7 @@ static GVariant *playerctl_player_get_metadata(PlayerctlPlayer *self, GError **e
     if (!metadata) {
         // XXX: Ugly spotify workaround. Spotify does not seem to use the property
         // cache. We have to get the properties directly.
-        g_warning("Spotify does not use the D-Bus property cache, getting properties directly");
+        g_debug("Spotify does not use the D-Bus property cache, getting properties directly");
         GVariant *call_reply = g_dbus_proxy_call_sync(
             G_DBUS_PROXY(self->priv->proxy), "org.freedesktop.DBus.Properties.Get",
             g_variant_new("(ss)", "org.mpris.MediaPlayer2.Player", "Metadata"),
@@ -388,7 +388,7 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
             g_value_set_enum(value, status);
         } else {
             if (status_str != NULL) {
-                g_warning("got unknown loop status: %s", status_str);
+                g_debug("got unknown loop status: %s", status_str);
             }
             g_value_set_enum(value, PLAYERCTL_LOOP_STATUS_NONE);
         }
@@ -939,7 +939,7 @@ static gboolean playerctl_player_initable_init(GInitable *initable, GCancellable
                 bus_name_for_player_name(player->priv->player_name, bus_types[i], &tmp_error);
             if (tmp_error != NULL) {
                 if (tmp_error->domain == G_IO_ERROR && tmp_error->code == G_IO_ERROR_NOT_FOUND) {
-                    g_warning("Bus address set incorrectly, cannot get bus");
+                    g_debug("Bus address set incorrectly, cannot get bus");
                     g_clear_error(&tmp_error);
                     continue;
                 }

@@ -249,9 +249,9 @@ static void dbus_name_owner_changed_callback(GDBusProxy *proxy, gchar *sender_na
     }
 
     if (!g_variant_is_of_type(parameters, G_VARIANT_TYPE("(sss)"))) {
-        g_warning("Got unknown parameters on org.freedesktop.DBus "
-                  "NameOwnerChange signal: %s",
-                  g_variant_get_type_string(parameters));
+        g_debug("Got unknown parameters on org.freedesktop.DBus "
+                "NameOwnerChange signal: %s",
+                g_variant_get_type_string(parameters));
         return;
     }
 
