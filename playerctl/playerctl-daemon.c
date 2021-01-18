@@ -283,7 +283,7 @@ static void context_emit_active_player_changed(struct PlayerctldContext *ctx, GE
         }
 
         GVariant *root_children[3] = {
-            g_variant_new_string(PLAYER_INTERFACE),
+            g_variant_new_string(ROOT_INTERFACE),
             player->root_properties,
             g_variant_new_array(G_VARIANT_TYPE_STRING, NULL, 0),
         };
