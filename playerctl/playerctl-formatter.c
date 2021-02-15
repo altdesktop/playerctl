@@ -608,6 +608,42 @@ static GVariant *helperfn_emoji(struct token *token, GVariant **args, int nargs,
     return value;
 }
 
+static GVariant *helperfn_trunc(struct token *token, GVariant **args, int nargs, GError **error) {
+    if (nargs != 2) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function trunc takes exactly two arguments (got %d)", nargs);
+        return NULL;
+    }
+
+    GVariant *value = args[0];
+    GVariant *len = args[1];
+    if (value == NULL || len == NULL) {
+        return g_variant_new("s", "");
+    }
+
+    if (!g_variant_type_equal(g_variant_get_type(len), G_VARIANT_TYPE_DOUBLE)) {
+        g_set_error(error, playerctl_formatter_error_quark(), 1,
+                    "function trunc's length parameter can only be called with an int");
+        return NULL;
+    }
+
+    gchar *orig = pctl_print_gvariant(value);
+    gchar *trunc = g_utf8_substring(orig, 0, g_variant_get_double(len));
+
+    GString *formatted = g_string_new(trunc);
+    if (g_utf8_strlen(trunc, 256) < g_utf8_strlen(orig, 256)) {
+        g_string_append(formatted, "…");
+    }
+
+    gchar *formatted_inner = g_string_free(formatted, FALSE);
+    GVariant *ret = g_variant_new("s", formatted_inner);
+    g_free(formatted_inner);
+    g_free(trunc);
+    g_free(orig);
+
+    return ret;
+}
+
 static gboolean is_valid_numeric_type(GVariant *value) {
     // This is all the types we know about for numeric operations. May be
     // expanded at a later time.
@@ -830,6 +866,7 @@ struct template_function {
     {"markup_escape", &helperfn_markup_escape},
     {"default", &helperfn_default},
     {"emoji", &helperfn_emoji},
+    {"trunc", &helperfn_trunc},
     {INFIX_ADD, &infixfn_add},
     {INFIX_SUB, &infixfn_sub},
     {INFIX_MUL, &infixfn_mul},
