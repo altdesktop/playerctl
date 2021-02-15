@@ -116,6 +116,7 @@ playerctl metadata --format "Volume: {{ volume * 100 }}"
 | `markup_escape` | string           | Escape XML markup characters in the string.                        |
 | `default`       | any, any         | Print the first value if it is present, or else print the second.  |
 | `emoji`         | status or volume | Try to convert the variable to an emoji representation.            |
+| `trunc`         | string, int      | Truncate string to a maximum length.                               |
 
 | Variable     | Description                                       |
 | ------------ | ------------------------------------------------- |
