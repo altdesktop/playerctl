@@ -251,6 +251,12 @@ to an emoji representation. Currently implemented for
 .Fa status
 and
 .Fa volume .
+.It Fn trunc str len
+Truncate
+.Fa str
+to a maximum of
+.Fa len
+characters, adding an ellipsis (…) if necessary.
 .El
 .Pp
 The template language is also able to perform basic math operations.
