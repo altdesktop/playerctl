@@ -1103,6 +1103,7 @@ gint player_name_string_compare_func(gconstpointer a, gconstpointer b, gpointer 
             if (any_index == INT_MAX) {
                 any_index = i;
             }
+            ++i;
             continue;
         }
 
