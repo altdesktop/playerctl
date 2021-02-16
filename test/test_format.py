@@ -114,6 +114,10 @@ async def test_format(bus_address):
     test.add(' {{lc(album)}} ', album.lower())
     test.add('{{playerName}} - {{playerInstance}}',
              f'{player_name} - {player_instance}')
+    test.add("{{trunc(title, 10)}}", title)
+    test.add("{{trunc(title, 5)}}", f"{title[:5]}…")
+    test.add('{{trunc("", 0)}}', "")
+    test.add('{{trunc("", 10)}}', "")
 
     await test.run()
 
