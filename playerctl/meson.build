@@ -9,7 +9,7 @@ configuration_inc = include_directories('..')
 
 playerctl_generated = gnome.gdbus_codegen(
   'playerctl-generated',
-  join_paths(meson.source_root(), 'data', 'mpris-dbus-interface.xml'),
+  join_paths(meson.project_source_root(), 'data', 'mpris-dbus-interface.xml'),
 )
 
 headers = [
@@ -30,11 +30,10 @@ playerctl_sources = [
 ]
 
 # Allow including playerctl.h during compilation
-add_global_arguments(
+c_args = [
   '-DPLAYERCTL_COMPILATION',
   '-DG_LOG_DOMAIN="playerctl"',
-  language: 'c',
-)
+]
 
 enums = gnome.mkenums_simple(
   'playerctl-enum-types',
@@ -48,10 +47,13 @@ deps = [
   gio_dep,
 ]
 
-symbols_file = join_paths(meson.source_root(), 'data', 'playerctl.syms')
+symbols_file = join_paths(meson.project_source_root(), 'data', 'playerctl.syms')
 symbols_flag = '-Wl,--version-script,@0@'.format(symbols_file)
 
-playerctl_lib = both_libraries(
+# default_library is shared by default see
+# https://mesonbuild.com/Builtin-options.html this enabled the project
+# to be either statically or dynamically linked as a subproject
+playerctl_lib = library(
   'playerctl',
   playerctl_sources, enums,
   dependencies: deps,
@@ -60,12 +62,14 @@ playerctl_lib = both_libraries(
   install: true,
   link_args : symbols_flag,
   link_depends: symbols_file,
+  c_args: c_args,
 )
 
 # Required for linking against the shared lib we just built
 playerctl_shared_link = declare_dependency(
-  link_with: playerctl_lib.get_shared_lib(),
+  link_with: playerctl_lib,
   dependencies: deps,
+  include_directories: include_directories('..'),
 )
 
 playerctl_executable = executable(
@@ -99,7 +103,7 @@ if get_option('introspection')
   endif
 
   gnome.generate_gir(
-    playerctl_lib.get_shared_lib(),
+    playerctl_lib,
     sources: [
       enums,
       'playerctl-player-name.c',
@@ -118,7 +122,7 @@ if get_option('introspection')
 endif
 
 pkgconfig.generate(
-  libraries: playerctl_lib.get_shared_lib(),
+  libraries: playerctl_lib,
   subdirs: 'playerctl',
   version: meson.project_version(),
   name: 'Playerctl',
