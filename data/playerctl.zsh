@@ -43,7 +43,7 @@ _regex_words commands 'playerctl command' \
 	'stop:Command the player to stop' \
 	'next:Command the player to skip to the next track' \
 	'previous:Command the player to skip to the previous track' \
-	'position:Command the palyer to go or seek to the position' \
+	'position:Command the player to go or seek to the position' \
 	'volume:Print or set the volume level from 0.0 to 1.0' \
 	'status:Get the play status of the player' \
 	'metadata:Print the metadata information for the current track:$playerctl_command_metadata_keys' \
