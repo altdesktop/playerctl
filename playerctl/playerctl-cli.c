@@ -936,7 +936,7 @@ static int handle_list_all_flag() {
     }
 
     if (!one_selected && !no_status_error_messages) {
-        g_printerr("No players were found\n");
+        g_printerr("No players found\n");
     }
 
     pctl_player_name_list_destroy(player_names_list);
