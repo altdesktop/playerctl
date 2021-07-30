@@ -22,12 +22,19 @@
 
 #define __PLAYERCTL_INSIDE__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <playerctl/playerctl-enum-types.h>
 #include <playerctl/playerctl-player-manager.h>
 #include <playerctl/playerctl-player-name.h>
 #include <playerctl/playerctl-player.h>
 #include <playerctl/playerctl-version.h>
 
+#ifdef __cplusplus
+} // extern "C"
+#endif
 #undef __PLAYERCTL_INSIDE__
 
 #endif /* __PLAYERCTL_H__ */
