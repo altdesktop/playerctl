@@ -86,6 +86,7 @@ playerctld_executable = executable(
   dependencies: deps,
   include_directories: configuration_inc,
   install: true,
+  c_args: c_args,
 )
 
 install_headers(
