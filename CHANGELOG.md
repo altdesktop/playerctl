@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 2.4.1
+
+Version 2.4.1 contains bugfixes and new features.
+
+* Fix a crash in playerctld when players use TrackList and Playlists interfaces (#215)
+* Add the `trunc()` template function (#224)
+* Allow to use playerctl as a subproject and cpp linking (#228)
+* bugfix: subscribe to all signals when multiple template functions are used (#235)
+* bugfix: workaround for players that use uint64 values in the formatter (#234)
+
 ## Version 2.3.1
 
 Version 2.3.1 contains bugfixes and new features.
