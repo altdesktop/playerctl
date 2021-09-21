@@ -483,14 +483,23 @@ static GVariant *helperfn_duration(struct token *token, GVariant **args, int nar
         return g_variant_new("s", "");
     }
 
-    // mpris durations are represented as int64 in microseconds
-    if (!g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_INT64)) {
+    gint64 duration;
+
+    if (g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_INT64)) {
+        // mpris specifies all track position values to be int64
+        duration = g_variant_get_int64(value);
+    } else if (g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_UINT64)) {
+        // XXX: spotify may give uint64
+        duration = g_variant_get_uint64(value);
+    } else if (g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_DOUBLE)) {
+        // only if supplied by a constant or position value type goes against spec
+        duration = g_variant_get_double(value);
+    } else {
         g_set_error(error, playerctl_formatter_error_quark(), 1,
-                    "function position can only be called on int64 values");
+                    "function duration can only be called on track position values");
         return NULL;
     }
 
-    gint64 duration = g_variant_get_int64(value);
     gint64 seconds = (duration / 1000000) % 60;
     gint64 minutes = (duration / 1000000 / 60) % 60;
     gint64 hours = (duration / 1000000 / 60 / 60);
@@ -648,12 +657,16 @@ static GVariant *helperfn_trunc(struct token *token, GVariant **args, int nargs,
 
 static gboolean is_valid_numeric_type(GVariant *value) {
     // This is all the types we know about for numeric operations. May be
-    // expanded at a later time.
+    // expanded at a later time. MPRIS only uses INT64 and DOUBLE as numeric
+    // types. Formatter constants are always DOUBLE. All other types are for
+    // player workarounds.
     if (value == NULL) {
         return FALSE;
     }
 
     if (g_variant_is_of_type(value, G_VARIANT_TYPE_INT64)) {
+        return TRUE;
+    } else if (g_variant_is_of_type(value, G_VARIANT_TYPE_UINT64)) {
         return TRUE;
     } else if (g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
         return TRUE;
@@ -663,8 +676,12 @@ static gboolean is_valid_numeric_type(GVariant *value) {
 }
 
 static gdouble get_double_value(GVariant *value) {
+    // Keep this in sync with above is_value_numeric_type()
+
     if (g_variant_is_of_type(value, G_VARIANT_TYPE_INT64)) {
         return (gdouble)g_variant_get_int64(value);
+    } else if (g_variant_is_of_type(value, G_VARIANT_TYPE_UINT64)) {
+        return (gdouble)g_variant_get_uint64(value);
     } else if (g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
         return g_variant_get_double(value);
     } else {
