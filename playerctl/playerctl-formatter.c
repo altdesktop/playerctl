@@ -93,7 +93,9 @@ static gboolean token_list_contains_key(GList *tokens, const gchar *key) {
             }
             break;
         case TOKEN_FUNCTION:
-            return token_list_contains_key(token->args, key);
+            if (token_list_contains_key(token->args, key)) {
+                return TRUE;
+            }
         default:
             break;
         }
