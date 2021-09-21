@@ -136,6 +136,21 @@ You can pass the `--follow` flag to query commands to block, wait for players to
 playerctl metadata --format '{{ playerName }}: {{ artist }} - {{ title }} {{ duration(position) }}|{{ duration(mpris:length) }}' --follow
 ```
 
+### Changing the position of the track
+
+You can seek to a position in the track or skip forward and back.
+
+```bash
+# Go back 30 seconds
+playerctl position 30-
+
+# Go forward 30 seconds
+playerctl position 30+
+
+# Seek to the position at 30 seconds
+playerctl position 30
+```
+
 ## Troubleshooting
 
 ### Debug Logging
@@ -144,14 +159,15 @@ To enable debug logging, set the environment variable `G_MESSAGES_DEBUG=playerct
 
 ### No Players Found
 
-If you are using Quod Libet as your music player you need to install/activate a plugin for it.
-In Quod Libet open the window File -> Plugins and select the plugin called *MPRIS D-Bus Support*.
-
 Some players like Spotify require certain DBus environment variables to be set which are normally set within the session manager. If you're not using a session manager or it does not set these variables automatically (like `xinit`), launch your desktop environment wrapped in a `dbus-launch` command. For example, in your `.xinitrc` file, use this to start your WM:
 
 ```
 exec dbus-launch --autolaunch=$(cat /var/lib/dbus/machine-id) i3
 ```
+
+Some players may require installation of a plugin or other configuration.
+
+In Quod Libet open the window File -> Plugins and select the plugin called *MPRIS D-Bus Support*.
 
 ### Playerctld Autostart Issues
 
@@ -208,7 +224,7 @@ meson mesonbuild
 sudo ninja -C mesonbuild install
 ```
 
-Note that you need `meson >= 0.50.0` installed. In case your distro only has an older version of meson in its repository you can install the newest version via pip:
+Note that you need `meson` installed. In case your distro only has an older version of meson in its repository you can install the newest version via pip:
 
 ```
 pip3 install meson
