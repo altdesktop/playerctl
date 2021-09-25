@@ -72,9 +72,11 @@ fpm_rpm() {
 do_dist() {
     local DIST_DIR=${FPM_DIR}/dist
     meson ${DIST_DIR}
-    ninja -C ${DIST_DIR} dist
-    gpg --sign --armor --detach-sign ${DIST_DIR}/meson-dist/playerctl-*.tar.xz
-    mv ${DIST_DIR}/meson-dist/* ${FPM_DIR}
+    ninja -C ${DIST_DIR}
+    local version=$(${DIST_DIR}/playerctl/playerctl --version | sed s/^v//)
+    local archive_path="${FPM_DIR}/playerctl-${version}.tar.gz"
+    git archive --prefix="playerctl-${version}/" -o ${archive_path} "v${version}"
+    gpg --sign --armor --detach-sign ${archive_path}
 }
 
 fpm_deb
