@@ -17,7 +17,7 @@ async def test_basics():
 
     # with no players
     result = await playerctl.run('--list-all')
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 1, result.stderr
     assert not result.stdout
     assert result.stderr
 

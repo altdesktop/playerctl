@@ -935,12 +935,15 @@ static int handle_list_all_flag() {
         }
     }
 
-    if (!one_selected && !no_status_error_messages) {
-        g_printerr("No players found\n");
+    if (!one_selected) {
+        if (!no_status_error_messages) {
+            g_printerr("No players found\n");
+        }
+        exit_status = 1;
     }
 
     pctl_player_name_list_destroy(player_names_list);
-    return 0;
+    return exit_status;
 }
 
 static void managed_players_execute_command(GError **error) {
