@@ -613,6 +613,17 @@ static GVariant *helperfn_emoji(struct token *token, GVariant **args, int nargs,
         } else {
             return g_variant_new("s", "🔊");
         }
+    } else if (g_strcmp0(key, "playerName") == 0 && g_variant_is_of_type(value, G_VARIANT_TYPE_STRING)) {
+        const gchar *playerName_str = g_variant_get_string(value, NULL);
+        if (g_strcmp0(playerName_str, "spotify") == 0) {
+            return g_variant_new("s", "");
+        } else if (g_strcmp0(playerName_str, "firefox") == 0) {
+            return g_variant_new("s", "");
+        } else if (g_strcmp0(playerName_str, "chromium") == 0) {
+            return g_variant_new("s", "");
+        } else if (g_strcmp0(playerName_str, "mpv") == 0) {
+            return g_variant_new("s", "");
+        }
     }
 
     g_variant_ref(value);
