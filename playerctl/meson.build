@@ -26,6 +26,7 @@ playerctl_sources = [
   'playerctl-player.c',
   'playerctl-common.c',
   'playerctl-player-manager.c',
+  'playerctl-rc.c',
   playerctl_generated,
 ]
 
