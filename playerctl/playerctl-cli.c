@@ -30,6 +30,7 @@
 #include "playerctl-common.h"
 #include "playerctl-formatter.h"
 #include "playerctl-player-private.h"
+#include "playerctl-rc.h"
 
 #define LENGTH(array) (sizeof array / sizeof array[0])
 
@@ -815,7 +816,7 @@ static const GOptionEntry entries[] = {
     {G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &command_arg, NULL, "COMMAND"},
     {NULL}};
 
-static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
+static gboolean parse_setup_options(int argc, char *argv[], char** rc_options, GError **error) {
     static const gchar *description =
         "Available Commands:"
         "\n  play                    Command the player to play"
@@ -850,6 +851,13 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
     g_option_context_add_main_entries(context, entries, NULL);
     g_option_context_set_description(context, description);
     g_option_context_set_summary(context, summary);
+
+    success = g_option_context_parse_strv(context, &rc_options, error);
+
+    if (!success) {
+        g_option_context_free(context);
+        return FALSE;
+    }
 
     success = g_option_context_parse(context, &argc, &argv, error);
 
@@ -1166,7 +1174,9 @@ int main(int argc, char *argv[]) {
     // seems to be required to print unicode (see #8)
     setlocale(LC_CTYPE, "");
 
-    if (!parse_setup_options(argc, argv, &error)) {
+    char **rc_options = playerctl_rc_read_options();
+
+    if (!parse_setup_options(argc, argv, rc_options, &error)) {
         g_printerr("%s\n", error->message);
         g_clear_error(&error);
         exit(0);
