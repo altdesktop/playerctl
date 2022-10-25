@@ -1,0 +1,7 @@
+[Unit]
+Description=Playerctl daemon
+Documentation=man:playerctld(1)
+
+[Service]
+Type=exec
+ExecStart=playerctld

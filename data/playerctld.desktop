@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=Playerctld
+GenericName=Playerctl daemon
+Comment=Playerctl daemon
+Exec=playerctld daemon
+Terminal=false
+Categories=Audio;
+StartupNotify=false
