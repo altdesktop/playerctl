@@ -558,8 +558,8 @@ static GVariant *helperfn_default(struct token *token, GVariant **args, int narg
         g_variant_ref(args[1]);
         return args[1];
     } else {
-        if (g_variant_is_of_type(args[0], G_VARIANT_TYPE_STRING) &&
-            strlen(g_variant_get_string(args[0], NULL)) == 0) {
+        if (g_variant_is_of_type(args[0], G_VARIANT_TYPE_STRING_ARRAY) &&
+            strlen(pctl_print_gvariant(args[0])) == 0) {
             g_variant_ref(args[1]);
             return args[1];
         }
