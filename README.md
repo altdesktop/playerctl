@@ -193,9 +193,17 @@ First, check and see if Playerctl is available from your package manager (if it 
 sudo dnf install playerctl
 ```
 
-### Mageia, openSUSE
+### openSUSE
 
-`playerctl` is available for Mageia and openSUSE via [this COPR repository](https://copr.fedorainfracloud.org/coprs/jflory7/playerctl/). First, install the repository file for your distribution from COPR. Then, install `playerctl` with your package manager of choice.
+`playerctl` is available for openSUSE Tumbleweed and Leap 15:
+
+```
+sudo zypper install playerctl
+```
+
+### Mageia
+
+`playerctl` is available for Mageia via [this COPR repository](https://copr.fedorainfracloud.org/coprs/jflory7/playerctl/). First, install the repository file for your distribution from COPR. Then, install `playerctl` with your package manager of choice.
 
 ### Guix
 
