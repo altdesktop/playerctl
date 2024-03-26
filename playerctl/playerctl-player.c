@@ -418,7 +418,7 @@ static void playerctl_player_get_property(GObject *object, guint property_id, GV
         GVariant *metadata = NULL;
         metadata = playerctl_player_get_metadata(self, &error);
         if (error != NULL) {
-            g_error("could not get metadata: %s", error->message);
+            g_printerr("could not get metadata: %s", error->message);
             g_clear_error(&error);
         }
         g_value_set_variant(value, metadata);
