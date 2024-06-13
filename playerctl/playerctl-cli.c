@@ -695,6 +695,7 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
             return FALSE;
         }
     } else {
+        *output = g_strdup("");
         for (int i = 1; i < argc; ++i) {
             const gchar *type = argv[i];
             gchar *data;
@@ -715,7 +716,9 @@ static gboolean playercmd_metadata(PlayerctlPlayer *player, gchar **argv, gint a
             }
 
             if (data != NULL) {
-                *output = g_strdup_printf("%s\n", data);
+                gchar *tmp = *output;
+                *output = g_strdup_printf("%s%s\n", *output, data);
+                g_free(tmp);
                 g_free(data);
             } else {
                 return FALSE;
