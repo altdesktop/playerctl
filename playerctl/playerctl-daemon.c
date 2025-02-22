@@ -738,7 +738,7 @@ static void proxy_method_call_async_callback(GObject *source_object, GAsyncResul
         g_dbus_method_invocation_return_value(invocation, body);
         break;
     case G_DBUS_MESSAGE_TYPE_ERROR: {
-        if (g_variant_n_children(body) > 1) {
+        if (body != NULL && g_variant_n_children(body) > 1) {
             GVariant *error_message_variant = g_variant_get_child_value(body, 1);
             const char *error_message = g_variant_get_string(error_message_variant, 0);
             g_dbus_method_invocation_return_dbus_error(
