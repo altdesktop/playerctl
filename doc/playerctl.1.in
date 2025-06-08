@@ -183,6 +183,9 @@ Each command has access to the following variables:
 .Bl -tag -width Ds
 .It Va playerName
 The name of the current player.
+.It Va playerInstance
+The name and instance of the current player,
+in playerName.instance1234 format.
 .It Va position
 The time position of the current track,
 in microseconds.
