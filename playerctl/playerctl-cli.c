@@ -419,9 +419,9 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
             return FALSE;
         }
         char *endptr = NULL;
-        size_t last = strlen(volume) - 1;
+        size_t len = strlen(volume);
 
-        if (volume[last] == '+' || volume[last] == '-') {
+        if (len > 0 && (volume[len - 1] == '+' || volume[len - 1] == '-')) {
             gdouble adjustment = strtod(volume, &endptr);
 
             if (volume == endptr) {
@@ -430,8 +430,12 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
                 return FALSE;
             }
 
-            if (volume[last] == '-') {
+            if (volume[len - 1] == '-') {
                 adjustment *= -1;
+            }
+
+            if (len > 1 && volume[len - 2] == '%') {
+                adjustment /= 100.0;
             }
 
             g_object_get(player, "volume", &level, NULL);
@@ -442,6 +446,10 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
                 g_set_error(error, playerctl_cli_error_quark(), 1,
                             "could not parse volume as a number: %s\n", volume);
                 return FALSE;
+            }
+
+            if (len > 0 && volume[len - 1] == '%') {
+                level /= 100.0;
             }
         }
 
@@ -828,7 +836,7 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         "track"
         "\n  position [OFFSET][+/-]  Command the player to go to the position or "
         "seek forward/backward OFFSET in seconds"
-        "\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 "
+        "\n  volume [LEVEL][%][+/-]     Print or set the volume to LEVEL from 0.0 "
         "to 1.0"
         "\n  status                  Get the play status of the player"
         "\n  metadata [KEY...]       Print metadata information for the current "
