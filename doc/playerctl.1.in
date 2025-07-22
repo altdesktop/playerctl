@@ -116,7 +116,7 @@ appended,
 seek forward or backward
 .Ar OFFSET
 seconds from the current position.
-.It Cm volume Op Ar LEVEL Ns Op + Ns | Ns Ar -
+.It Cm volume Op Ar LEVEL Ns [ Ar % ] Ns Op Ar + Ns | Ns Ar -
 Print the player's volume scaled from 0.0
 .Pq 0%
 to 1.0
@@ -126,6 +126,9 @@ With
 specified,
 set the player's volume to
 .Ar LEVEL .
+With the optional
+.Op Ar %
+appended, treat the number as a percentage directly.
 With the optional
 .Op Ar + Ns | Ns Ar -
 appended,

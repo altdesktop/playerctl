@@ -836,7 +836,7 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         "track"
         "\n  position [OFFSET][+/-]  Command the player to go to the position or "
         "seek forward/backward OFFSET in seconds"
-        "\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 "
+        "\n  volume [LEVEL][%][+/-]     Print or set the volume to LEVEL from 0.0 "
         "to 1.0"
         "\n  status                  Get the play status of the player"
         "\n  metadata [KEY...]       Print metadata information for the current "
