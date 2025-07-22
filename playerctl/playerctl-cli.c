@@ -434,6 +434,10 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
                 adjustment *= -1;
             }
 
+            if (len > 1 && volume[len - 2] == '%') {
+                adjustment /= 100.0;
+            }
+
             g_object_get(player, "volume", &level, NULL);
             level += adjustment;
         } else {
@@ -442,6 +446,10 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
                 g_set_error(error, playerctl_cli_error_quark(), 1,
                             "could not parse volume as a number: %s\n", volume);
                 return FALSE;
+            }
+
+            if (len > 0 && volume[len - 1] == '%') {
+                level /= 100.0;
             }
         }
 
