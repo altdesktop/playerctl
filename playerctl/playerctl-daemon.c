@@ -488,14 +488,6 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
     }
 }
 
-static void context_rotate_queue(struct PlayerctldContext *ctx) {
-    struct Player *player;
-    if ((player = g_queue_peek_head(ctx->players))) {
-        context_remove_player(ctx, player);
-        g_queue_push_tail(ctx->players, player);
-    }
-}
-
 static void context_unrotate_queue(struct PlayerctldContext *ctx) {
     struct Player *player;
     if ((player = g_queue_peek_tail(ctx->players))) {
@@ -906,11 +898,13 @@ static void on_bus_acquired(GDBusConnection *connection, const char *name, gpoin
         g_clear_error(&error);
     }
 
-    g_dbus_connection_register_object(connection, MPRIS_PATH, ctx->playlists_interface_info,
-                                      &vtable_mpris, user_data, NULL, &error);
-    if (error != NULL) {
-        g_warning("%s", error->message);
-        g_clear_error(&error);
+    if (ctx->playlists_interface_info != NULL) {
+        g_dbus_connection_register_object(connection, MPRIS_PATH, ctx->playlists_interface_info,
+                                          &vtable_mpris, user_data, NULL, &error);
+        if (error != NULL) {
+            g_warning("%s", error->message);
+            g_clear_error(&error);
+        }
     }
 
     g_dbus_connection_register_object(connection, MPRIS_PATH, ctx->tracklist_interface_info,
@@ -1490,6 +1484,7 @@ int main(int argc, char *argv[]) {
             if (error != NULL) {
                 // This interface is optional, so we can keep the player around
                 player->playlists.supported = false;
+                ctx.playlists_interface_info = NULL;
                 g_warning("could not get playlists properties for player: %s", player->well_known);
                 g_clear_error(&error);
             } else {
