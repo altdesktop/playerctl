@@ -48,7 +48,7 @@ You can list the names of players that are available to control that are running
 
 If you'd only like to control certain players, you can pass the names of those players separated by commas with the `--player` flag. Playerctl will select the first instance of a player in that list that supports the command. To control all players in the list, you can use the `--all-players` flag.
 
-Similarly, you can ignore players by passing their names with the `--ignore-player` flag.
+Similarly, you can ignore players by passing their names or their name prefixes with the `--ignore-player` flag.
 
 The special player name `%any` can be used in the list of selected players once to match any player not in the list. This can be used to prioritize or deprioritize players.
 
