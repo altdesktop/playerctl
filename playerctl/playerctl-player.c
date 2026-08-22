@@ -1472,11 +1472,7 @@ void playerctl_player_set_volume(PlayerctlPlayer *self, gdouble volume, GError *
         return;
     }
 
-    GDBusConnection *connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        return;
-    }
+    GDBusConnection *connection = g_dbus_proxy_get_connection(G_DBUS_PROXY(self->priv->proxy));
 
     GVariant *result = g_dbus_connection_call_sync(
         connection, self->priv->bus_name, MPRIS_PATH, PROPERTIES_IFACE, SET_MEMBER,
@@ -1597,11 +1593,7 @@ void playerctl_player_set_loop_status(PlayerctlPlayer *self, PlayerctlLoopStatus
     const gchar *status_str = pctl_loop_status_to_string(status);
     g_return_if_fail(status_str != NULL);
 
-    GDBusConnection *connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        return;
-    }
+    GDBusConnection *connection = g_dbus_proxy_get_connection(G_DBUS_PROXY(self->priv->proxy));
 
     GVariant *result = g_dbus_connection_call_sync(
         connection, self->priv->bus_name, MPRIS_PATH, PROPERTIES_IFACE, SET_MEMBER,
@@ -1635,11 +1627,7 @@ void playerctl_player_set_shuffle(PlayerctlPlayer *self, gboolean shuffle, GErro
         return;
     }
 
-    GDBusConnection *connection = g_bus_get_sync(G_BUS_TYPE_SESSION, NULL, &tmp_error);
-    if (tmp_error != NULL) {
-        g_propagate_error(err, tmp_error);
-        return;
-    }
+    GDBusConnection *connection = g_dbus_proxy_get_connection(G_DBUS_PROXY(self->priv->proxy));
 
     GVariant *result = g_dbus_connection_call_sync(
         connection, self->priv->bus_name, MPRIS_PATH, PROPERTIES_IFACE, SET_MEMBER,
