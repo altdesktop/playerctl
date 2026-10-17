@@ -97,7 +97,7 @@ struct _PlayerctlPlayerPrivate {
 };
 
 static inline int64_t timespec_to_usec(const struct timespec *a) {
-    return (int64_t)a->tv_sec * 1e+6 + a->tv_nsec / 1000;
+    return (int64_t)a->tv_sec * 1000000 + a->tv_nsec / 1000;
 }
 
 static gint64 calculate_cached_position(PlayerctlPlaybackStatus status,

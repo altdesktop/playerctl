@@ -96,7 +96,7 @@ static void cli_print_output(gchar *output) {
     }
 
     printf("%s", output);
-    fflush(stdout);
+    (void)fflush(stdout);
     g_free(last_output);
     last_output = output;
 }
@@ -778,6 +778,11 @@ struct player_command {
 };
 
 static const struct player_command *get_player_command(gchar **argv, gint argc, GError **error) {
+    if (argc < 1 || argv == NULL) {
+        g_set_error(error, playerctl_cli_error_quark(), 1, "No command given");
+        return NULL;
+    }
+
     for (gsize i = 0; i < LENGTH(player_commands); ++i) {
         const struct player_command command = player_commands[i];
         if (g_strcmp0(command.name, argv[0]) == 0) {
@@ -1174,7 +1179,7 @@ int main(int argc, char *argv[]) {
     GList *available_players = NULL;
 
     // seems to be required to print unicode (see #8)
-    setlocale(LC_CTYPE, "");
+    (void)setlocale(LC_CTYPE, "");
 
     if (!parse_setup_options(argc, argv, &error)) {
         g_printerr("%s\n", error->message);
@@ -1285,7 +1290,7 @@ int main(int argc, char *argv[]) {
                 did_command = TRUE;
                 if (output != NULL) {
                     printf("%s", output);
-                    fflush(stdout);
+                    (void)fflush(stdout);
                     g_free(output);
                 }
 

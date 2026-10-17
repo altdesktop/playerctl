@@ -1,5 +1,22 @@
-# Conservative set: correctness and static-analysis checks only. Style is
-# handled by clang-format.
+# Correctness and static-analysis checks only; style is handled by clang-format.
+# Every finding fails the build (WarningsAsErrors), so keep the tree clean and
+# use NOLINT with a reason for the rare false positive.
+#
+# Disabled checks:
+#   clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling: wants Annex K functions
+#   bugprone-easily-swappable-parameters: too noisy for the glib-style APIs
+#   bugprone-reserved-identifier: glib-style leading-underscore names
+#   bugprone-macro-parentheses: glib-style macros
+#   bugprone-narrowing-conversions: pervasive gint/gsize/guint mixing
+#   bugprone-assignment-in-if-condition: common glib idiom
+#   bugprone-branch-clone: intentionally parallel branches
+#   bugprone-casting-through-void: fires inside glib G_* cast macros
+#   bugprone-multi-level-implicit-pointer-conversion: GObject/GList APIs
+#
+# Probed but not enabled (too noisy for GObject code, or an ABI-affecting
+# change): misc-include-cleaner, misc-unused-parameters, misc-no-recursion,
+# misc-use-internal-linkage, concurrency-mt-unsafe, cert-dcl37-c,
+# performance-no-int-to-ptr.
 Checks: >
   -*,
   clang-analyzer-*,
@@ -10,5 +27,10 @@ Checks: >
   -bugprone-macro-parentheses,
   -bugprone-narrowing-conversions,
   -bugprone-assignment-in-if-condition,
-  -bugprone-multi-level-implicit-pointer-conversion
+  -bugprone-branch-clone,
+  -bugprone-casting-through-void,
+  -bugprone-multi-level-implicit-pointer-conversion,
+  cert-err33-c,
+  cert-dcl16-c
+WarningsAsErrors: '*'
 HeaderFilterRegex: 'playerctl/.*'

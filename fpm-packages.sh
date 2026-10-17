@@ -3,7 +3,7 @@
 set -e
 
 PROJECT_ROOT=${PWD}
-FPM_DIR=${PWD}/playerctl-fpm
+FPM_DIR=${PWD}/build/fpm
 DEB_DIR=${FPM_DIR}/deb
 RPM_DIR=${FPM_DIR}/rpm
 
@@ -16,9 +16,9 @@ Build the playerctl release artifacts. Run from the project root.
 Builds, in order:
   - a .deb package (fpm, prefix /usr, libdir /usr/lib)
   - an .rpm package (fpm, prefix /usr, libdir /usr/lib64)
-  - a GPG-signed source tarball of the v<version> git tag
+  - a GPG-signed source tarball (meson dist)
 
-Output goes to ./playerctl-fpm/ (removed and recreated on every run).
+Output goes to ./build/fpm/ (removed and recreated on every run).
 
 Requires: fpm, rpm, dpkg, meson, ninja, git, gpg.
 
@@ -60,7 +60,7 @@ check_environment() {
 
 fpm_deb() {
     cd "${PROJECT_ROOT}"
-    meson "${DEB_DIR}/build" --prefix=/usr --libdir=/usr/lib
+    meson setup "${DEB_DIR}/build" --prefix=/usr --libdir=/usr/lib
     DESTDIR="${DEB_DIR}/install" ninja -C "${DEB_DIR}/build" install
     VERSION=$(LD_LIBRARY_PATH="${DEB_DIR}/install/usr/lib" "${DEB_DIR}/install/usr/bin/playerctl" -v | sed s/^v// | sed s/-.*//)
 
@@ -82,7 +82,7 @@ fpm_deb() {
 
 fpm_rpm() {
     cd "${PROJECT_ROOT}"
-    meson "${RPM_DIR}/build" --prefix=/usr --libdir=/usr/lib64
+    meson setup "${RPM_DIR}/build" --prefix=/usr --libdir=/usr/lib64
     DESTDIR="${RPM_DIR}/install" ninja -C "${RPM_DIR}/build" install
     VERSION=$(LD_LIBRARY_PATH="${RPM_DIR}/install/usr/lib64" "${RPM_DIR}/install/usr/bin/playerctl" -v | sed s/^v// | sed s/-.*//)
 
@@ -104,12 +104,10 @@ fpm_rpm() {
 
 do_dist() {
     local DIST_DIR="${FPM_DIR}/dist"
-    meson "${DIST_DIR}"
-    ninja -C "${DIST_DIR}"
-    local version
-    version=$("${DIST_DIR}/playerctl/playerctl" --version | sed s/^v//)
-    local archive_path="${FPM_DIR}/playerctl-${version}.tar.gz"
-    git archive --prefix="playerctl-${version}/" -o "${archive_path}" "v${version}"
+    meson setup "${DIST_DIR}"
+    meson dist -C "${DIST_DIR}" --formats gztar --allow-dirty --no-tests
+    local archive_path
+    archive_path=$(ls "${DIST_DIR}"/meson-dist/playerctl-*.tar.gz)
     gpg --sign --armor --detach-sign "${archive_path}"
 }
 

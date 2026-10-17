@@ -511,7 +511,7 @@ static struct Player *context_shift_active_player(struct PlayerctldContext *ctx)
     GError *error = NULL;
     struct Player *previous, *current;
 
-    if (!(previous = current = context_get_active_player(ctx))) {
+    if (!(previous = context_get_active_player(ctx))) {
         return NULL;
     }
     context_remove_player(ctx, previous);
@@ -535,7 +535,7 @@ static struct Player *context_unshift_active_player(struct PlayerctldContext *ct
     GError *error = NULL;
     struct Player *previous, *current;
 
-    if (!(previous = current = context_get_active_player(ctx))) {
+    if (!(previous = context_get_active_player(ctx))) {
         return NULL;
     }
 
@@ -1104,7 +1104,7 @@ static void name_owner_changed_signal_callback(GDBusConnection *connection,
         if (active_player != NULL) {
             player_update_position_sync(active_player, ctx, &error);
             if (error != NULL) {
-                active_player->position = 0l;
+                active_player->position = 0L;
                 g_warning("could not update player position for player '%s': %s",
                           active_player->well_known, error->message);
                 g_clear_error(&error);
@@ -1165,7 +1165,7 @@ static void player_signal_proxy_callback(GDBusConnection *connection, const gcha
         context_set_active_player(ctx, player);
         player_update_position_sync(player, ctx, &error);
         if (error != NULL) {
-            player->position = 0l;
+            player->position = 0L;
             g_warning("could not update player position: %s", error->message);
             g_clear_error(&error);
         }

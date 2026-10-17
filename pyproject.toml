@@ -2,7 +2,7 @@
 name = "playerctl-tests"
 version = "2.4.1"
 description = "Test suite and examples for playerctl"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = []
 
 [tool.uv]

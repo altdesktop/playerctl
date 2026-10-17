@@ -136,6 +136,7 @@ PlayerctlSource pctl_bus_type_to_source(GBusType bus_type) {
 }
 
 PlayerctlPlayerName *pctl_player_name_new(const gchar *instance, PlayerctlSource source) {
+    // NOLINTNEXTLINE(bugprone-sizeof-expression): glib g_slice_new macro
     PlayerctlPlayerName *player_name = g_slice_new(PlayerctlPlayerName);
     gchar **split = g_strsplit(instance, ".", 2);
     player_name->name = g_strdup(split[0]);

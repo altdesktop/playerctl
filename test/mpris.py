@@ -5,10 +5,57 @@ from dbus_next.service import (
     signal,
     Variant,
 )
-from dbus_next import PropertyAccess, RequestNameReply, BusType
+from dbus_next import (
+    Message,
+    MessageType,
+    PropertyAccess,
+    RequestNameReply,
+    BusType,
+)
 from dbus_next.aio import MessageBus
 
 import asyncio
+
+
+async def _bus_call(bus, member, signature='', body=()):
+    reply = await bus.call(
+        Message(
+            destination='org.freedesktop.DBus',
+            path='/org/freedesktop/DBus',
+            interface='org.freedesktop.DBus',
+            member=member,
+            signature=signature,
+            body=list(body),
+        )
+    )
+    assert reply.message_type == MessageType.METHOD_RETURN, reply.body
+    return reply.body[0]
+
+
+async def name_owner_pid(bus_address, name):
+    """Return the pid owning name on the bus, or None if it has no owner."""
+    bus = await MessageBus(bus_address=bus_address).connect()
+    try:
+        if not await _bus_call(bus, 'NameHasOwner', 's', [name]):
+            return None
+        return await _bus_call(bus, 'GetConnectionUnixProcessID', 's', [name])
+    finally:
+        bus.disconnect()
+
+
+async def wait_for_name(bus_address, name, present=True, timeout=3.0):
+    """Wait until name has (or, with present=False, loses) an owner."""
+    bus = await MessageBus(bus_address=bus_address).connect()
+    try:
+        deadline = asyncio.get_running_loop().time() + timeout
+        while await _bus_call(bus, 'NameHasOwner', 's', [name]) != present:
+            assert asyncio.get_running_loop().time() < deadline, (
+                f'timed out waiting for {name} '
+                f'to {"appear" if present else "disappear"}'
+            )
+            await asyncio.sleep(0.01)
+    finally:
+        bus.disconnect()
 
 
 async def setup_mpris(*names, bus_address=None, system=False):

@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            clang-format clang-tidy shellcheck ninja-build \
+            libglib2.0-dev libgirepository1.0-dev gtk-doc-tools
+      - run: uv sync --frozen
+      - run: make format-check lint-py lint-sh
+      - run: make lint-c
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image and run the test suite
+        run: |
+          docker build -t playerctl-test .
+          docker run playerctl-test

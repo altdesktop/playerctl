@@ -33,6 +33,7 @@ PlayerctlPlayerName *playerctl_player_name_copy(PlayerctlPlayerName *name) {
 
     g_return_val_if_fail(name != NULL, NULL);
 
+    // NOLINTNEXTLINE(bugprone-sizeof-expression): glib g_slice_new0 macro
     retval = g_slice_new0(PlayerctlPlayerName);
     *retval = *name;
 

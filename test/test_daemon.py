@@ -1,7 +1,8 @@
 import pytest
 
 import os
-from .mpris import setup_mpris
+import signal
+from .mpris import name_owner_pid, setup_mpris, wait_for_name
 from .playerctl import PlayerctlCli, register
 from dbus_next.aio import MessageBus
 from dbus_next import Message, MessageType
@@ -10,9 +11,16 @@ import asyncio
 from asyncio import Queue
 
 
+PLAYERCTLD_NAME = 'org.mpris.MediaPlayer2.playerctld'
+
+
 async def start_playerctld(bus_address, debug=False):
-    pkill = await asyncio.create_subprocess_shell('pkill playerctld')
-    await pkill.wait()
+    # stop a playerctld that is already on this test bus (e.g. one started by
+    # dbus activation), without touching any other playerctld on the system
+    pid = await name_owner_pid(bus_address, PLAYERCTLD_NAME)
+    if pid is not None:
+        os.kill(pid, signal.SIGTERM)
+        await wait_for_name(bus_address, PLAYERCTLD_NAME, present=False)
     env = os.environ.copy()
     env['DBUS_SESSION_BUS_ADDRESS'] = bus_address
     env['G_MESSAGES_DEBUG'] = 'playerctl'
@@ -33,6 +41,10 @@ async def start_playerctld(bus_address, debug=False):
 
     task = asyncio.get_event_loop().create_task(reader(proc.stdout))
     register(proc, task)
+
+    # playerctld only emits signals once it owns its name and has subscribed
+    # to NameOwnerChanged, so players created earlier would go unnoticed
+    await wait_for_name(bus_address, PLAYERCTLD_NAME)
 
     return proc
 
