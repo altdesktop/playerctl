@@ -3,6 +3,33 @@ import os
 from shlex import join
 
 
+# Subprocesses started by the tests. asyncio only closes a subprocess
+# transport once the process has exited and every pipe has hit EOF, so these
+# are stopped while the test's event loop is still running.
+_processes = []
+
+
+def register(proc, *tasks):
+    _processes.append((proc, tasks))
+
+
+async def stop_process(proc, *tasks):
+    if proc.returncode is None:
+        proc.terminate()
+    await proc.wait()
+    for task in tasks:
+        await task
+    for stream in (proc.stdout, proc.stderr):
+        if stream is not None:
+            await stream.read()
+
+
+async def stop_all():
+    while _processes:
+        proc, tasks = _processes.pop()
+        await stop_process(proc, *tasks)
+
+
 class CommandResult:
     def __init__(self, stdout, stderr, returncode):
         self.stdout = stdout.decode().strip()
@@ -33,11 +60,17 @@ class PlayerctlProcess:
                 if not line:
                     break
 
-        asyncio.get_event_loop().create_task(reader(proc.stdout))
+        self._reader = asyncio.get_event_loop().create_task(
+            reader(proc.stdout)
+        )
         # asyncio.get_event_loop().create_task(printer(proc.stderr))
+        register(proc, self._reader)
 
     def running(self):
         return self.proc.returncode is None
+
+    async def stop(self):
+        await stop_process(self.proc, self._reader)
 
 
 class PlayerctlCli:
@@ -48,7 +81,7 @@ class PlayerctlCli:
 
     async def _start(self, cmd):
         env = os.environ.copy()
-        shell_cmd = f'playerctl {cmd}'
+        shell_cmd = f'exec playerctl {cmd}'
 
         if self.bus_address:
             env['DBUS_SESSION_BUS_ADDRESS'] = self.bus_address
@@ -59,7 +92,8 @@ class PlayerctlCli:
             shell_cmd,
             env=env,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE)
+            stderr=asyncio.subprocess.PIPE,
+        )
 
     async def start(self, cmd):
         proc = await self._start(cmd)

@@ -26,10 +26,25 @@ async def test_basics():
     assert result.stdout
     assert not result.stderr
 
-    commands = ('play', 'pause', 'play-pause', 'stop', 'next', 'previous',
-                'position', 'position 5', 'volume', 'volume 0.5', 'status',
-                'metadata', 'loop', 'loop None', 'shuffle', 'shuffle On',
-                'open https://google.com')
+    commands = (
+        'play',
+        'pause',
+        'play-pause',
+        'stop',
+        'next',
+        'previous',
+        'position',
+        'position 5',
+        'volume',
+        'volume 0.5',
+        'status',
+        'metadata',
+        'loop',
+        'loop None',
+        'shuffle',
+        'shuffle On',
+        'open https://google.com',
+    )
 
     results = await asyncio.gather(*(playerctl.run(cmd) for cmd in commands))
 
@@ -41,10 +56,9 @@ async def test_basics():
 
 @pytest.mark.asyncio
 async def test_list_names(bus_address):
-    mpris_players = await setup_mpris('basics1',
-                                      'basics2',
-                                      'basics3',
-                                      bus_address=bus_address)
+    mpris_players = await setup_mpris(
+        'basics1', 'basics2', 'basics3', bus_address=bus_address
+    )
     playerctl = PlayerctlCli(bus_address)
 
     result = await playerctl.run('--list-all')
@@ -67,7 +81,8 @@ async def test_system_list_players(bus_address):
     assert result.stdout.split() == ['session1', 'system']
 
     await asyncio.gather(
-        *[mpris.disconnect() for mpris in system_players + session_players])
+        *[mpris.disconnect() for mpris in system_players + session_players]
+    )
 
 
 @pytest.mark.asyncio
@@ -87,8 +102,9 @@ async def test_queries(bus_address):
     assert query.stdout == mpris.loop_status, query.stderr
 
     query = await playerctl.run('position')
-    assert math.fabs(float(query.stdout) * 1000000 -
-                     mpris.position) < 100, query.stderr
+    assert math.fabs(float(query.stdout) * 1000000 - mpris.position) < 100, (
+        query.stderr
+    )
 
     query = await playerctl.run('shuffle')
     assert query.stdout == ('On' if mpris.shuffle else 'Off'), query.stderr

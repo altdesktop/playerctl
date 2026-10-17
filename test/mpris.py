@@ -1,4 +1,10 @@
-from dbus_next.service import ServiceInterface, dbus_property, method, signal, Variant
+from dbus_next.service import (
+    ServiceInterface,
+    dbus_property,
+    method,
+    signal,
+    Variant,
+)
 from dbus_next import PropertyAccess, RequestNameReply, BusType
 from dbus_next.aio import MessageBus
 
@@ -12,8 +18,9 @@ async def setup_mpris(*names, bus_address=None, system=False):
             bus_type = BusType.SYSTEM
         else:
             bus_type = BusType.SESSION
-        bus = await MessageBus(bus_type=bus_type,
-                               bus_address=bus_address).connect()
+        bus = await MessageBus(
+            bus_type=bus_type, bus_address=bus_address
+        ).connect()
         player = MprisPlayer(bus)
         bus.export('/org/mpris/MediaPlayer2', player)
         bus.export('/org/mpris/MediaPlayer2', MprisRoot())
@@ -108,8 +115,9 @@ class MprisPlayer(ServiceInterface):
         self.seeked_value = 0
 
     async def ping(self):
-        await self.bus.introspect('org.freedesktop.DBus',
-                                  '/org/freedesktop/DBus')
+        await self.bus.introspect(
+            'org.freedesktop.DBus', '/org/freedesktop/DBus'
+        )
 
     async def set_artist_title(self, artist, title, track_id=None):
         if track_id is None:
@@ -122,9 +130,11 @@ class MprisPlayer(ServiceInterface):
             'mpris:trackid': Variant('o', track_id),
         }
 
-        self.emit_properties_changed({
-            'Metadata': self.metadata,
-        })
+        self.emit_properties_changed(
+            {
+                'Metadata': self.metadata,
+            }
+        )
         await self.ping()
 
     async def clear_metadata(self):
@@ -132,9 +142,11 @@ class MprisPlayer(ServiceInterface):
         self.metadata = {
             'mpris:trackid': Variant('o', '/' + str(self.counter)),
         }
-        self.emit_properties_changed({
-            'Metadata': self.metadata,
-        })
+        self.emit_properties_changed(
+            {
+                'Metadata': self.metadata,
+            }
+        )
         await self.ping()
 
     async def disconnect(self):
@@ -260,6 +272,7 @@ class MprisPlayer(ServiceInterface):
 
 class PlayerctldInterface(ServiceInterface):
     '''just enough of playerctld for testing'''
+
     def __init__(self, bus):
         super().__init__('com.github.altdesktop.playerctld')
         self.bus = bus

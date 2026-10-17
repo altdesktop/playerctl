@@ -45,8 +45,9 @@ async def test_emoji(bus_address):
     cmd = await playerctl.run('metadata --format \'{{emoji("hi")}}\'')
     assert cmd.returncode == 1, cmd.stderr
 
-    cmd = await playerctl.run('metadata --format \'{{emoji(status, volume)}}\''
-                              )
+    cmd = await playerctl.run(
+        'metadata --format \'{{emoji(status, volume)}}\''
+    )
     assert cmd.returncode == 1, cmd.stderr
 
     await mpris.disconnect()
@@ -89,7 +90,7 @@ async def test_format(bus_address):
         'xesam:artist': Variant('as', [artist]),
         'xesam:escapeme': Variant('s', '<hi>'),
         'xesam:album': Variant('s', album),
-        'mpris:length': Variant('x', 100000)
+        'mpris:length': Variant('x', 100000),
     }
     mpris.volume = 2.0
 
@@ -106,14 +107,17 @@ async def test_format(bus_address):
     test.add("{{mpris:length}}", "100000")
     test.add(
         '@{{ uc( "hi" ) }} - {{uc( lc( "HO"  ) ) }} . {{lc( uc(  title ) )   }}@',
-        f'@HI - HO . {title.lower()}@')
+        f'@HI - HO . {title.lower()}@',
+    )
     test.add("{{default(xesam:missing, artist)}}", artist)
     test.add("{{default(title, artist)}}", title)
     test.add('{{default("", "ok")}}', 'ok')
     test.add('{{default("ok", "not")}}', 'ok')
     test.add(' {{lc(album)}} ', album.lower())
-    test.add('{{playerName}} - {{playerInstance}}',
-             f'{player_name} - {player_instance}')
+    test.add(
+        '{{playerName}} - {{playerInstance}}',
+        f'{player_name} - {player_instance}',
+    )
     test.add("{{trunc(title, 10)}}", title)
     test.add("{{trunc(title, 5)}}", f"{title[:5]}…")
     test.add('{{trunc("", 0)}}', "")
@@ -175,10 +179,9 @@ async def test_format(bus_address):
     async def math_test(math):
         cmd = await playerctl.run("metadata --format '{{" + math + "}}'")
         assert cmd.returncode == 0, cmd.stderr
-        assert float(cmd.stdout) == eval(math, {
-            'volume': mpris.volume,
-            'default': default_shim
-        }), math
+        assert float(cmd.stdout) == eval(
+            math, {'volume': mpris.volume, 'default': default_shim}
+        ), math
 
     await asyncio.gather(*[math_test(m) for m in math])
 

@@ -9,16 +9,22 @@ def selector(bus_address):
 
     async def select(*players):
         assert players
-        cmd = '-p ' + str.join(
-            ',', players) + ' status --format "{{playerInstance}}"'
+        cmd = (
+            '-p '
+            + str.join(',', players)
+            + ' status --format "{{playerInstance}}"'
+        )
         result = await playerctl.run(cmd)
         assert result.returncode == 0, result.stderr
         return result.stdout
 
     async def select_many(*players):
         assert players
-        cmd = '--all-players -p ' + str.join(
-            ',', players) + ' status --format "{{playerInstance}}"'
+        cmd = (
+            '--all-players -p '
+            + str.join(',', players)
+            + ' status --format "{{playerInstance}}"'
+        )
         result = await playerctl.run(cmd)
         assert result.returncode == 0, result.stderr
         return tuple(result.stdout.split('\n'))
@@ -38,16 +44,13 @@ async def test_selection(bus_address):
     s6i = 'selection6.i_2'
     any_player = '%any'
 
-    mpris_players = await setup_mpris(s1,
-                                      s1i,
-                                      s2,
-                                      s3,
-                                      s6i,
-                                      bus_address=bus_address)
+    mpris_players = await setup_mpris(
+        s1, s1i, s2, s3, s6i, bus_address=bus_address
+    )
 
     # TODO: test ignored players
     selections = {
-        (s1, ): (s1, s1i),
+        (s1,): (s1, s1i),
         (s3, s1): (s3, s1, s1i),
         (s2, s1, s3): (s2, s1, s1i, s3),
         (s1, s2): (s1, s1i, s2),
@@ -57,7 +60,7 @@ async def test_selection(bus_address):
         (s1i, s1): (s1i, s1),
         (m6, s1): (s6i, s1, s1i),
         (m4, m6, s3): (s6i, s3),
-        (any_player, ): (s1, s1i, s2, s3, s6i),
+        (any_player,): (s1, s1i, s2, s3, s6i),
         (s1, any_player): (s1, s1i, s2, s3, s6i),  # s1 first
         (any_player, s1): (s2, s3, s6i, s1, s1i),  # s1 last
         (m6, any_player, s2): (s6i, s1, s1i, s3, s2),  # s6 first, s2 last
@@ -91,9 +94,6 @@ async def test_daemon_selection(bus_address):
     s2 = 'selection2'
     s2i = 'selection2.i_123'
     s3 = 'selection3'
-    m4 = 'selection4'
-    m5 = 'selection5'
-    m6 = 'selection6'
     s6i = 'selection6.i_2'
     any_player = '%any'
 

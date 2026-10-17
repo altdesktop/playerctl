@@ -1,11 +1,19 @@
 import pytest
 import asyncio
+from .playerctl import stop_all
+
+
+@pytest.fixture(autouse=True)
+async def cleanup_processes():
+    yield
+    await stop_all()
 
 
 @pytest.fixture()
 async def bus_address(scope='class'):
     proc = await asyncio.create_subprocess_shell(
-        'dbus-launch', stdout=asyncio.subprocess.PIPE)
+        'dbus-launch', stdout=asyncio.subprocess.PIPE
+    )
     stdout, __ = await proc.communicate()
     await proc.wait()
     assert proc.returncode == 0

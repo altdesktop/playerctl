@@ -1,4 +1,11 @@
-FROM ubuntu:20.04
+ARG UBUNTU_VERSION=20.04
+ARG UV_VERSION=0.5.0
+
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv
+
+FROM ubuntu:${UBUNTU_VERSION}
+
+ARG PREFIX=/usr
 
 WORKDIR /app
 
@@ -7,7 +14,7 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
     echo 'tzdata tzdata/Areas select Etc' | debconf-set-selections; \
     echo 'tzdata tzdata/Zones/Etc select UTC' | debconf-set-selections; \
     apt update && apt install -y --no-install-recommends \
-    python3-pip \
+    python3 \
     ninja-build \
     build-essential \
     libglib2.0-dev \
@@ -15,14 +22,17 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
     gtk-doc-tools \
     dbus-x11
 
-COPY requirements.txt .
-RUN pip3 install -r requirements.txt
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_PYTHON_PREFERENCE=only-system
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen
+ENV PATH=/app/.venv/bin:$PATH
 
 ADD . /app
 
 COPY test/data/dbus-system.conf /etc/dbus-1/system.d/test-dbus-system.conf
 
-RUN meson --prefix=/usr build && \
+RUN meson --prefix=${PREFIX} build && \
     ninja -C build && ninja -C build install
 RUN mkdir -p /run/dbus
 ENV PYTHONASYNCIODEBUG=1

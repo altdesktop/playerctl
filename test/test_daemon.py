@@ -2,13 +2,12 @@ import pytest
 
 import os
 from .mpris import setup_mpris
-from .playerctl import PlayerctlCli
+from .playerctl import PlayerctlCli, register
 from dbus_next.aio import MessageBus
 from dbus_next import Message, MessageType
 
 import asyncio
 from asyncio import Queue
-from subprocess import run as run_process
 
 
 async def start_playerctld(bus_address, debug=False):
@@ -18,20 +17,22 @@ async def start_playerctld(bus_address, debug=False):
     env['DBUS_SESSION_BUS_ADDRESS'] = bus_address
     env['G_MESSAGES_DEBUG'] = 'playerctl'
     proc = await asyncio.create_subprocess_shell(
-        'playerctld',
+        'exec playerctld',
         env=env,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT)
+        stderr=asyncio.subprocess.STDOUT,
+    )
 
-    async def printer(stream):
+    async def reader(stream):
         while True:
             line = await stream.readline()
-            print(line)
             if not line:
                 break
+            if debug:
+                print(line)
 
-    if debug:
-        asyncio.get_event_loop().create_task(printer(proc.stdout))
+    task = asyncio.get_event_loop().create_task(reader(proc.stdout))
+    register(proc, task)
 
     return proc
 
@@ -39,8 +40,9 @@ async def start_playerctld(bus_address, debug=False):
 async def get_playerctld(bus):
     path = '/com/github/altdesktop/playerctld'
     interface = 'com.github.altdesktop.playerctld'
-    introspection = await bus.introspect('org.mpris.MediaPlayer2.playerctld',
-                                         path)
+    introspection = await bus.introspect(
+        'org.mpris.MediaPlayer2.playerctld', path
+    )
     obj = bus.get_proxy_object(interface, path, introspection)
     return obj.get_interface('org.freedesktop.DBus.Properties')
 
@@ -55,24 +57,37 @@ async def test_daemon_commands(bus_address):
     # with no other players running, these should error because there's no
     # active player (not no players found). This tests activation and property
     # errors as well.
-    results = await asyncio.gather(*(run(cmd)
-                                     for cmd in ('play', 'pause', 'play-pause',
-                                                 'stop', 'next', 'previous',
-                                                 'position', 'volume',
-                                                 'status', 'metadata', 'loop',
-                                                 'shuffle')))
+    results = await asyncio.gather(
+        *(
+            run(cmd)
+            for cmd in (
+                'play',
+                'pause',
+                'play-pause',
+                'stop',
+                'next',
+                'previous',
+                'position',
+                'volume',
+                'status',
+                'metadata',
+                'loop',
+                'shuffle',
+            )
+        )
+    )
     for result in results:
         assert result.returncode == 1
-        assert 'No player could handle this command' in result.stderr.splitlines(
+        assert (
+            'No player could handle this command' in result.stderr.splitlines()
         )
 
     # restart playerctld so we can manage the process and see debug info
     playerctld_proc = await start_playerctld(bus_address)
 
-    [mpris1, mpris2, mpris3] = await setup_mpris('daemon1',
-                                                 'daemon2',
-                                                 'daemon3',
-                                                 bus_address=bus_address)
+    [mpris1, mpris2, mpris3] = await setup_mpris(
+        'daemon1', 'daemon2', 'daemon3', bus_address=bus_address
+    )
     await mpris2.set_artist_title('artist', 'title')
     cmd = await run('play')
     assert cmd.returncode == 0, cmd.stdout
@@ -107,9 +122,9 @@ async def test_daemon_commands(bus_address):
 async def test_daemon_follow(bus_address):
     playerctld_proc = await start_playerctld(bus_address)
 
-    [mpris1, mpris2] = await setup_mpris('player1',
-                                         'player2',
-                                         bus_address=bus_address)
+    [mpris1, mpris2] = await setup_mpris(
+        'player1', 'player2', bus_address=bus_address
+    )
     playerctl = PlayerctlCli(bus_address)
     pctl_cmd = '--player playerctld metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
     proc = await playerctl.start(pctl_cmd)
@@ -147,8 +162,7 @@ async def test_daemon_follow(bus_address):
     await asyncio.gather(mpris2.disconnect(), mpris3.disconnect())
 
     playerctld_proc.terminate()
-    proc.proc.terminate()
-    await proc.proc.wait()
+    await proc.stop()
     await playerctld_proc.wait()
 
 
@@ -161,7 +175,8 @@ async def playerctld_shift(bus_address, reverse=False):
         cmd,
         env=env,
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT)
+        stderr=asyncio.subprocess.STDOUT,
+    )
     return await shift.wait()
 
 
@@ -169,10 +184,9 @@ async def playerctld_shift(bus_address, reverse=False):
 async def test_daemon_shift_simple(bus_address):
     playerctld_proc = await start_playerctld(bus_address)
 
-    mprises = await setup_mpris('player1',
-                                'player2',
-                                'player3',
-                                bus_address=bus_address)
+    mprises = await setup_mpris(
+        'player1', 'player2', 'player3', bus_address=bus_address
+    )
     [mpris1, mpris2, mpris3] = mprises
 
     playerctl = PlayerctlCli(bus_address)
@@ -213,8 +227,12 @@ async def test_daemon_shift_simple(bus_address):
 
     playerctld_proc.terminate()
     proc.proc.terminate()
-    await asyncio.gather(mpris1.disconnect(), mpris2.disconnect(),
-                         playerctld_proc.wait(), proc.proc.wait())
+    await asyncio.gather(
+        mpris1.disconnect(),
+        mpris2.disconnect(),
+        playerctld_proc.wait(),
+        proc.proc.wait(),
+    )
 
 
 @pytest.mark.asyncio
@@ -223,7 +241,7 @@ async def test_daemon_shift_no_player(bus_address):
 
     playerctl = PlayerctlCli(bus_address)
     pctl_cmd = '--player playerctld metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
-    proc = await playerctl.start(pctl_cmd)
+    await playerctl.start(pctl_cmd)
 
     code = await playerctld_shift(bus_address)
     assert code == 1
@@ -259,19 +277,24 @@ async def test_active_player_change(bus_address):
     bus = await MessageBus(bus_address=bus_address).connect()
 
     reply = await bus.call(
-        Message(destination='org.freedesktop.DBus',
-                interface='org.freedesktop.DBus',
-                path='/org/freedesktop/DBus',
-                member='AddMatch',
-                signature='s',
-                body=["sender='org.mpris.MediaPlayer2.playerctld'"]))
+        Message(
+            destination='org.freedesktop.DBus',
+            interface='org.freedesktop.DBus',
+            path='/org/freedesktop/DBus',
+            member='AddMatch',
+            signature='s',
+            body=["sender='org.mpris.MediaPlayer2.playerctld'"],
+        )
+    )
 
     assert reply.message_type == MessageType.METHOD_RETURN, reply.body
 
     def message_handler(message):
-        if message.member == 'PropertiesChanged' and message.body[
-                0] == 'com.github.altdesktop.playerctld' and 'PlayerNames' in message.body[
-                    1]:
+        if (
+            message.member == 'PropertiesChanged'
+            and message.body[0] == 'com.github.altdesktop.playerctld'
+            and 'PlayerNames' in message.body[1]
+        ):
             queue.put_nowait(message.body[1]['PlayerNames'].value)
 
     def player_list(*args):
@@ -301,8 +324,9 @@ async def test_active_player_change(bus_address):
     assert queue.empty()
 
     bus.disconnect()
-    await asyncio.gather(mpris1.disconnect(), mpris2.disconnect(),
-                         bus.wait_for_disconnect())
+    await asyncio.gather(
+        mpris1.disconnect(), mpris2.disconnect(), bus.wait_for_disconnect()
+    )
 
     playerctld_proc.terminate()
     await playerctld_proc.wait()
@@ -318,11 +342,16 @@ async def test_daemon_proxy_error_empty_body(bus_address):
 
     # reply to Play with an error that has no body
     def empty_error_handler(msg):
-        if msg.message_type == MessageType.METHOD_CALL and msg.member == 'Play':
-            return Message(message_type=MessageType.ERROR,
-                           error_name='org.freedesktop.DBus.Error.Failed',
-                           reply_serial=msg.serial,
-                           destination=msg.sender)
+        if (
+            msg.message_type == MessageType.METHOD_CALL
+            and msg.member == 'Play'
+        ):
+            return Message(
+                message_type=MessageType.ERROR,
+                error_name='org.freedesktop.DBus.Error.Failed',
+                reply_serial=msg.serial,
+                destination=msg.sender,
+            )
 
     mpris.bus.add_message_handler(empty_error_handler)
 

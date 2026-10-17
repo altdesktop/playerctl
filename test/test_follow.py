@@ -41,12 +41,9 @@ async def test_follow_selection(bus_address):
     player2 = 'test2'
     player3 = 'test3'
     player4 = 'test4'
-    [mpris1, mpris2, mpris3,
-     mpris4] = await setup_mpris(player1,
-                                 player2,
-                                 player3,
-                                 player4,
-                                 bus_address=bus_address)
+    [mpris1, mpris2, mpris3, mpris4] = await setup_mpris(
+        player1, player2, player3, player4, bus_address=bus_address
+    )
 
     await mpris1.set_artist_title('artist', 'title')
 
@@ -107,12 +104,9 @@ async def test_follow_selection_any(bus_address):
     player2 = 'test2'
     player3 = 'test3'
     player4 = 'test4'
-    [mpris1, mpris2, mpris3,
-     mpris4] = await setup_mpris(player1,
-                                 player2,
-                                 player3,
-                                 player4,
-                                 bus_address=bus_address)
+    [mpris1, mpris2, mpris3, mpris4] = await setup_mpris(
+        player1, player2, player3, player4, bus_address=bus_address
+    )
 
     playerctl = PlayerctlCli(bus_address)
     pctl_cmd = '--player test3,%any,test1 metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'
@@ -150,17 +144,16 @@ async def test_follow_all_players(bus_address):
     player2 = 'test2'
     player3 = 'test3'
     player4 = 'test4'
-    [mpris1, mpris2, mpris3,
-     mpris4] = await setup_mpris(player1,
-                                 player2,
-                                 player3,
-                                 player4,
-                                 bus_address=bus_address)
+    [mpris1, mpris2, mpris3, mpris4] = await setup_mpris(
+        player1, player2, player3, player4, bus_address=bus_address
+    )
 
-    await asyncio.gather(*[
-        mpris.set_artist_title('artist', 'title')
-        for mpris in [mpris1, mpris2, mpris3, mpris4]
-    ])
+    await asyncio.gather(
+        *[
+            mpris.set_artist_title('artist', 'title')
+            for mpris in [mpris1, mpris2, mpris3, mpris4]
+        ]
+    )
 
     playerctl = PlayerctlCli(bus_address)
     pctl_cmd = '--all-players --player test3,test2,test1 metadata --format "{{playerInstance}}: {{artist}} - {{title}}" --follow'

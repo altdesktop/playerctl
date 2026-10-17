@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# COMPREPLY=($(compgen ...)) is the standard completion idiom; completion words
+# contain no whitespace, so word splitting is intended.
+# shellcheck disable=SC2207
+
 _playerctl_completions() {
 	local cur="${COMP_WORDS[$COMP_CWORD]}"
 	local prev="${COMP_WORDS[$COMP_CWORD - 1]}"

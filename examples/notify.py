@@ -24,10 +24,13 @@ def notify(player):
     metadata = player.props.metadata
     keys = metadata.keys()
     if 'xesam:artist' in keys and 'xesam:title' in keys:
-        notification.update(metadata['xesam:title'],
-                            metadata['xesam:artist'][0])
-        path = Path(unquote(urlparse(
-            metadata['xesam:url']).path)).parent / "cover.jpg"
+        notification.update(
+            metadata['xesam:title'], metadata['xesam:artist'][0]
+        )
+        path = (
+            Path(unquote(urlparse(metadata['xesam:url']).path)).parent
+            / "cover.jpg"
+        )
         if os.path.exists(path):
             image = GdkPixbuf.Pixbuf.new_from_file(str(path))
             notification.set_image_from_pixbuf(image)

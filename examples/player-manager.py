@@ -12,8 +12,11 @@ def on_play(player, status, manager):
 def on_metadata(player, metadata, manager):
     keys = metadata.keys()
     if 'xesam:artist' in keys and 'xesam:title' in keys:
-        print('{} - {}'.format(metadata['xesam:artist'][0],
-                               metadata['xesam:title']))
+        print(
+            '{} - {}'.format(
+                metadata['xesam:artist'][0], metadata['xesam:title']
+            )
+        )
 
 
 def init_player(name):

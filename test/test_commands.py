@@ -23,8 +23,9 @@ async def test_commands(bus_address):
 
     playerctl = PlayerctlCli(bus_address)
 
-    results = await asyncio.gather(*(playerctl.run(f'-p commands {cmd}')
-                                     for cmd in commands + setters))
+    results = await asyncio.gather(
+        *(playerctl.run(f'-p commands {cmd}') for cmd in commands + setters)
+    )
 
     for result in results:
         assert result.returncode == 0, result.stderr
@@ -57,7 +58,6 @@ async def test_volume_set(bus_address):
     await mpris.disconnect()
 
 
-
 @pytest.mark.asyncio
 async def test_volume_relative(bus_address):
     [mpris] = await setup_mpris('volume-rel', bus_address=bus_address)
@@ -71,7 +71,6 @@ async def test_volume_relative(bus_address):
         assert mpris.volume == pytest.approx(expected), arg
 
     await mpris.disconnect()
-
 
 
 @pytest.mark.asyncio

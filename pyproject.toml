@@ -1,0 +1,41 @@
+[project]
+name = "playerctl-tests"
+version = "2.4.1"
+description = "Test suite and examples for playerctl"
+requires-python = ">=3.8"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "dbus-next",
+    "meson",
+    "pytest",
+    "pytest-timeout",
+    "pytest-asyncio",
+    "ruff",
+]
+
+[tool.pytest.ini_options]
+timeout = 5
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ["build", "subprojects"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501", "E402", "F722"]
+
+# F821 is still relevant, but causes too many false positives in tests and
+# examples
+[tool.ruff.lint.per-file-ignores]
+"test/*" = ["F821"]
+"examples/*" = ["F821"]
+"**/__init__.py" = ["F401"]
+
+[tool.ruff.format]
+quote-style = "preserve"
