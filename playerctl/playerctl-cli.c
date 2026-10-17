@@ -419,30 +419,40 @@ static gboolean playercmd_volume(PlayerctlPlayer *player, gchar **argv, gint arg
             return FALSE;
         }
         char *endptr = NULL;
-        size_t last = strlen(volume) - 1;
+        gboolean percent = FALSE;
+        gint sign = 0;
 
-        if (volume[last] == '+' || volume[last] == '-') {
-            gdouble adjustment = strtod(volume, &endptr);
+        level = g_ascii_strtod(volume, &endptr);
+        if (volume == endptr) {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                        "could not parse volume as a number: %s\n", volume);
+            return FALSE;
+        }
 
-            if (volume == endptr) {
-                g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "could not parse volume as a number: %s\n", volume);
-                return FALSE;
-            }
+        if (*endptr == '%') {
+            percent = TRUE;
+            ++endptr;
+        }
 
-            if (volume[last] == '-') {
-                adjustment *= -1;
-            }
+        if (*endptr == '+' || *endptr == '-') {
+            sign = (*endptr == '-') ? -1 : 1;
+            ++endptr;
+        }
 
-            g_object_get(player, "volume", &level, NULL);
-            level += adjustment;
-        } else {
-            level = strtod(volume, &endptr);
-            if (volume == endptr) {
-                g_set_error(error, playerctl_cli_error_quark(), 1,
-                            "could not parse volume as a number: %s\n", volume);
-                return FALSE;
-            }
+        if (*endptr != '\0') {
+            g_set_error(error, playerctl_cli_error_quark(), 1,
+                        "could not parse volume as a number: %s\n", volume);
+            return FALSE;
+        }
+
+        if (percent) {
+            level /= 100.0;
+        }
+
+        if (sign != 0) {
+            gdouble current = 0.0;
+            g_object_get(player, "volume", &current, NULL);
+            level = current + sign * level;
         }
 
         gboolean can_control = FALSE;
@@ -828,8 +838,8 @@ static gboolean parse_setup_options(int argc, char *argv[], GError **error) {
         "track"
         "\n  position [OFFSET][+/-]  Command the player to go to the position or "
         "seek forward/backward OFFSET in seconds"
-        "\n  volume [LEVEL][+/-]     Print or set the volume to LEVEL from 0.0 "
-        "to 1.0"
+        "\n  volume [LEVEL][%][+/-]  Print or set the volume to LEVEL from 0.0 "
+        "to 1.0, or as a percentage with %"
         "\n  status                  Get the play status of the player"
         "\n  metadata [KEY...]       Print metadata information for the current "
         "track. If KEY is passed,"

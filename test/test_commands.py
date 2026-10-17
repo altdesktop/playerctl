@@ -42,3 +42,48 @@ async def test_commands(bus_address):
     assert not mpris.shuffle
 
     await mpris.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_volume_set(bus_address):
+    [mpris] = await setup_mpris('volume-set', bus_address=bus_address)
+    playerctl = PlayerctlCli(bus_address)
+
+    for arg, expected in (('0.3', 0.3), ('50%', 0.5), ('1.5%', 0.015)):
+        result = await playerctl.run(f'-p volume-set volume {arg}')
+        assert result.returncode == 0, result.stderr
+        assert mpris.volume == pytest.approx(expected), arg
+
+    await mpris.disconnect()
+
+
+
+@pytest.mark.asyncio
+async def test_volume_relative(bus_address):
+    [mpris] = await setup_mpris('volume-rel', bus_address=bus_address)
+    playerctl = PlayerctlCli(bus_address)
+
+    cases = (('0.1+', 0.6), ('0.1-', 0.4), ('10%+', 0.6), ('10%-', 0.4))
+    for arg, expected in cases:
+        mpris.volume = 0.5
+        result = await playerctl.run(f'-p volume-rel volume {arg}')
+        assert result.returncode == 0, result.stderr
+        assert mpris.volume == pytest.approx(expected), arg
+
+    await mpris.disconnect()
+
+
+
+@pytest.mark.asyncio
+async def test_volume_invalid(bus_address):
+    [mpris] = await setup_mpris('volume-bad', bus_address=bus_address)
+    playerctl = PlayerctlCli(bus_address)
+
+    for arg in ("''", '%', 'abc%', '50%%', '5%x', '+', '10%+-'):
+        mpris.volume = 0.5
+        result = await playerctl.run(f'-p volume-bad volume {arg}')
+        assert result.returncode == 1, (arg, result.stderr)
+        assert 'could not parse volume' in result.stderr, arg
+        assert mpris.volume == 0.5, arg
+
+    await mpris.disconnect()
