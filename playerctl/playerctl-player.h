@@ -17,10 +17,10 @@
  * Copyright © 2014, Tony Crisci and contributors
  */
 
-#ifndef __PLAYERCTL_PLAYER_H__
-#define __PLAYERCTL_PLAYER_H__
+#ifndef PLAYERCTL_PLAYER_H
+#define PLAYERCTL_PLAYER_H
 
-#if !defined(__PLAYERCTL_INSIDE__) && !defined(PLAYERCTL_COMPILATION)
+#if !defined(PLAYERCTL_INSIDE) && !defined(PLAYERCTL_COMPILATION)
 #error "Only <playerctl/playerctl.h> can be included directly."
 #endif
 
@@ -175,4 +175,4 @@ void playerctl_player_set_loop_status(PlayerctlPlayer *self, PlayerctlLoopStatus
 
 void playerctl_player_set_shuffle(PlayerctlPlayer *self, gboolean shuffle, GError **err);
 
-#endif /* __PLAYERCTL_PLAYER_H__ */
+#endif /* PLAYERCTL_PLAYER_H */

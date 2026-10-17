@@ -17,8 +17,8 @@
  * Copyright © 2014, Tony Crisci and contributors
  */
 
-#ifndef __PLAYERCTL_PLAYER_PRIVATE_H__
-#define __PLAYERCTL_PLAYER_PRIVATE_H__
+#ifndef PLAYERCTL_PLAYER_PRIVATE_H
+#define PLAYERCTL_PLAYER_PRIVATE_H
 
 #include "playerctl-player.h"
 
@@ -30,4 +30,4 @@ gint player_name_compare_func(gconstpointer a, gconstpointer b, gpointer user_da
 
 gint player_compare_func(gconstpointer a, gconstpointer b, gpointer user_data);
 
-#endif /* __PLAYERCTL_PLAYER_PRIVATE_H__ */
+#endif /* PLAYERCTL_PLAYER_PRIVATE_H */

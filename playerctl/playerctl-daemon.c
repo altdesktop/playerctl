@@ -489,16 +489,16 @@ static void context_remove_player(struct PlayerctldContext *ctx, struct Player *
 }
 
 static void context_rotate_queue(struct PlayerctldContext *ctx) {
-    struct Player *player;
-    if ((player = g_queue_peek_head(ctx->players))) {
+    struct Player *player = g_queue_peek_head(ctx->players);
+    if (player != NULL) {
         context_remove_player(ctx, player);
         g_queue_push_tail(ctx->players, player);
     }
 }
 
 static void context_unrotate_queue(struct PlayerctldContext *ctx) {
-    struct Player *player;
-    if ((player = g_queue_peek_tail(ctx->players))) {
+    struct Player *player = g_queue_peek_tail(ctx->players);
+    if (player != NULL) {
         context_remove_player(ctx, player);
         g_queue_push_head(ctx->players, player);
     }
@@ -509,14 +509,16 @@ static void context_unrotate_queue(struct PlayerctldContext *ctx) {
  */
 static struct Player *context_shift_active_player(struct PlayerctldContext *ctx) {
     GError *error = NULL;
-    struct Player *previous, *current;
+    struct Player *current;
+    struct Player *previous = context_get_active_player(ctx);
 
-    if (!(previous = context_get_active_player(ctx))) {
+    if (previous == NULL) {
         return NULL;
     }
     context_remove_player(ctx, previous);
     context_add_player(ctx, previous);
-    if ((current = context_get_active_player(ctx)) != previous) {
+    current = context_get_active_player(ctx);
+    if (current != previous) {
         player_update_position_sync(current, ctx, &error);
         if (error != NULL) {
             g_warning("could not update player position: %s", error->message);
@@ -533,15 +535,17 @@ static struct Player *context_shift_active_player(struct PlayerctldContext *ctx)
 
 static struct Player *context_unshift_active_player(struct PlayerctldContext *ctx) {
     GError *error = NULL;
-    struct Player *previous, *current;
+    struct Player *current;
+    struct Player *previous = context_get_active_player(ctx);
 
-    if (!(previous = context_get_active_player(ctx))) {
+    if (previous == NULL) {
         return NULL;
     }
 
     context_unrotate_queue(ctx);
 
-    if ((current = context_get_active_player(ctx)) != previous) {
+    current = context_get_active_player(ctx);
+    if (current != previous) {
         player_update_position_sync(current, ctx, &error);
         if (error != NULL) {
             g_warning("could not update player position: %s", error->message);
@@ -821,7 +825,8 @@ static void playerctld_method_call_func(GDBusConnection *connection, const char 
          * Move the active player to the back of the queue,
          * return the new active player
          */
-        if ((active_player = context_shift_active_player(ctx))) {
+        active_player = context_shift_active_player(ctx);
+        if (active_player != NULL) {
             g_dbus_method_invocation_return_value(invocation,
                                                   g_variant_new("(s)", active_player->well_known));
         } else {
@@ -836,7 +841,8 @@ static void playerctld_method_call_func(GDBusConnection *connection, const char 
          * Set the least recently active player to active,
          * return that player. Inverse of Shift.
          */
-        if ((active_player = context_unshift_active_player(ctx))) {
+        active_player = context_unshift_active_player(ctx);
+        if (active_player != NULL) {
             g_dbus_method_invocation_return_value(invocation,
                                                   g_variant_new("(s)", active_player->well_known));
         } else {
@@ -1265,6 +1271,7 @@ enum activation_result start_playerctld_dbus_activation(GDBusConnection *connect
         "StartServiceByName", g_variant_new("(su)", "org.mpris.MediaPlayer2.playerctld", 0), NULL,
         G_DBUS_CALL_FLAGS_NO_AUTO_START, -1, NULL, &tmp_error);
     if (tmp_error != NULL) {
+        // NOLINTNEXTLINE(bugprone-assignment-in-if-condition): assignment is inside the glib macro
         if (g_str_has_prefix(tmp_error->message,
                              "GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown")) {
             g_clear_error(&tmp_error);
@@ -1518,9 +1525,9 @@ int main(int argc, char *argv[]) {
                                        G_DBUS_SIGNAL_FLAGS_NONE, player_signal_proxy_callback, &ctx,
                                        NULL);
 
-    ctx.bus_id = g_bus_own_name_on_connection(ctx.connection, "org.mpris.MediaPlayer2.playerctld",
-                                              G_BUS_NAME_OWNER_FLAGS_DO_NOT_QUEUE, on_bus_acquired,
-                                              on_name_lost, &ctx, NULL);
+    ctx.bus_id = (gint)g_bus_own_name_on_connection(
+        ctx.connection, "org.mpris.MediaPlayer2.playerctld", G_BUS_NAME_OWNER_FLAGS_DO_NOT_QUEUE,
+        on_bus_acquired, on_name_lost, &ctx, NULL);
 
     g_main_loop_run(ctx.loop);
     g_bus_unown_name(ctx.bus_id);

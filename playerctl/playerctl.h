@@ -17,10 +17,10 @@
  * Copyright © 2014, Tony Crisci and contributors
  */
 
-#ifndef __PLAYERCTL_H__
-#define __PLAYERCTL_H__
+#ifndef PLAYERCTL_H
+#define PLAYERCTL_H
 
-#define __PLAYERCTL_INSIDE__
+#define PLAYERCTL_INSIDE
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,6 +35,6 @@ extern "C" {
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-#undef __PLAYERCTL_INSIDE__
+#undef PLAYERCTL_INSIDE
 
-#endif /* __PLAYERCTL_H__ */
+#endif /* PLAYERCTL_H */

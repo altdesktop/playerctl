@@ -17,10 +17,10 @@
  * Copyright © 2014, Tony Crisci
  */
 
-#ifndef __PLAYERCTL_PLAYER_MANAGER_H__
-#define __PLAYERCTL_PLAYER_MANAGER_H__
+#ifndef PLAYERCTL_PLAYER_MANAGER_H
+#define PLAYERCTL_PLAYER_MANAGER_H
 
-#if !defined(__PLAYERCTL_INSIDE__) && !defined(PLAYERCTL_COMPILATION)
+#if !defined(PLAYERCTL_INSIDE) && !defined(PLAYERCTL_COMPILATION)
 #error "Only <playerctl/playerctl.h> can be included directly."
 #endif
 
@@ -99,4 +99,4 @@ void playerctl_player_manager_set_sort_func(PlayerctlPlayerManager *manager,
 void playerctl_player_manager_move_player_to_top(PlayerctlPlayerManager *manager,
                                                  PlayerctlPlayer *player);
 
-#endif /* __PLAYERCTL_PLAYER_MANAGER_H__ */
+#endif /* PLAYERCTL_PLAYER_MANAGER_H */

@@ -30,7 +30,7 @@
 #include "playerctl-common.h"
 #include "playerctl-generated.h"
 
-#define LENGTH(array) (sizeof array / sizeof array[0])
+#define LENGTH(array) (sizeof(array) / sizeof((array)[0]))
 
 #define MPRIS_PATH "/org/mpris/MediaPlayer2"
 #define PROPERTIES_IFACE "org.freedesktop.DBus.Properties"
@@ -1304,8 +1304,8 @@ static gchar *print_metadata_table(GVariant *metadata, gchar *player_name) {
 
         if (g_variant_is_container(value_variant)) {
             // only go depth 1
-            int len = g_variant_n_children(value_variant);
-            for (int i = 0; i < len; ++i) {
+            gsize len = g_variant_n_children(value_variant);
+            for (gsize i = 0; i < len; ++i) {
                 GVariant *child_value = g_variant_get_child_value(value_variant, i);
                 gchar *child_value_str = pctl_print_gvariant(child_value);
                 g_string_append_printf(table, fmt, player_name, key, child_value_str);

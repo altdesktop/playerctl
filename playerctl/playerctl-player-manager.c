@@ -214,8 +214,9 @@ static void playerctl_player_manager_init(PlayerctlPlayerManager *manager) {
 static gchar *player_id_from_bus_name(const gchar *bus_name) {
     const size_t prefix_len = strlen(MPRIS_PREFIX);
 
-    if (bus_name == NULL || !g_str_has_prefix(bus_name, MPRIS_PREFIX) ||
-        strlen(bus_name) <= prefix_len) {
+    if (bus_name == NULL ||
+        // NOLINTNEXTLINE(bugprone-assignment-in-if-condition): assignment is inside the glib macro
+        !g_str_has_prefix(bus_name, MPRIS_PREFIX) || strlen(bus_name) <= prefix_len) {
         return NULL;
     }
 

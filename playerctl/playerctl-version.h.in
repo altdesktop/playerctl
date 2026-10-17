@@ -16,10 +16,10 @@
  *
  * Copyright © 2014, Tony Crisci
  */
-#ifndef __PLAYERCTL_VERSION_H__
-#define __PLAYERCTL_VERSION_H__
+#ifndef PLAYERCTL_VERSION_H
+#define PLAYERCTL_VERSION_H
 
-#if !defined(__PLAYERCTL_INSIDE__) && !defined(PLAYERCTL_COMPILATION)
+#if !defined(PLAYERCTL_INSIDE) && !defined(PLAYERCTL_COMPILATION)
 #error "Only <playerctl/playerctl.h> can be included directly."
 #endif
 
@@ -84,4 +84,4 @@
    (PLAYERCTL_MAJOR_VERSION == (major) && PLAYERCTL_MINOR_VERSION == (minor) && \
     PLAYERCTL_MICRO_VERSION >= (micro)))
 
-#endif /* __PLAYERCTL_VERSION_H__ */
+#endif /* PLAYERCTL_VERSION_H */

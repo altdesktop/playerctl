@@ -17,8 +17,8 @@
  * Copyright © 2014, Tony Crisci and contributors
  */
 
-#ifndef __PLAYERCTL_PLAYER_NAME_H__
-#define __PLAYERCTL_PLAYER_NAME_H__
+#ifndef PLAYERCTL_PLAYER_NAME_H
+#define PLAYERCTL_PLAYER_NAME_H
 
 #include <glib-object.h>
 #include <glib.h>
@@ -80,4 +80,4 @@ struct _PlayerctlPlayerName {
     PlayerctlSource source;
 };
 
-#endif /* __PLAYERCTL_PLAYER_NAME_H__ */
+#endif /* PLAYERCTL_PLAYER_NAME_H */

@@ -3,15 +3,10 @@
 # use NOLINT with a reason for the rare false positive.
 #
 # Disabled checks:
-#   clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling: wants Annex K functions
-#   bugprone-easily-swappable-parameters: too noisy for the glib-style APIs
-#   bugprone-reserved-identifier: glib-style leading-underscore names
-#   bugprone-macro-parentheses: glib-style macros
-#   bugprone-narrowing-conversions: pervasive gint/gsize/guint mixing
-#   bugprone-assignment-in-if-condition: common glib idiom
-#   bugprone-branch-clone: intentionally parallel branches
-#   bugprone-casting-through-void: fires inside glib G_* cast macros
-#   bugprone-multi-level-implicit-pointer-conversion: GObject/GList APIs
+#   bugprone-easily-swappable-parameters: flags public API signatures, which
+#     cannot change without breaking the ABI
+#   bugprone-casting-through-void: fires inside the glib G_* cast macros
+#   bugprone-multi-level-implicit-pointer-conversion: GObject out-parameter APIs
 #
 # Probed but not enabled (too noisy for GObject code, or an ABI-affecting
 # change): misc-include-cleaner, misc-unused-parameters, misc-no-recursion,
@@ -20,17 +15,16 @@
 Checks: >
   -*,
   clang-analyzer-*,
-  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
   bugprone-*,
   -bugprone-easily-swappable-parameters,
-  -bugprone-reserved-identifier,
-  -bugprone-macro-parentheses,
-  -bugprone-narrowing-conversions,
-  -bugprone-assignment-in-if-condition,
-  -bugprone-branch-clone,
   -bugprone-casting-through-void,
   -bugprone-multi-level-implicit-pointer-conversion,
   cert-err33-c,
   cert-dcl16-c
 WarningsAsErrors: '*'
-HeaderFilterRegex: 'playerctl/.*'
+# Hand-written headers only: the gdbus-codegen output (playerctl-generated.h)
+# cannot be edited
+HeaderFilterRegex: 'playerctl/playerctl(-common|-formatter|-player|-player-manager|-player-name|-player-private|-version|-enum-types)?\.h$'
+CheckOptions:
+  # GObject struct tags (struct _PlayerctlPlayer) are a glib convention
+  bugprone-reserved-identifier.AllowedIdentifiers: '_Playerctl[A-Za-z]*'

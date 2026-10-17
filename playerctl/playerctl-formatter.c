@@ -8,7 +8,7 @@
 
 #include "playerctl/playerctl-common.h"
 
-#define LENGTH(array) (sizeof array / sizeof array[0])
+#define LENGTH(array) (sizeof(array) / sizeof((array)[0]))
 
 #define MAX_ARGS 32
 
@@ -133,7 +133,7 @@ static gchar *infix_to_identifier(gchar infix) {
 static struct token *tokenize_expression(const gchar *format, gint pos, gint *end,
                                          enum parse_level level, GError **error) {
     GError *tmp_error = NULL;
-    int len = strlen(format);
+    int len = (int)strlen(format);
     char buf[1028];
     int buf_len = 0;
     struct token *tok = NULL;
@@ -371,7 +371,7 @@ static GList *tokenize_format(const char *format, GError **error) {
         return NULL;
     }
 
-    int len = strlen(format);
+    size_t len = strlen(format);
     char buf[1028];
     int buf_len = 0;
 
@@ -381,7 +381,7 @@ static GList *tokenize_format(const char *format, GError **error) {
         return NULL;
     }
 
-    for (int i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         if (format[i] == '{' && i < len + 1 && format[i + 1] == '{') {
             if (buf_len > 0) {
                 buf[buf_len] = '\0';
@@ -394,7 +394,8 @@ static GList *tokenize_format(const char *format, GError **error) {
 
             i += 2;
             int end = 0;
-            struct token *token = tokenize_expression(format, i, &end, PARSE_FULL, &tmp_error);
+            struct token *token =
+                tokenize_expression(format, (gint)i, &end, PARSE_FULL, &tmp_error);
             if (tmp_error != NULL) {
                 token_list_destroy(tokens);
                 g_propagate_error(error, tmp_error);
@@ -410,7 +411,7 @@ static GList *tokenize_format(const char *format, GError **error) {
             if (i >= len || format[i] != '}' || format[i + 1] != '}') {
                 token_list_destroy(tokens);
                 g_set_error(error, playerctl_formatter_error_quark(), 1,
-                            "expecting \"}}\" (position %d)", i);
+                            "expecting \"}}\" (position %zu)", i);
                 return NULL;
             }
             i += 1;
@@ -490,10 +491,10 @@ static GVariant *helperfn_duration(struct token *token, GVariant **args, int nar
         duration = g_variant_get_int64(value);
     } else if (g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_UINT64)) {
         // XXX: spotify may give uint64
-        duration = g_variant_get_uint64(value);
+        duration = (gint64)g_variant_get_uint64(value);
     } else if (g_variant_type_equal(g_variant_get_type(value), G_VARIANT_TYPE_DOUBLE)) {
         // only if supplied by a constant or position value type goes against spec
-        duration = g_variant_get_double(value);
+        duration = (gint64)g_variant_get_double(value);
     } else {
         g_set_error(error, playerctl_formatter_error_quark(), 1,
                     "function duration can only be called on track position values");
@@ -639,7 +640,7 @@ static GVariant *helperfn_trunc(struct token *token, GVariant **args, int nargs,
     }
 
     gchar *orig = pctl_print_gvariant(value);
-    gchar *trunc = g_utf8_substring(orig, 0, g_variant_get_double(len));
+    gchar *trunc = g_utf8_substring(orig, 0, (glong)g_variant_get_double(len));
 
     GString *formatted = g_string_new(trunc);
     if (g_utf8_strlen(trunc, 256) < g_utf8_strlen(orig, 256)) {
@@ -664,11 +665,9 @@ static gboolean is_valid_numeric_type(GVariant *value) {
         return FALSE;
     }
 
-    if (g_variant_is_of_type(value, G_VARIANT_TYPE_INT64)) {
-        return TRUE;
-    } else if (g_variant_is_of_type(value, G_VARIANT_TYPE_UINT64)) {
-        return TRUE;
-    } else if (g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
+    if (g_variant_is_of_type(value, G_VARIANT_TYPE_INT64) ||
+        g_variant_is_of_type(value, G_VARIANT_TYPE_UINT64) ||
+        g_variant_is_of_type(value, G_VARIANT_TYPE_DOUBLE)) {
         return TRUE;
     }
 

@@ -17,8 +17,8 @@
  * Copyright © 2014, Tony Crisci and contributors
  */
 
-#ifndef __PLAYERCTL_COMMON_H__
-#define __PLAYERCTL_COMMON_H__
+#ifndef PLAYERCTL_COMMON_H
+#define PLAYERCTL_COMMON_H
 
 #include <gio/gio.h>
 #include <glib.h>
@@ -59,5 +59,5 @@ GList *pctl_list_player_names_on_bus(GBusType bus_type, GError **err);
 
 bool pctl_player_has_cached_property(PlayerctlPlayer *player, const gchar *name);
 
-#undef __PLAYERCTL_COMMON_H__
+#undef PLAYERCTL_COMMON_H
 #endif

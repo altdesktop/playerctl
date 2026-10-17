@@ -31,7 +31,7 @@
 #include "playerctl-formatter.h"
 #include "playerctl-player-private.h"
 
-#define LENGTH(array) (sizeof array / sizeof array[0])
+#define LENGTH(array) (sizeof(array) / sizeof((array)[0]))
 
 // clang-format off
 G_DEFINE_QUARK(playerctl-cli-error-quark, playerctl_cli_error);
@@ -345,7 +345,7 @@ static gboolean playercmd_position(PlayerctlPlayer *player, gchar **argv, gint a
         }
 
         char *endptr = NULL;
-        offset = 1000000.0 * strtod(position, &endptr);
+        offset = (gint64)(1000000.0 * strtod(position, &endptr));
 
         if (position == endptr) {
             g_set_error(error, playerctl_cli_error_quark(), 1,
@@ -1136,8 +1136,8 @@ gint player_name_string_compare_func(gconstpointer a, gconstpointer b, gpointer 
         ++i;
     }
 
-    if (a_match_index == -1 && b_match_index == -1) {
-        // neither are in the list
+    if (a_match_index == b_match_index) {
+        // neither are in the list, or preserve order
         return 0;
     } else if (a_match_index == -1) {
         // b is in the list
@@ -1145,9 +1145,6 @@ gint player_name_string_compare_func(gconstpointer a, gconstpointer b, gpointer 
     } else if (b_match_index == -1) {
         // a is in the list
         return (a_match_index < any_index ? -1 : 1);
-    } else if (a_match_index == b_match_index) {
-        // preserve order
-        return 0;
     } else {
         return (a_match_index < b_match_index ? -1 : 1);
     }
@@ -1175,7 +1172,7 @@ gint player_compare_func(gconstpointer a, gconstpointer b, gpointer user_data) {
 int main(int argc, char *argv[]) {
     g_debug("playerctl version %s", PLAYERCTL_VERSION_S);
     GError *error = NULL;
-    guint num_commands = 0;
+    gint num_commands = 0;
     GList *available_players = NULL;
 
     // seems to be required to print unicode (see #8)
@@ -1200,7 +1197,7 @@ int main(int argc, char *argv[]) {
         exit(result);
     }
 
-    num_commands = g_strv_length(command_arg);
+    num_commands = (gint)g_strv_length(command_arg);
 
     const struct player_command *player_cmd = get_player_command(command_arg, num_commands, &error);
     if (error != NULL) {

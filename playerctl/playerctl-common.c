@@ -288,6 +288,7 @@ GList *pctl_list_player_names_on_bus(GBusType bus_type, GError **err) {
 
     size_t offset = strlen(MPRIS_PREFIX);
     for (gsize i = 0; i < reply_count; i += 1) {
+        // NOLINTNEXTLINE(bugprone-assignment-in-if-condition): assignment is inside the glib macro
         if (g_str_has_prefix(names[i], MPRIS_PREFIX)) {
             PlayerctlPlayerName *player_name =
                 pctl_player_name_new(names[i] + offset, pctl_bus_type_to_source(bus_type));

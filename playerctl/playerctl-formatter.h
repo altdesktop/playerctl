@@ -17,8 +17,8 @@
  * Copyright © 2014, Tony Crisci and contributors
  */
 
-#ifndef __PLAYERCTL_FORMATTER_H__
-#define __PLAYERCTL_FORMATTER_H__
+#ifndef PLAYERCTL_FORMATTER_H
+#define PLAYERCTL_FORMATTER_H
 
 #include <glib.h>
 #include <playerctl/playerctl.h>
@@ -42,4 +42,4 @@ GVariantDict *playerctl_formatter_default_template_context(PlayerctlFormatter *f
 gchar *playerctl_formatter_expand_format(PlayerctlFormatter *formatter, GVariantDict *context,
                                          GError **error);
 
-#endif /* __PLAYERCTL_FORMATTER_H__ */
+#endif /* PLAYERCTL_FORMATTER_H */
